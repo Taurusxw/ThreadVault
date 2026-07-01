@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": true,
+    "required": [
+      "event_id",
+      "session_id"
+    ],
+    "properties": {
+      "event_id": {
+        "type": "integer"
+      },
+      "session_id": {
+        "type": "string"
+      },
+      "timestamp": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "top_type": {
+        "type": "string"
+      },
+      "sub_type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "role": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "tool_name": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "file_path": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "snippet": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "rank": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    }
+  }
+}

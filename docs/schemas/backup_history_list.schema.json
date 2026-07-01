@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "dir",
+    "backups",
+    "warnings"
+  ],
+  "properties": {
+    "dir": {
+      "type": "string"
+    },
+    "backups": {
+      "type": "array"
+    },
+    "warnings": {
+      "type": "array"
+    }
+  }
+}

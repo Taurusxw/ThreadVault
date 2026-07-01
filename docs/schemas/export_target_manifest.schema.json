@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "manifest_version",
+    "target_profile",
+    "generated_at",
+    "root",
+    "selection",
+    "files",
+    "skipped",
+    "privacy",
+    "evidence"
+  ],
+  "properties": {
+    "manifest_version": {
+      "type": "string"
+    },
+    "target_profile": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "root": {
+      "type": "string"
+    },
+    "selection": {
+      "type": "object"
+    },
+    "files": {
+      "type": "array"
+    },
+    "skipped": {
+      "type": "array"
+    },
+    "privacy": {
+      "type": "object"
+    },
+    "evidence": {
+      "type": "object"
+    }
+  }
+}

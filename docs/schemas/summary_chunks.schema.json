@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "selection",
+    "chunks",
+    "skipped",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "sessions",
+        "project",
+        "selected_session_ids"
+      ],
+      "properties": {
+        "sessions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "project": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "selected_session_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "chunks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "chunk_id",
+          "chunk_type",
+          "session_id",
+          "turn_index",
+          "text",
+          "text_chars",
+          "evidence_event_ids",
+          "metadata"
+        ],
+        "properties": {
+          "chunk_id": {
+            "type": "string"
+          },
+          "chunk_type": {
+            "type": "string",
+            "enum": [
+              "session_summary",
+              "turn_summary",
+              "evidence"
+            ]
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "turn_index": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "text_chars": {
+            "type": "integer"
+          },
+          "evidence_event_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "skipped": {
+      "type": "array"
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "selected_sessions_count",
+        "chunks_count",
+        "chunk_type_counts",
+        "max_chunks_per_session",
+        "max_chars",
+        "truncated_chunks",
+        "embedding_ready",
+        "embedding_generated"
+      ],
+      "properties": {
+        "selected_sessions_count": {
+          "type": "integer"
+        },
+        "chunks_count": {
+          "type": "integer"
+        },
+        "chunk_type_counts": {
+          "type": "object"
+        },
+        "max_chunks_per_session": {
+          "type": "integer"
+        },
+        "max_chars": {
+          "type": "integer"
+        },
+        "truncated_chunks": {
+          "type": "integer"
+        },
+        "embedding_ready": {
+          "type": "boolean"
+        },
+        "embedding_generated": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

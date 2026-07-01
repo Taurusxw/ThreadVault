@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "governance",
+    "readiness",
+    "local_policy",
+    "central_policy",
+    "adapter",
+    "versioning",
+    "provenance",
+    "migration",
+    "identity_dependency",
+    "fallback",
+    "blockers",
+    "recommended_next_phases",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "enabled",
+        "mode",
+        "central_policy_ready",
+        "team_enforcement_ready",
+        "current_permissions_enforced",
+        "server_required",
+        "server_opt_in",
+        "cloud_sync"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "central_policy_ready": {
+          "type": "boolean"
+        },
+        "team_enforcement_ready": {
+          "type": "boolean"
+        },
+        "current_permissions_enforced": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "overall_status",
+        "implemented_prerequisites",
+        "missing_prerequisites",
+        "blocking_count",
+        "safe_to_keep_local_cli",
+        "safe_to_use_local_static_policy",
+        "safe_to_enable_central_policy_store",
+        "safe_to_enable_team_enforcement"
+      ],
+      "properties": {
+        "overall_status": {
+          "type": "string"
+        },
+        "implemented_prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing_prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blocking_count": {
+          "type": "integer"
+        },
+        "safe_to_keep_local_cli": {
+          "type": "boolean"
+        },
+        "safe_to_use_local_static_policy": {
+          "type": "boolean"
+        },
+        "safe_to_enable_central_policy_store": {
+          "type": "boolean"
+        },
+        "safe_to_enable_team_enforcement": {
+          "type": "boolean"
+        }
+      }
+    },
+    "local_policy": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "central_policy": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "versioning": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "identity_dependency": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "local_static_policy_available",
+        "central_policy_required_for_local_cli",
+        "central_policy_required_for_shared_enforcement",
+        "fallback_policy_implemented"
+      ],
+      "properties": {
+        "local_static_policy_available": {
+          "type": "boolean"
+        },
+        "central_policy_required_for_local_cli": {
+          "type": "boolean"
+        },
+        "central_policy_required_for_shared_enforcement": {
+          "type": "boolean"
+        },
+        "fallback_policy_implemented": {
+          "type": "boolean"
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "code",
+          "severity",
+          "category",
+          "description",
+          "required_before"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "required_before": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "recommended_next_phases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "config_path",
+        "local_first",
+        "privacy_first",
+        "server_opt_in",
+        "cloud_sync",
+        "server_required",
+        "business_commands_instrumented",
+        "automatic_policy_enforcement",
+        "v2_retrieval_core_changed"
+      ],
+      "properties": {
+        "config_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "local_first": {
+          "type": "boolean"
+        },
+        "privacy_first": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "business_commands_instrumented": {
+          "type": "boolean"
+        },
+        "automatic_policy_enforcement": {
+          "type": "boolean"
+        },
+        "v2_retrieval_core_changed": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

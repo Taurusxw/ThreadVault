@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "dir",
+    "reports",
+    "warnings",
+    "ok",
+    "apply",
+    "keep",
+    "keep_source",
+    "kept",
+    "deletable",
+    "deleted"
+  ],
+  "properties": {
+    "dir": {
+      "type": "string"
+    },
+    "reports": {
+      "type": "array"
+    },
+    "warnings": {
+      "type": "array"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "apply": {
+      "type": "boolean"
+    },
+    "keep": {
+      "type": "integer"
+    },
+    "keep_source": {
+      "type": "string",
+      "enum": [
+        "cli",
+        "config"
+      ]
+    },
+    "kept": {
+      "type": "array"
+    },
+    "deletable": {
+      "type": "array"
+    },
+    "deleted": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

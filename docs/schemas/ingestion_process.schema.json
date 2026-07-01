@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "apply",
+    "processed",
+    "requests"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "apply": {
+      "type": "boolean"
+    },
+    "processed": {
+      "type": "integer"
+    },
+    "requests": {
+      "type": "array"
+    }
+  }
+}

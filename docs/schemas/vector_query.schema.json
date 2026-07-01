@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "query",
+    "results",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "text",
+        "limit",
+        "adapter",
+        "dimensions"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "adapter": {
+          "type": "string"
+        },
+        "dimensions": {
+          "type": "integer"
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "chunk_id",
+          "chunk_type",
+          "session_id",
+          "turn_index",
+          "score",
+          "text",
+          "evidence_event_ids",
+          "metadata",
+          "indexed_at"
+        ],
+        "properties": {
+          "chunk_id": {
+            "type": "string"
+          },
+          "chunk_type": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "turn_index": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "score": {
+            "type": "number"
+          },
+          "text": {
+            "type": "string"
+          },
+          "evidence_event_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "indexed_at": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "config_enabled",
+        "adapter",
+        "dimensions",
+        "indexed_chunks",
+        "result_count"
+      ],
+      "properties": {
+        "config_enabled": {
+          "type": "boolean"
+        },
+        "adapter": {
+          "type": "string"
+        },
+        "dimensions": {
+          "type": "integer"
+        },
+        "indexed_chunks": {
+          "type": "integer"
+        },
+        "result_count": {
+          "type": "integer"
+        },
+        "embedding_kind": {
+          "type": "string"
+        },
+        "external_provider": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

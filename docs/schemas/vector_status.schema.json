@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "ok",
+    "config",
+    "index",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "enabled",
+        "adapter",
+        "dimensions"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "adapter": {
+          "type": "string"
+        },
+        "dimensions": {
+          "type": "integer"
+        }
+      }
+    },
+    "index": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "exists",
+        "adapter",
+        "dimensions",
+        "chunk_count",
+        "built_at",
+        "matching_chunks"
+      ],
+      "properties": {
+        "exists": {
+          "type": "boolean"
+        },
+        "adapter": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dimensions": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "chunk_count": {
+          "type": "integer"
+        },
+        "built_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "matching_chunks": {
+          "type": "integer"
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "config_enabled": {
+          "type": "boolean"
+        },
+        "embedding_generated": {
+          "type": "boolean"
+        },
+        "embedding_kind": {
+          "type": "string"
+        },
+        "external_provider": {
+          "type": "boolean"
+        },
+        "raw_events_indexed": {
+          "type": "boolean"
+        },
+        "source_schema": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

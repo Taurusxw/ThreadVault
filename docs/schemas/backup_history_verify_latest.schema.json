@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "dir",
+    "backups",
+    "warnings",
+    "latest",
+    "ok",
+    "error",
+    "verification"
+  ],
+  "properties": {
+    "dir": {
+      "type": "string"
+    },
+    "backups": {
+      "type": "array"
+    },
+    "warnings": {
+      "type": "array"
+    },
+    "latest": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "verification": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

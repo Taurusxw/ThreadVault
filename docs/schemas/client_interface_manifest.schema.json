@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "interface",
+    "client_families",
+    "entrypoints",
+    "schemas",
+    "defaults",
+    "integration_policy",
+    "governance"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "name",
+        "version",
+        "module",
+        "client_families"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        },
+        "client_families": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "client_families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "name",
+          "status",
+          "server_required",
+          "opt_in",
+          "recommended_entrypoints"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "server_required": {
+            "type": "boolean"
+          },
+          "opt_in": {
+            "type": "boolean"
+          },
+          "recommended_entrypoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "entrypoints": {
+      "type": "object"
+    },
+    "schemas": {
+      "type": "object"
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "local_first",
+        "server_required",
+        "server_available",
+        "server_opt_in",
+        "cloud_sync",
+        "external_model_calls",
+        "raw_paths_in_default_output",
+        "vector_enabled_by_default",
+        "local_vector_enabled"
+      ],
+      "properties": {
+        "local_first": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_available": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "external_model_calls": {
+          "type": "boolean"
+        },
+        "raw_paths_in_default_output": {
+          "type": "boolean"
+        },
+        "vector_enabled_by_default": {
+          "type": "boolean"
+        },
+        "local_vector_enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "integration_policy": {
+      "type": "object"
+    },
+    "governance": {
+      "type": "object"
+    }
+  }
+}

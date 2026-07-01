@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "error",
+    "source_db",
+    "destination",
+    "existed",
+    "overwritten",
+    "force",
+    "bytes",
+    "schema_version",
+    "stats",
+    "manifest"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_db": {
+      "type": "string"
+    },
+    "destination": {
+      "type": "string"
+    },
+    "existed": {
+      "type": "boolean"
+    },
+    "overwritten": {
+      "type": "boolean"
+    },
+    "force": {
+      "type": "boolean"
+    },
+    "bytes": {
+      "type": "integer"
+    },
+    "schema_version": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "stats": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "manifest": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

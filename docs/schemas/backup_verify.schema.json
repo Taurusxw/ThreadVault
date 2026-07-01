@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "backup",
+    "exists",
+    "ok",
+    "errors",
+    "integrity_check",
+    "schema_version",
+    "doctor",
+    "stats",
+    "bytes",
+    "manifest"
+  ],
+  "properties": {
+    "backup": {
+      "type": "string"
+    },
+    "exists": {
+      "type": "boolean"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "errors": {
+      "type": "array"
+    },
+    "integrity_check": {
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "schema_version": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "doctor": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "stats": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "bytes": {
+      "type": "integer"
+    },
+    "manifest": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

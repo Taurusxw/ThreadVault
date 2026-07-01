@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "mode",
+    "apply",
+    "overwrite",
+    "allow_missing_manifest",
+    "backup",
+    "target_db",
+    "plan",
+    "pre_restore_backup",
+    "restored_verification",
+    "restored_doctor",
+    "history",
+    "errors",
+    "warnings"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "mode": {
+      "type": "string"
+    },
+    "apply": {
+      "type": "boolean"
+    },
+    "overwrite": {
+      "type": "boolean"
+    },
+    "allow_missing_manifest": {
+      "type": "boolean"
+    },
+    "backup": {
+      "type": "string"
+    },
+    "target_db": {
+      "type": "string"
+    },
+    "plan": {
+      "type": "object"
+    },
+    "pre_restore_backup": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "restored_verification": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "restored_doctor": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "history": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "errors": {
+      "type": "array"
+    },
+    "warnings": {
+      "type": "array"
+    }
+  }
+}

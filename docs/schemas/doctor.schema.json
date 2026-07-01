@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "checks",
+    "stats",
+    "parse_health",
+    "schema_version",
+    "schema_objects",
+    "maintenance_suggestions",
+    "python",
+    "platform",
+    "db_path",
+    "codex_home",
+    "session_dirs",
+    "missing_session_dirs",
+    "jsonl_files",
+    "codex_state"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "checks": {
+      "type": "array"
+    },
+    "stats": {
+      "type": "object"
+    },
+    "parse_health": {
+      "type": "object"
+    },
+    "schema_version": {
+      "type": "integer"
+    },
+    "schema_objects": {
+      "type": "object"
+    },
+    "maintenance_suggestions": {
+      "type": "array"
+    },
+    "python": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string"
+    },
+    "db_path": {
+      "type": "string"
+    },
+    "codex_home": {
+      "type": "string"
+    },
+    "session_dirs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "missing_session_dirs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "jsonl_files": {
+      "type": "integer"
+    },
+    "codex_state": {
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "history",
+    "records",
+    "warnings",
+    "invalid_lines",
+    "ok",
+    "apply",
+    "keep",
+    "keep_source",
+    "kept",
+    "deletable",
+    "rewritten"
+  ],
+  "properties": {
+    "history": {
+      "type": "string"
+    },
+    "records": {
+      "type": "array"
+    },
+    "warnings": {
+      "type": "array"
+    },
+    "invalid_lines": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "apply": {
+      "type": "boolean"
+    },
+    "keep": {
+      "type": "integer"
+    },
+    "keep_source": {
+      "type": "string",
+      "enum": [
+        "cli",
+        "config"
+      ]
+    },
+    "kept": {
+      "type": "array"
+    },
+    "deletable": {
+      "type": "array"
+    },
+    "rewritten": {
+      "type": "boolean"
+    }
+  }
+}

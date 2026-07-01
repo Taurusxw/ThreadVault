@@ -1,0 +1,8 @@
+{"timestamp":"2026-02-01T09:00:00Z","type":"session_meta","payload":{"session_id":"sess-fork","id":"sess-fork","cwd":"E:\\Codex\\ThreadVault","source":"cli","model_provider":"openai","forked_from_id":"sess-parent"}}
+{"timestamp":"2026-01-31T09:00:00Z","type":"session_meta","payload":{"session_id":"sess-parent","id":"sess-parent","cwd":"E:\\Codex\\ThreadVault","source":"cli","model_provider":"openai"}}
+{"timestamp":"2026-02-01T09:00:01Z","type":"event_msg","payload":{"type":"user_message","message":"First branch question with special token alpha:beta","kind":"plain"}}
+{"timestamp":"2026-02-01T09:00:02Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"First branch answer"}]}}
+{"timestamp":"2026-02-01T09:01:01Z","type":"event_msg","payload":{"type":"user_message","message":"Second branch question keep only this turn","kind":"plain"}}
+{"timestamp":"2026-02-01T09:01:02Z","type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\"command\":\"echo second\"}","call_id":"call_second"}}
+{"timestamp":"2026-02-01T09:01:03Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call_second","output":"second output"}}
+{"timestamp":"2026-02-01T09:01:04Z","type":"response_item","payload":{"type":"reasoning","summary":[{"type":"summary_text","text":"hidden reasoning summary"}]}}

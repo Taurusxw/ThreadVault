@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "ok",
+    "adapter",
+    "dimensions",
+    "source",
+    "indexed",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "adapter": {
+      "type": "string"
+    },
+    "dimensions": {
+      "type": "integer"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "schema",
+        "selection",
+        "skipped"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string"
+        },
+        "selection": {
+          "type": "object"
+        },
+        "skipped": {
+          "type": "array"
+        }
+      }
+    },
+    "indexed": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "chunks",
+        "total_chunks",
+        "built_at"
+      ],
+      "properties": {
+        "chunks": {
+          "type": "integer"
+        },
+        "total_chunks": {
+          "type": "integer"
+        },
+        "built_at": {
+          "type": "string"
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "config_enabled": {
+          "type": "boolean"
+        },
+        "embedding_generated": {
+          "type": "boolean"
+        },
+        "embedding_kind": {
+          "type": "string"
+        },
+        "external_provider": {
+          "type": "boolean"
+        },
+        "raw_events_indexed": {
+          "type": "boolean"
+        },
+        "source_schema": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

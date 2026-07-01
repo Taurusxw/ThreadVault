@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "sessions",
+    "events",
+    "turns",
+    "warnings"
+  ],
+  "properties": {
+    "sessions": {
+      "type": "integer"
+    },
+    "events": {
+      "type": "integer"
+    },
+    "turns": {
+      "type": "integer"
+    },
+    "warnings": {
+      "type": "integer"
+    },
+    "projects": {
+      "type": "integer"
+    },
+    "tool_calls": {
+      "type": "integer"
+    },
+    "files": {
+      "type": "integer"
+    },
+    "first_seen_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "updated_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

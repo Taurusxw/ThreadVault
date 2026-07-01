@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "query",
+    "diagnostics",
+    "results"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "text",
+        "limit",
+        "fields",
+        "mode"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "fields": {
+          "type": "string",
+          "enum": [
+            "minimal",
+            "standard",
+            "full"
+          ]
+        },
+        "mode": {
+          "type": "string"
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "requested_mode",
+        "used_mode",
+        "engine",
+        "fields",
+        "limit",
+        "filters",
+        "fallback",
+        "rank_strategy",
+        "result_count",
+        "index_status",
+        "warnings"
+      ],
+      "properties": {
+        "requested_mode": {
+          "type": "string"
+        },
+        "used_mode": {
+          "type": "string"
+        },
+        "engine": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "filters": {
+          "type": "object"
+        },
+        "fallback": {
+          "type": "object"
+        },
+        "rank_strategy": {
+          "type": "string"
+        },
+        "result_count": {
+          "type": "integer"
+        },
+        "index_status": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "ok",
+            "event_count",
+            "fts_count",
+            "message"
+          ],
+          "properties": {
+            "ok": {
+              "type": "boolean"
+            },
+            "event_count": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "fts_count": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "event_id",
+          "session_id"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "top_type": {
+            "type": "string"
+          },
+          "sub_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tool_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "snippet": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rank": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

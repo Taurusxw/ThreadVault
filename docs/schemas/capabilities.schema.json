@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "name",
+    "contract_version",
+    "schema_version",
+    "stability_policy",
+    "commands",
+    "json_outputs",
+    "export_formats",
+    "export_profiles",
+    "privacy_modes",
+    "retrieval_modes",
+    "search_fields",
+    "feature_flags"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "contract_version": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "integer"
+    },
+    "stability_policy": {
+      "type": "string"
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "json_outputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "export_formats": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "export_profiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "privacy_modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "retrieval_modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "search_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "feature_flags": {
+      "type": "object"
+    }
+  }
+}

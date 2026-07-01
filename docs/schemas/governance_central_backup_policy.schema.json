@@ -1,0 +1,309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "governance",
+    "request",
+    "store",
+    "policy",
+    "validation",
+    "provenance",
+    "repository",
+    "backup",
+    "restore",
+    "retention",
+    "legal_hold",
+    "recovery_testing",
+    "migration",
+    "operation_resolution",
+    "audit",
+    "enforcement",
+    "blockers",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "enabled",
+        "mode",
+        "central_backup_policy_ready",
+        "central_backup_ready",
+        "shared_restore_ready",
+        "team_enforcement_ready",
+        "server_required",
+        "server_opt_in",
+        "cloud_sync"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "central_backup_policy_ready": {
+          "type": "boolean"
+        },
+        "central_backup_ready": {
+          "type": "boolean"
+        },
+        "shared_restore_ready": {
+          "type": "boolean"
+        },
+        "team_enforcement_ready": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "store": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "valid",
+        "expected_contract_version",
+        "policy_id",
+        "version",
+        "source_hash"
+      ],
+      "properties": {
+        "valid": {
+          "type": "boolean"
+        },
+        "expected_contract_version": {
+          "type": "string"
+        },
+        "policy_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "ok",
+        "errors",
+        "warnings",
+        "known_operations"
+      ],
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "errors": {
+          "type": "array"
+        },
+        "warnings": {
+          "type": "array"
+        },
+        "known_operations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "restore": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "legal_hold": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "recovery_testing": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "operation_resolution": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "requested",
+        "known",
+        "section",
+        "required_roles",
+        "actor_roles",
+        "allowed",
+        "audit_required"
+      ],
+      "properties": {
+        "requested": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "known": {
+          "type": "boolean"
+        },
+        "section": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required_roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actor_roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowed": {
+          "type": "boolean"
+        },
+        "audit_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "enforcement": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "would_allow",
+        "would_block",
+        "automatic_business_enforcement",
+        "shared_execution_ready",
+        "status"
+      ],
+      "properties": {
+        "would_allow": {
+          "type": "boolean"
+        },
+        "would_block": {
+          "type": "boolean"
+        },
+        "automatic_business_enforcement": {
+          "type": "boolean"
+        },
+        "shared_execution_ready": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "blockers": {
+      "type": "array"
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "config_path",
+        "local_first",
+        "privacy_first",
+        "server_required",
+        "server_opt_in",
+        "cloud_sync",
+        "v2_retrieval_core_changed",
+        "business_commands_instrumented",
+        "automatic_backup_policy_enforcement"
+      ],
+      "properties": {
+        "config_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "local_first": {
+          "type": "boolean"
+        },
+        "privacy_first": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "v2_retrieval_core_changed": {
+          "type": "boolean"
+        },
+        "business_commands_instrumented": {
+          "type": "boolean"
+        },
+        "automatic_backup_policy_enforcement": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

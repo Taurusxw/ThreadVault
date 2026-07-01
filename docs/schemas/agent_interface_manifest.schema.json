@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "interface",
+    "capabilities",
+    "schemas",
+    "recommended_commands",
+    "privacy",
+    "defaults"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "name",
+        "version",
+        "module",
+        "default_mode",
+        "modes"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        },
+        "default_mode": {
+          "type": "string",
+          "enum": [
+            "hybrid",
+            "fts"
+          ]
+        },
+        "modes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "retrieval",
+        "hybrid_retrieval",
+        "fts_fallback",
+        "vector_optional",
+        "local_debug_available"
+      ],
+      "properties": {
+        "retrieval": {
+          "type": "boolean"
+        },
+        "hybrid_retrieval": {
+          "type": "boolean"
+        },
+        "fts_fallback": {
+          "type": "boolean"
+        },
+        "vector_optional": {
+          "type": "boolean"
+        },
+        "local_vector_enabled": {
+          "type": "boolean"
+        },
+        "local_debug_available": {
+          "type": "boolean"
+        },
+        "mcp_runtime_included": {
+          "type": "boolean"
+        }
+      }
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "manifest",
+        "retrieval",
+        "underlying"
+      ],
+      "properties": {
+        "manifest": {
+          "type": "string"
+        },
+        "retrieval": {
+          "type": "string"
+        },
+        "underlying": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "recommended_commands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "local_first",
+        "raw_paths_in_default_output",
+        "raw_transcript_paths_exposed",
+        "local_debug_opt_in",
+        "external_model_calls"
+      ],
+      "properties": {
+        "local_first": {
+          "type": "boolean"
+        },
+        "raw_paths_in_default_output": {
+          "type": "boolean"
+        },
+        "raw_transcript_paths_exposed": {
+          "type": "boolean"
+        },
+        "local_debug_opt_in": {
+          "type": "boolean"
+        },
+        "external_model_calls": {
+          "type": "boolean"
+        }
+      }
+    },
+    "defaults": {
+      "type": "object"
+    }
+  }
+}

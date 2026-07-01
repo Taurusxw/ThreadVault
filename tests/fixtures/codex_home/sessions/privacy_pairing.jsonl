@@ -1,0 +1,8 @@
+{"timestamp":"2026-05-01T00:00:00Z","type":"session_meta","payload":{"session_id":"sess-privacy","cwd":"E:\\SensitiveRepo","source":"cli","model_provider":"openai"}}
+{"timestamp":"2026-05-01T00:00:01Z","type":"event_msg","payload":{"type":"user_message","message":"My email is user@example.com and api_key=supersecrettoken123","kind":"plain"}}
+{"timestamp":"2026-05-01T00:00:02Z","type":"response_item","payload":{"type":"message","role":"assistant","content":{"text":"Use /home/user/project/secret.py carefully"}}}
+{"timestamp":"2026-05-01T00:00:03Z","type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\"command\":\"echo missing\"}","call_id":"missing_out"}}
+{"timestamp":"2026-05-01T00:00:04Z","type":"response_item","payload":{"type":"function_call_output","call_id":"orphan_out","output":"orphan"}}
+{"timestamp":"2026-05-01T00:00:05Z","type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\"command\":\"echo duplicate\"}","call_id":"dup_out"}}
+{"timestamp":"2026-05-01T00:00:06Z","type":"response_item","payload":{"type":"function_call_output","call_id":"dup_out","output":"first"}}
+{"timestamp":"2026-05-01T00:00:07Z","type":"response_item","payload":{"type":"function_call_output","call_id":"dup_out","output":"second"}}

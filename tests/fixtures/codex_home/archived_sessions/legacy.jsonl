@@ -1,0 +1,4 @@
+{"id":"sess-legacy","timestamp":"2025-08-01T10:00:00Z","instructions":null}
+{"record_type":"state","timestamp":"2025-08-01T10:00:01Z"}
+{"type":"message","role":"user","timestamp":"2025-08-01T10:00:02Z","content":[{"type":"input_text","text":"Archive legacy transcript"}]}
+{"type":"function_call","name":"shell","arguments":"{\"command\":\"ls\"}","timestamp":"2025-08-01T10:00:03Z","call_id":"call_legacy"}

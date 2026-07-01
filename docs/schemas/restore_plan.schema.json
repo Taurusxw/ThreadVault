@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "mode",
+    "backup",
+    "target_db",
+    "backup_verification",
+    "manifest_verification",
+    "target",
+    "errors",
+    "warnings",
+    "recommended_actions"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "mode": {
+      "type": "string"
+    },
+    "backup": {
+      "type": "string"
+    },
+    "target_db": {
+      "type": "string"
+    },
+    "backup_verification": {
+      "type": "object"
+    },
+    "manifest_verification": {
+      "type": "object"
+    },
+    "target": {
+      "type": "object"
+    },
+    "errors": {
+      "type": "array"
+    },
+    "warnings": {
+      "type": "array"
+    },
+    "recommended_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

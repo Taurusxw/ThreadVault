@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "enabled",
+    "mode",
+    "access_levels",
+    "roles",
+    "sensitive_operations",
+    "audit_requirements",
+    "defaults",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "mode": {
+      "type": "string"
+    },
+    "access_levels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "name",
+          "description",
+          "sensitivity"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "sensitivity": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "name",
+          "access_levels"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "access_levels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "sensitive_operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "name",
+          "access_level",
+          "audit_required"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "access_level": {
+            "type": "string"
+          },
+          "audit_required": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "audit_requirements": {
+      "type": "object"
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "local_first",
+        "server_required",
+        "server_available",
+        "server_opt_in",
+        "cloud_sync",
+        "external_model_calls",
+        "permissions_enforced"
+      ],
+      "properties": {
+        "local_first": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_available": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "external_model_calls": {
+          "type": "boolean"
+        },
+        "permissions_enforced": {
+          "type": "boolean"
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "config_path",
+        "config_enabled",
+        "shared_server_implemented",
+        "team_permissions_implemented",
+        "audit_log_implemented"
+      ],
+      "properties": {
+        "config_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "config_enabled": {
+          "type": "boolean"
+        },
+        "shared_server_implemented": {
+          "type": "boolean"
+        },
+        "team_permissions_implemented": {
+          "type": "boolean"
+        },
+        "audit_log_implemented": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

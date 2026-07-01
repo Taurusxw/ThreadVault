@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "request",
+    "session",
+    "warnings",
+    "privacy",
+    "actions",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "session_id",
+        "local_debug"
+      ],
+      "properties": {
+        "session_id": {
+          "type": "string"
+        },
+        "local_debug": {
+          "type": "boolean"
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "session_id",
+        "cwd",
+        "source_kind",
+        "first_seen_at",
+        "updated_at",
+        "warning_count"
+      ],
+      "properties": {
+        "session_id": {
+          "type": "string"
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_kind": {
+          "type": "string"
+        },
+        "first_seen_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "warning_count": {
+          "type": "integer"
+        },
+        "raw_path": {
+          "type": "string"
+        }
+      }
+    },
+    "warnings": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "items",
+        "summary",
+        "count"
+      ],
+      "properties": {
+        "items": {
+          "type": "array"
+        },
+        "summary": {
+          "type": "object"
+        },
+        "count": {
+          "type": "integer"
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "rules_version",
+        "findings",
+        "summary",
+        "has_effective_findings",
+        "raw_paths_included",
+        "raw_transcript_included",
+        "external_model_calls"
+      ],
+      "properties": {
+        "rules_version": {
+          "type": "string"
+        },
+        "config_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "findings": {
+          "type": "array"
+        },
+        "summary": {
+          "type": "object"
+        },
+        "has_effective_findings": {
+          "type": "boolean"
+        },
+        "raw_paths_included": {
+          "type": "boolean"
+        },
+        "raw_transcript_included": {
+          "type": "boolean"
+        },
+        "external_model_calls": {
+          "type": "boolean"
+        }
+      }
+    },
+    "actions": {
+      "type": "object"
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "mode",
+        "warning_count",
+        "privacy_finding_count",
+        "effective_privacy_finding_count",
+        "server_required",
+        "local_debug"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "warning_count": {
+          "type": "integer"
+        },
+        "privacy_finding_count": {
+          "type": "integer"
+        },
+        "effective_privacy_finding_count": {
+          "type": "integer"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "local_debug": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

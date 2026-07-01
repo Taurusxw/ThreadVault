@@ -1,0 +1,360 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "request",
+    "scope",
+    "command_policy",
+    "permission",
+    "enforcement",
+    "recovery",
+    "audit",
+    "execution",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "command",
+        "role",
+        "audit_log",
+        "actor",
+        "target_type",
+        "target_id"
+      ],
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "audit_log": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "name",
+        "in_scope",
+        "allowed_commands",
+        "reason"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "in_scope": {
+          "type": "boolean"
+        },
+        "allowed_commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "command_policy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "known",
+        "command",
+        "operation",
+        "access_level",
+        "audit_required",
+        "future_phase",
+        "notes"
+      ],
+      "properties": {
+        "known": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string"
+        },
+        "operation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "access_level": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "audit_required": {
+          "type": "boolean"
+        },
+        "future_phase": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "permission": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "allowed",
+        "would_allow",
+        "enforced",
+        "status",
+        "required_access",
+        "role_access_levels",
+        "reasons"
+      ],
+      "properties": {
+        "allowed": {
+          "type": "boolean"
+        },
+        "would_allow": {
+          "type": "boolean"
+        },
+        "enforced": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        },
+        "required_access": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role_access_levels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "enforcement": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "dry_run",
+        "current_enforced",
+        "current_automatic_preflight",
+        "current_automatic_audit",
+        "future_enforcement_recommended",
+        "would_block_if_enforced",
+        "status",
+        "reasons",
+        "preflight_status",
+        "out_of_scope"
+      ],
+      "properties": {
+        "dry_run": {
+          "type": "boolean"
+        },
+        "current_enforced": {
+          "type": "boolean"
+        },
+        "current_automatic_preflight": {
+          "type": "boolean"
+        },
+        "current_automatic_audit": {
+          "type": "boolean"
+        },
+        "future_enforcement_recommended": {
+          "type": "boolean"
+        },
+        "would_block_if_enforced": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "preflight_status": {
+          "type": "string"
+        },
+        "out_of_scope": {
+          "type": "boolean"
+        }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "restore_plan_expected_before_execution",
+        "pre_restore_backup_expected",
+        "retention_policy_expected",
+        "manual_confirmation_expected",
+        "centralized_policy_required_for_shared_mode"
+      ],
+      "properties": {
+        "restore_plan_expected_before_execution": {
+          "type": "boolean"
+        },
+        "pre_restore_backup_expected": {
+          "type": "boolean"
+        },
+        "retention_policy_expected": {
+          "type": "boolean"
+        },
+        "manual_confirmation_expected": {
+          "type": "boolean"
+        },
+        "centralized_policy_required_for_shared_mode": {
+          "type": "boolean"
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "required_before_execution",
+        "automatic_audit_now",
+        "preflight_record_written",
+        "record",
+        "log"
+      ],
+      "properties": {
+        "required_before_execution": {
+          "type": "boolean"
+        },
+        "automatic_audit_now": {
+          "type": "boolean"
+        },
+        "preflight_record_written": {
+          "type": "boolean"
+        },
+        "record": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "log": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "business_command_executed",
+        "restore_applied",
+        "retention_applied",
+        "files_deleted",
+        "history_rewritten",
+        "server_required",
+        "cloud_sync"
+      ],
+      "properties": {
+        "business_command_executed": {
+          "type": "boolean"
+        },
+        "restore_applied": {
+          "type": "boolean"
+        },
+        "retention_applied": {
+          "type": "boolean"
+        },
+        "files_deleted": {
+          "type": "boolean"
+        },
+        "history_rewritten": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "known_command",
+        "in_scope",
+        "inventory_source",
+        "governance_enabled",
+        "v2_retrieval_core_changed"
+      ],
+      "properties": {
+        "known_command": {
+          "type": "boolean"
+        },
+        "in_scope": {
+          "type": "boolean"
+        },
+        "inventory_source": {
+          "type": "string"
+        },
+        "governance_enabled": {
+          "type": "boolean"
+        },
+        "v2_retrieval_core_changed": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

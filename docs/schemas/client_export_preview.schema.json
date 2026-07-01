@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "request",
+    "selection",
+    "planned_files",
+    "skipped",
+    "privacy",
+    "evidence",
+    "actions",
+    "governance_instrumentation",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "profile",
+        "root",
+        "sessions",
+        "project",
+        "privacy_mode"
+      ],
+      "properties": {
+        "profile": {
+          "type": "string"
+        },
+        "root": {
+          "type": "string"
+        },
+        "sessions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "project": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "privacy_mode": {
+          "type": "string"
+        }
+      }
+    },
+    "selection": {
+      "type": "object"
+    },
+    "planned_files": {
+      "type": "array"
+    },
+    "skipped": {
+      "type": "array"
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "mode",
+        "findings_count",
+        "effective_findings_count",
+        "blocked"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "findings_count": {
+          "type": "integer"
+        },
+        "effective_findings_count": {
+          "type": "integer"
+        },
+        "blocked": {
+          "type": "boolean"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object"
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "execute",
+        "manifest_name"
+      ],
+      "properties": {
+        "execute": {
+          "type": "string"
+        },
+        "manifest_name": {
+          "type": "string"
+        }
+      }
+    },
+    "governance_instrumentation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "enabled",
+        "blocked",
+        "reason",
+        "role",
+        "actor",
+        "audit_log",
+        "preflight"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "blocked": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "role": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "audit_log": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preflight": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "preview",
+        "writes_files",
+        "manifest_written",
+        "planned_file_count",
+        "skipped_count",
+        "server_required",
+        "external_model_calls",
+        "governance_instrumented",
+        "governance_blocked"
+      ],
+      "properties": {
+        "preview": {
+          "type": "boolean"
+        },
+        "writes_files": {
+          "type": "boolean"
+        },
+        "manifest_written": {
+          "type": "boolean"
+        },
+        "planned_file_count": {
+          "type": "integer"
+        },
+        "skipped_count": {
+          "type": "integer"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "external_model_calls": {
+          "type": "boolean"
+        },
+        "governance_instrumented": {
+          "type": "boolean"
+        },
+        "governance_blocked": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

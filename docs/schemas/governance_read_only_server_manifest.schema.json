@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "governance",
+    "runtime",
+    "routes",
+    "read_only",
+    "security",
+    "integration",
+    "commands",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "enabled",
+        "mode",
+        "server_required",
+        "server_opt_in",
+        "cloud_sync",
+        "team_enforcement_ready"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "team_enforcement_ready": {
+          "type": "boolean"
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "implemented",
+        "prototype",
+        "production_ready",
+        "framework",
+        "default_host",
+        "bind_requires_enable",
+        "running",
+        "required_for_local_cli"
+      ],
+      "properties": {
+        "implemented": {
+          "type": "boolean"
+        },
+        "prototype": {
+          "type": "boolean"
+        },
+        "production_ready": {
+          "type": "boolean"
+        },
+        "framework": {
+          "type": "string"
+        },
+        "default_host": {
+          "type": "string"
+        },
+        "bind_requires_enable": {
+          "type": "boolean"
+        },
+        "running": {
+          "type": "boolean"
+        },
+        "required_for_local_cli": {
+          "type": "boolean"
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "method",
+          "path",
+          "operation",
+          "source_interface",
+          "schema",
+          "mutates_state"
+        ],
+        "properties": {
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "source_interface": {
+            "type": "string"
+          },
+          "schema": {
+            "type": "string"
+          },
+          "mutates_state": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "read_only": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "all_routes_read_only",
+        "write_routes",
+        "mutation_commands_exposed",
+        "export_execution_exposed",
+        "restore_execution_exposed",
+        "retention_mutation_exposed",
+        "external_model_calls"
+      ],
+      "properties": {
+        "all_routes_read_only": {
+          "type": "boolean"
+        },
+        "write_routes": {
+          "type": "array"
+        },
+        "mutation_commands_exposed": {
+          "type": "boolean"
+        },
+        "export_execution_exposed": {
+          "type": "boolean"
+        },
+        "restore_execution_exposed": {
+          "type": "boolean"
+        },
+        "retention_mutation_exposed": {
+          "type": "boolean"
+        },
+        "external_model_calls": {
+          "type": "boolean"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "loopback_default",
+        "authentication_implemented",
+        "identity_binding_implemented",
+        "central_policy_enforced",
+        "public_network_default"
+      ],
+      "properties": {
+        "loopback_default": {
+          "type": "boolean"
+        },
+        "authentication_implemented": {
+          "type": "boolean"
+        },
+        "identity_binding_implemented": {
+          "type": "boolean"
+        },
+        "central_policy_enforced": {
+          "type": "boolean"
+        },
+        "public_network_default": {
+          "type": "boolean"
+        }
+      }
+    },
+    "integration": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "config_path",
+        "db_path",
+        "local_first",
+        "privacy_first",
+        "server_required",
+        "server_opt_in",
+        "cloud_sync",
+        "new_dependency_required",
+        "route_count"
+      ],
+      "properties": {
+        "config_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "db_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "local_first": {
+          "type": "boolean"
+        },
+        "privacy_first": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "new_dependency_required": {
+          "type": "boolean"
+        },
+        "route_count": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

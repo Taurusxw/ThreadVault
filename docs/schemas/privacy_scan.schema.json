@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "session_id",
+    "rules_version",
+    "findings",
+    "summary"
+  ],
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "rules_version": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array"
+    },
+    "summary": {
+      "type": "object"
+    }
+  }
+}

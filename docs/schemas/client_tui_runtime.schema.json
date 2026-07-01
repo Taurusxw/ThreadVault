@@ -1,0 +1,232 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "runtime",
+    "request",
+    "screen",
+    "overview",
+    "export_preview",
+    "actions",
+    "privacy",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "name",
+        "family",
+        "status",
+        "module",
+        "server_required",
+        "cloud_sync"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "family": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "query",
+        "cwd",
+        "limit",
+        "local_debug",
+        "export_preview_requested",
+        "export_preview_session",
+        "export_preview_profile"
+      ],
+      "properties": {
+        "query": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "local_debug": {
+          "type": "boolean"
+        },
+        "export_preview_requested": {
+          "type": "boolean"
+        },
+        "export_preview_session": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "export_preview_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "screen": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "title",
+        "sections",
+        "session_rows",
+        "search_rows",
+        "export_rows"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "sections": {
+          "type": "array"
+        },
+        "session_rows": {
+          "type": "array"
+        },
+        "search_rows": {
+          "type": "array"
+        },
+        "export_rows": {
+          "type": "array"
+        }
+      }
+    },
+    "overview": {
+      "type": "object"
+    },
+    "export_preview": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "actions": {
+      "type": "object"
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "local_first",
+        "raw_paths_included",
+        "raw_transcript_included",
+        "server_required",
+        "server_opt_in",
+        "cloud_sync",
+        "external_model_calls",
+        "export_preview_writes_files"
+      ],
+      "properties": {
+        "local_first": {
+          "type": "boolean"
+        },
+        "raw_paths_included": {
+          "type": "boolean"
+        },
+        "raw_transcript_included": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "external_model_calls": {
+          "type": "boolean"
+        },
+        "export_preview_writes_files": {
+          "type": "boolean"
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "mode",
+        "accepted_runtime",
+        "session_count",
+        "search_result_count",
+        "export_preview_included",
+        "export_preview_planned_file_count",
+        "overview_contract_version",
+        "export_preview_contract_version",
+        "server_required",
+        "v2_retrieval_reused"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "accepted_runtime": {
+          "type": "boolean"
+        },
+        "session_count": {
+          "type": "integer"
+        },
+        "search_result_count": {
+          "type": "integer"
+        },
+        "export_preview_included": {
+          "type": "boolean"
+        },
+        "export_preview_planned_file_count": {
+          "type": "integer"
+        },
+        "overview_contract_version": {
+          "type": "string"
+        },
+        "export_preview_contract_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "v2_retrieval_reused": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

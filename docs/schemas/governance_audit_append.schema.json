@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "ok",
+    "log",
+    "record",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "log": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "path",
+        "exists",
+        "local_only",
+        "server_required",
+        "cloud_sync"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "exists": {
+          "type": "boolean"
+        },
+        "local_only": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_version",
+        "record_id",
+        "timestamp",
+        "operation",
+        "actor",
+        "status",
+        "target",
+        "metadata",
+        "local_only"
+      ],
+      "properties": {
+        "record_version": {
+          "type": "string"
+        },
+        "record_id": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "actor": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "type",
+            "id"
+          ],
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            }
+          }
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "local_only": {
+          "type": "boolean"
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_count",
+        "warning_count",
+        "append_only",
+        "server_required",
+        "external_model_calls"
+      ],
+      "properties": {
+        "record_count": {
+          "type": "integer"
+        },
+        "warning_count": {
+          "type": "integer"
+        },
+        "append_only": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "external_model_calls": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "query",
+    "results",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "text",
+        "limit",
+        "vector_limit",
+        "filters"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "vector_limit": {
+          "type": "integer"
+        },
+        "filters": {
+          "type": "object"
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "hybrid_id",
+          "source",
+          "score",
+          "scores",
+          "session_id",
+          "event_id",
+          "chunk_id",
+          "chunk_type",
+          "text",
+          "evidence_event_ids",
+          "metadata",
+          "explanation"
+        ],
+        "properties": {
+          "hybrid_id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "fts",
+              "vector"
+            ]
+          },
+          "score": {
+            "type": "number"
+          },
+          "scores": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "fts",
+              "vector",
+              "same_project",
+              "exact_hint"
+            ],
+            "properties": {
+              "fts": {
+                "type": "number"
+              },
+              "vector": {
+                "type": "number"
+              },
+              "same_project": {
+                "type": "number"
+              },
+              "exact_hint": {
+                "type": "number"
+              }
+            }
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "event_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "chunk_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chunk_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "evidence_event_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "explanation": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "source",
+              "matched_by",
+              "rank_factors"
+            ],
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "matched_by": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "rank_factors": {
+                "type": "array"
+              }
+            }
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "capabilities_used",
+        "fts",
+        "vector",
+        "ranking"
+      ],
+      "properties": {
+        "capabilities_used": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fts": {
+          "type": "object"
+        },
+        "vector": {
+          "type": "object"
+        },
+        "ranking": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

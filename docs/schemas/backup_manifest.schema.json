@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "backup",
+    "manifest",
+    "exists",
+    "ok",
+    "errors",
+    "manifest_data"
+  ],
+  "properties": {
+    "backup": {
+      "type": "string"
+    },
+    "manifest": {
+      "type": "string"
+    },
+    "exists": {
+      "type": "boolean"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "errors": {
+      "type": "array"
+    },
+    "manifest_data": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

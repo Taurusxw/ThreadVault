@@ -1,0 +1,5 @@
+"""ThreadVault local Codex session archive."""
+
+__all__ = ["__version__"]
+
+__version__ = "0.31.0"

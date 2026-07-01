@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "ok",
+    "request",
+    "checks",
+    "summary",
+    "governance",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "path",
+          "status_code",
+          "ok",
+          "schema"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "status_code": {
+            "type": "integer"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "schema": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "checked_route_count",
+        "passed_route_count",
+        "failed_route_count"
+      ],
+      "properties": {
+        "checked_route_count": {
+          "type": "integer"
+        },
+        "passed_route_count": {
+          "type": "integer"
+        },
+        "failed_route_count": {
+          "type": "integer"
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "server_required",
+        "server_opt_in",
+        "cloud_sync",
+        "read_only",
+        "team_enforcement_ready"
+      ],
+      "properties": {
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "read_only": {
+          "type": "boolean"
+        },
+        "team_enforcement_ready": {
+          "type": "boolean"
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "local_first",
+        "privacy_first",
+        "server_required",
+        "external_model_calls",
+        "v2_retrieval_core_changed"
+      ],
+      "properties": {
+        "local_first": {
+          "type": "boolean"
+        },
+        "privacy_first": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "external_model_calls": {
+          "type": "boolean"
+        },
+        "v2_retrieval_core_changed": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

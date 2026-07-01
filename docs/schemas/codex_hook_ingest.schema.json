@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "hook_event_name",
+    "codex_home",
+    "enqueue",
+    "hook_response"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "hook_event_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "session_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "codex_home": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "enqueue": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "hook_response": {
+      "type": "object"
+    },
+    "error": {
+      "type": "string"
+    }
+  }
+}

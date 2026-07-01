@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "governance",
+    "readiness",
+    "local_audit",
+    "centralized_audit",
+    "identity",
+    "integrity",
+    "retention",
+    "review",
+    "backup_export",
+    "instrumentation",
+    "blockers",
+    "recommended_next_phases",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "enabled",
+        "mode",
+        "server_required",
+        "server_opt_in",
+        "cloud_sync",
+        "centralized_audit_ready"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "centralized_audit_ready": {
+          "type": "boolean"
+        }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "overall_status",
+        "implemented_prerequisites",
+        "missing_prerequisites",
+        "blocking_count",
+        "safe_to_keep_local_jsonl_audit",
+        "safe_to_enable_centralized_audit",
+        "safe_to_enable_shared_audit_retention"
+      ],
+      "properties": {
+        "overall_status": {
+          "type": "string"
+        },
+        "implemented_prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing_prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blocking_count": {
+          "type": "integer"
+        },
+        "safe_to_keep_local_jsonl_audit": {
+          "type": "boolean"
+        },
+        "safe_to_enable_centralized_audit": {
+          "type": "boolean"
+        },
+        "safe_to_enable_shared_audit_retention": {
+          "type": "boolean"
+        }
+      }
+    },
+    "local_audit": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "available",
+        "append_command",
+        "list_command",
+        "schema_names",
+        "local_only",
+        "server_required"
+      ],
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "append_command": {
+          "type": "string"
+        },
+        "list_command": {
+          "type": "string"
+        },
+        "schema_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "local_only": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "centralized_audit": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "backup_export": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "instrumentation": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "code",
+          "severity",
+          "category",
+          "description",
+          "required_before"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "required_before": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "recommended_next_phases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "config_path",
+        "local_first",
+        "privacy_first",
+        "server_opt_in",
+        "cloud_sync",
+        "server_required",
+        "business_commands_instrumented",
+        "automatic_audit_now",
+        "v2_retrieval_core_changed"
+      ],
+      "properties": {
+        "config_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "local_first": {
+          "type": "boolean"
+        },
+        "privacy_first": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "business_commands_instrumented": {
+          "type": "boolean"
+        },
+        "automatic_audit_now": {
+          "type": "boolean"
+        },
+        "v2_retrieval_core_changed": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

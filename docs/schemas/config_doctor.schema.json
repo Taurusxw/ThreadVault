@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "requested_path",
+    "default_path",
+    "resolved_path",
+    "exists",
+    "ok",
+    "errors",
+    "warnings",
+    "suggestions",
+    "summary"
+  ],
+  "properties": {
+    "requested_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "default_path": {
+      "type": "string"
+    },
+    "resolved_path": {
+      "type": "string"
+    },
+    "exists": {
+      "type": "boolean"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "errors": {
+      "type": "array"
+    },
+    "warnings": {
+      "type": "array"
+    },
+    "suggestions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "summary": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

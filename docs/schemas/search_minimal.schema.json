@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": true,
+    "required": [
+      "event_id",
+      "session_id"
+    ],
+    "properties": {
+      "event_id": {
+        "type": "integer"
+      },
+      "session_id": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "request",
+    "governance",
+    "command_policy",
+    "instrumentation",
+    "preflight",
+    "audit",
+    "execution",
+    "diagnostics"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "command",
+        "role",
+        "audit_log",
+        "actor",
+        "target_type",
+        "target_id"
+      ],
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "audit_log": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "enabled",
+        "mode",
+        "server_required",
+        "server_opt_in",
+        "cloud_sync"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "server_required": {
+          "type": "boolean"
+        },
+        "server_opt_in": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        }
+      }
+    },
+    "command_policy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "known",
+        "command",
+        "operation",
+        "access_level",
+        "audit_required",
+        "category"
+      ],
+      "properties": {
+        "known": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string"
+        },
+        "operation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "access_level": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "audit_required": {
+          "type": "boolean"
+        },
+        "category": {
+          "type": "string"
+        }
+      }
+    },
+    "instrumentation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "enabled",
+        "instrumented",
+        "blocked",
+        "reason",
+        "business_command_should_execute"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "instrumented": {
+          "type": "boolean"
+        },
+        "blocked": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "business_command_should_execute": {
+          "type": "boolean"
+        }
+      }
+    },
+    "preflight": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "audit": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "business_command_executed",
+        "blocked_before_execution",
+        "side_effects_allowed",
+        "shared_execution_ready"
+      ],
+      "properties": {
+        "business_command_executed": {
+          "type": "boolean"
+        },
+        "blocked_before_execution": {
+          "type": "boolean"
+        },
+        "side_effects_allowed": {
+          "type": "boolean"
+        },
+        "shared_execution_ready": {
+          "type": "boolean"
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

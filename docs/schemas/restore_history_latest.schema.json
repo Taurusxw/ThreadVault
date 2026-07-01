@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "history",
+    "records",
+    "warnings",
+    "invalid_lines",
+    "latest"
+  ],
+  "properties": {
+    "history": {
+      "type": "string"
+    },
+    "records": {
+      "type": "array"
+    },
+    "warnings": {
+      "type": "array"
+    },
+    "invalid_lines": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "latest": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

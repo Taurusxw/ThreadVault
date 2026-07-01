@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "report_version",
+    "files_delta",
+    "events_delta",
+    "warnings_delta",
+    "regressions"
+  ],
+  "properties": {
+    "report_version": {
+      "type": "string"
+    },
+    "before_generated_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "after_generated_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "files_delta": {
+      "type": "integer"
+    },
+    "events_delta": {
+      "type": "integer"
+    },
+    "warnings_delta": {
+      "type": "integer"
+    },
+    "parseable_ratio_delta": {
+      "type": "number"
+    },
+    "warning_code_deltas": {
+      "type": "object"
+    },
+    "classification_deltas": {
+      "type": "object"
+    },
+    "regressions": {
+      "type": "object"
+    }
+  }
+}
