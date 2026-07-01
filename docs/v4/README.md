@@ -13,10 +13,9 @@ parallel backend.
   `docs/v3/phases/phase-33-v3-final-acceptance-smoke/acceptance.md`, `docs/v2/README.md`,
   `docs/v2/phases/phase-07-v2-acceptance-smoke/v2-acceptance.md`, `docs/THREADVAULT_USAGE_MANUAL.md`,
   and `docs/development-progress.md`.
-- If a phase needs historical research context, prefer the archived references:
-  `docs/roadmap/v3-clients-and-team-governance.md`,
-  `docs/v0/research/codex-session-archive-research.md`, and
-  `docs/archive/mathforge-research-appendices.md`.
+- If a phase needs historical research context, prefer
+  `docs/roadmap/v3-clients-and-team-governance.md` and
+  `docs/v0/research/codex-session-archive-research.md`.
 - Each phase gets its own directory under `phases/`.
 - Each phase must include a detailed `plan.md` before implementation.
 - Design notes, coverage matrices, gap audits, acceptance reports, and follow-up records stay beside the phase plan.

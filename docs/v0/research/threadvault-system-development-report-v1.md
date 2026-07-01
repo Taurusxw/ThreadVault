@@ -591,7 +591,7 @@ v0.3 聚焦可维护性与互操作性：建立阶段规划归档、开发进度
 - 阶段计划：`docs/v0/phases/`
 - 开发进度：`docs/development-progress.md`
 - 外部项目核查：各阶段目录下的 `external-review.md`
-- 研究报告 Markdown：`docs/archive/mathforge-research-appendices.md` 与 `docs/v0/research/codex-session-archive-research.md`
+- 研究报告 Markdown：`docs/v0/research/codex-session-archive-research.md`
 
 DOCX 报告暂不作为每阶段必改文件；仅在需要正式交付版时使用文档处理流程同步。
 
@@ -725,147 +725,7 @@ prune 只处理有效的 `threadvault-audit-*.json` 报告；malformed report �
 
 长期运行真实语料审计时，报告目录会持续增长。v0.10 提供本地、可脚本化、可预览的清理能力，同时避免误删 Codex 原始会话文件。
 
-## MathForge Round 01 应用附录：Task Queue Restart Recovery
-
-### 当前状态
-
-MathForge 已根据 `README.md`、`docs/architecture/fullstack-refactor.md` 和 `apps/api/README.md` 的未完成清单继续推进 fullstack refactor。本轮聚焦任务队列：过去 API 重启后，持久化表中仍处于 `queued/running` 的任务统一被标记为 `interrupted`。
-
-### 本轮方向
-
-采用本报告提出的“事实层优先、证据化归档、agent-friendly contract”原则：把 `data/api_tasks.sqlite3` 中的持久化任务记录作为事实层，只恢复具备可持久化外部命令的 `conversion` 任务；对内部 callable 任务保持诚实边界，因为它们只有进程内 runner，无法跨 API 重启恢复。
-
-### 复用原则
-
-- 借鉴 CASS/ccusage 的健康状态与机器可读契约意识：任务恢复行为必须可由持久化状态和测试证明。
-- 借鉴 Codex export 工具的导出/过滤边界意识：不要把不可恢复的内部任务伪装成可恢复。
-- 不复制任何外部项目源码，只复用“稳定事实层 + 明确降级 + 测试证明”的接口形态。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-01-task-queue-recovery.md`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_tasks tests.test_main
-# Ran 23 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 66 tests - OK
-```
-
-## MathForge Round 02 应用附录：Real Backend Paper Export Interaction E2E
-
-### 当前状态
-
-MathForge 已具备 mock Playwright smoke E2E 与真实后端 PDF 阅读器 E2E。本轮继续补 `README.md` 中“前端验证”未完成项：完整组卷导出交互缺少真实浏览器验证。
-
-### 本轮方向
-
-继续应用“事实层优先”和“agent-friendly contract”原则：不只检查 UI 成功提示，而是让浏览器通过真实 React 流程创建试卷、启动异步 `paper_export`，再通过公开下载接口读取 `export_manifest.json`，用 manifest JSON 证明导出内容。
-
-### 复用原则
-
-- 复用现有 Playwright real-backend 基座，不新造浏览器测试框架。
-- 借鉴 CASS 的机器可读健康/契约思路，用 manifest JSON 作为可验证事实。
-- 借鉴 Codex export 工具的导出边界意识，通过公开下载路由验证，而不是直接偷读本地文件。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-02-paper-export-e2e.md`
-- 新增测试：`E:/Codex/MathForge/apps/web/tests/e2e-real/paper-export-real-backend.spec.ts`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-cd apps\web
-npm run e2e:real
-# 2 passed
-
-npm run build
-# OK
-
-npm run e2e
-# 2 passed
-```
-
-## MathForge Round 03 应用附录：Optional OCR Failure Summary Coverage
-
-### 当前状态
-
-MathForge 已通过 OCR 引擎注册表暴露 MinerU、PaddleOCR 以及 Marker/olmOCR/Qwen-VL/Pix2Text 可选适配器。本轮继续推进 `README.md` 中“实时日志/失败摘要仍是规则匹配”的未完成项。
-
-### 本轮方向
-
-继续应用本报告提出的“事实层优先、明确实验边界、agent-friendly triage”原则：用注册表真实输出的中文错误文本作为事实层，把可选 OCR 引擎缺包/缺命令/缺模型环境与“占位适配器尚未接入真实运行器”分成不同错误分类，避免把 MathForge 尚未完成的集成误导成用户环境问题。
-
-### 复用原则
-
-- 借鉴 ccusage 对实验性数据源的显式状态提示：可选适配器必须诚实说明不可用原因。
-- 借鉴 CASS 的机器可读健康/triage 输出：失败摘要保留稳定 category、evidence 和 suggestions。
-- 不复制任何外部项目源码，只复用“真实日志事实 + 稳定分类 + 明确未覆盖边界”的接口形态。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-03-ocr-failure-summary.md`
-- 领域词汇：`E:/Codex/MathForge/CONTEXT.md`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_main tests.test_api_tasks
-# Ran 28 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 71 tests - OK
-```
-
-## MathForge Round 04 应用附录：Optional OCR Failure Frontend Contract
-
-### 当前状态
-
-MathForge Round 03 已在后端任务失败摘要中增加可选 OCR 引擎缺依赖和占位适配器分类。本轮把这些分类推进到 React 任务诊断界面和 Playwright mock E2E，确保用户看到的是可读分类而不是裸机器字符串。
-
-### 本轮方向
-
-继续应用“agent-friendly contract”和“证据层优先”原则：复用现有 `error_summary` payload，不新增前端私有判断；浏览器测试用 Pix2Text 占位适配器失败任务验证 title、category label、evidence 和 suggestion 都能呈现。
-
-### 复用原则
-
-- 复用现有 React task failure card，不新造错误展示模块。
-- 复用 Playwright mock E2E，不引入第二套前端测试框架。
-- 保持诚实边界：前端只解释失败类别，不暗示可选 OCR 已经能真实执行。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-04-optional-ocr-frontend-contract.md`
-- 前端类别映射：`E:/Codex/MathForge/apps/web/src/pages/PdfParsePage.tsx`
-- 浏览器测试：`E:/Codex/MathForge/apps/web/tests/e2e/app-smoke.spec.ts`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-cd apps\web
-npm run e2e
-# 2 passed
-
-npm run build
-# OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 71 tests - OK
-```
-
-## ThreadVault v0.11 实施附录：Audit Retention Config
+## v0.11 实施附录：Audit Retention Config
 
 ### 当前状态
 
@@ -891,7 +751,7 @@ v0.11 将保留数量配置化：在 `threadvault.toml` 中支持 `[audit_histor
 - CLI 实现：`E:/Codex/ThreadVault/src/threadvault/cli.py`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v11_audit_config.py`
 
-## ThreadVault v0.12 实施附录：App Config Module
+## v0.12 实施附录：App Config Module
 
 ### 当前状态
 
@@ -921,7 +781,7 @@ Windows 路径正则在 TOML basic string 中容易因为反斜杠逃逸产生�
 - 兼容 wrapper：`E:/Codex/ThreadVault/src/threadvault/privacy_config.py`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v12_app_config.py`
 
-## ThreadVault v0.13 实施附录：Config Observability
+## v0.13 实施附录：Config Observability
 
 ### 当前状态
 
@@ -947,7 +807,7 @@ v0.12 已经将 ThreadVault 本地配置集中到 `threadvault.app_config`，但
 - CLI 实现：`E:/Codex/ThreadVault/src/threadvault/cli.py`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v13_config_cli.py`
 
-## ThreadVault v0.14 实施附录：Config Init Template
+## v0.14 实施附录：Config Init Template
 
 ### 当前状态
 
@@ -978,7 +838,7 @@ README 仍保留了一个 TOML basic string 风格的 Windows path regex 示例�
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/config_init.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v14_config_init.py`
 
-## ThreadVault v0.15 实施附录：Database Backup
+## v0.15 实施附录：Database Backup
 
 ### 当前状态
 
@@ -1009,7 +869,7 @@ ThreadVault 已有 `import`、`reindex`、`vacuum`、`audit-history prune` 等�
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/backup.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v15_backup.py`
 
-## ThreadVault v0.16 实施附录：Backup Verify
+## v0.16 实施附录：Backup Verify
 
 ### 当前状态
 
@@ -1036,7 +896,7 @@ v0.15 已能创建本地 SQLite 备份，但还缺少验证备份是否可打开
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/backup_verify.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v16_backup_verify.py`
 
-## ThreadVault v0.17 实施附录：Backup History
+## v0.17 实施附录：Backup History
 
 ### 当前状态
 
@@ -1063,568 +923,29 @@ v0.15/v0.16 已能创建并校验备份，但用户仍需要手动复制最新�
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/backup_history_list.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v17_backup_history.py`
 
-## MathForge Round 05 应用附录：Conversion Asset Search Before Question Import
+## v0.18 实施附录：Backup Retention
 
 ### 当前状态
 
-MathForge 的 PDF 阅读器已经支持题库来源的 PDF 文本层搜索和已入库扫描件的 OCR Markdown 兜底搜索，但用户在转换完成、尚未导入题库时，仍缺少对纯扫描 PDF OCR 文本的快速检查入口。
-
-### 本轮方向
-
-继续应用“事实层优先”和“local-first”原则：把 `output/` 下已完成转换目录中的 `obsidian.md / clean.md / result.md` 作为事实层，新增受限的转换资产搜索接口与 React 历史结果搜索面板。该能力搜索已有 OCR Markdown，不宣称对完全未转换 PDF 即时生成新 OCR 索引。
-
-### 复用原则
-
-- 复用现有转换资产目录、FastAPI 接口模式和 React 历史结果卡片。
-- 不在浏览器端重新解析 Markdown，不新增 OCR 队列类型。
-- 路径限制在 `output/` 转换资产内，避免把 API 变成任意本地文件全文搜索器。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-05-conversion-asset-search.md`
-- 后端接口：`E:/Codex/MathForge/apps/api/main.py`
-- 前端入口：`E:/Codex/MathForge/apps/web/src/components/ResultHistory.tsx`
-- 浏览器测试：`E:/Codex/MathForge/apps/web/tests/e2e/app-smoke.spec.ts`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_contract tests.test_main
-# Ran 40 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 73 tests - OK
-
-cd apps\web
-npm run e2e
-# 2 passed
-
-npm run build
-# OK
-```
-
-## MathForge Round 06 应用附录：Durable Paper Export Task Recovery
-
-### 当前状态
-
-MathForge 的任务队列已能恢复外部 OCR 转换任务，但 `paper_export` 过去是匿名进程内 runner，API 重启后只能标记为 `interrupted`。这与 README 中“内部导出任务没有可持久化 runner”的未完成项直接对应。
-
-### 本轮方向
-
-继续应用“事实层优先”和“明确边界”原则：把 `paper_export` 的必要事实保存为 durable payload，包括 `paper_id`、`output_path` 和可选 `answer_sheet_theme`。API 启动时先注册 `paper_export` durable runner，再加载 SQLite 任务表，从而可以把 queued/running 的 paper export 恢复为 queued 并重新执行。
-
-### 复用原则
-
-- 复用现有 `TaskManager`、SQLite `api_tasks` 表和 `PaperExporter`，不引入 Celery/Redis。
-- 只承诺有 payload 和 runner registry 的内部任务可恢复。
-- 匿名 process-local callable 仍标记 interrupted，避免把不可恢复任务伪装成可恢复。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-06-durable-paper-export-task.md`
-- 后端任务管理：`E:/Codex/MathForge/apps/api/tasks.py`
-- API 接入：`E:/Codex/MathForge/apps/api/main.py`
-- 测试：`E:/Codex/MathForge/tests/test_api_tasks.py`、`E:/Codex/MathForge/tests/test_api_contract.py`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_tasks tests.test_api_contract tests.test_main
-# Ran 56 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 75 tests - OK
-
-cd apps\web
-npm run e2e
-# 2 passed
-
-npm run build
-# OK
-```
-
-## MathForge Round 07 应用附录：Durable Image OCR Task Recovery
-
-### 当前状态
-
-MathForge 的 `/api/intake/images/ocr-task` 已能把浏览器截图或图片交给 MinerU OCR 后入库，但过去使用匿名进程内 callable。API 重启时这类任务没有可持久化执行体，只能标记为 interrupted。
-
-### 本轮方向
-
-继续应用“事实层优先”和“明确边界”原则：把现有 MinerU 图片 OCR 入库请求保存为 durable payload，包括标题、图片 base64、编号兜底开关、MinerU 命令和超时。API 启动时注册 `image_ocr` runner，使 queued/running 的图片 OCR 任务可以恢复为 queued 并重新执行。
-
-### 复用原则
-
-- 复用 Round 06 新增的 `TaskManager.start_durable()` 和 durable runner registry。
-- 复用现有 `ManualImportService.import_images_with_ocr()`，不另造图片 OCR 管线。
-- 只承诺现有 MinerU 图片入库任务可恢复；Pix2Text/Qwen-VL 局部公式队列、大批量图片 staging 和复杂批处理管理仍是后续能力。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-07-durable-image-ocr-task.md`
-- API 接入：`E:/Codex/MathForge/apps/api/main.py`
-- 任务恢复测试：`E:/Codex/MathForge/tests/test_api_tasks.py`
-- API 契约测试：`E:/Codex/MathForge/tests/test_api_contract.py`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_tasks tests.test_api_contract tests.test_main
-# Ran 58 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 77 tests - OK
-
-cd apps\web
-npm run e2e
-# 2 passed
-
-npm run build
-# OK
-```
-
-## MathForge Round 08 应用附录：Real Backend Conversion Search E2E
-
-### 当前状态
-
-MathForge Round 05 已经实现转换资产导入前 OCR Markdown 搜索，并有后端契约测试和 mock 浏览器测试。但真实 FastAPI、临时 `output/` 目录、Vite 前端和浏览器 UI 的联调路径还没有覆盖。
-
-### 本轮方向
-
-继续应用“事实层优先”和“证据驱动文档”原则：在真实后端 Playwright fixture 中 seed 一个完成态转换目录，包含 `metadata.json` 和 `obsidian.md`，再让浏览器通过真实 `/api/conversions` 和 `/api/conversions/search` 搜索 OCR Markdown。
-
-### 复用原则
-
-- 复用已有 `apps/web/tests/fixtures/real_backend_server.py` 和 `npm run e2e:real`，不新增测试服务器。
-- 复用现有 `ResultHistory` 搜索 UI 和 FastAPI 路由，不引入并行搜索接口。
-- 只验证已有转换产物搜索；不宣称对完全未转换 PDF 做即时 OCR 索引。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-08-real-backend-conversion-search-e2e.md`
-- 真实后端 fixture：`E:/Codex/MathForge/apps/web/tests/fixtures/real_backend_server.py`
-- 浏览器测试：`E:/Codex/MathForge/apps/web/tests/e2e-real/conversion-search-real-backend.spec.ts`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-cd apps\web
-npm run e2e:real
-# 3 passed
-
-npm run e2e
-# 2 passed
-
-npm run build
-# OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_contract tests.test_main
-# Ran 40 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 77 tests - OK
-```
-
-## MathForge Round 09 应用附录：Chunked Upload Cancel Restart Contract
-
-### 当前状态
-
-MathForge 的 React PDF 转换页已经使用分片上传协议，并可在任务创建前调用取消接口。已有测试证明分片续传和完成创建任务，但还没有证明取消后会清理已上传分片并允许同一 `resume_key` 干净重启。
-
-### 本轮方向
-
-继续应用“事实层优先”和“接口契约优先”原则：把分片上传会话视为 `work/api_uploads/chunks/` 下的 manifest 与 chunk 文件事实层。新增 API 契约测试直接验证 start、PUT chunk、resume、DELETE cancel、GET status、restart 的完整行为。
-
-### 复用原则
-
-- 复用现有 FastAPI 分片上传路由，不新增上传协议。
-- 复用已有 `resume_key` 和稳定 upload ID 机制。
-- 不运行 OCR 转换；本轮只验证上传取消恢复契约。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-09-chunked-upload-cancel-restart-contract.md`
-- API 契约测试：`E:/Codex/MathForge/tests/test_api_contract.py`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_contract
-# Ran 27 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 78 tests - OK
-
-cd apps\web
-npm run e2e
-# 2 passed
-
-npm run e2e:real
-# 3 passed
-
-npm run build
-# OK
-```
-
-### 备注
-
-一次并行运行 `npm run e2e` 与 `npm run e2e:real` 时出现 Vite 端口 `127.0.0.1:5173` 冲突；按顺序运行后均通过。这是验证调度问题，不是功能回归。
-
-## MathForge Round 10 应用附录：KaTeX Formula Diagnostics
-
-### 当前状态
-
-MathForge 的单题校对页已有 CodeMirror、KaTeX 预览和多条启发式公式诊断，但 README 中仍明确说明它不等于编译级校验。项目已经安装并使用 KaTeX，因此可以先复用同一成熟解析器补上公式片段 parse 校验。
-
-### 本轮方向
-
-继续应用“成熟轮子优先”和“事实层优先”原则：在 `diagnoseMarkdownFormula(markdown)` 内提取已正确定界的 `$...$` 与 `$$...$$` 公式片段，调用 `katex.renderToString(..., { throwOnError: true })`，并把解析失败报告为稳定的 `katex-parse-error` 诊断。
-
-### 复用原则
-
-- 复用现有 KaTeX 依赖和 `diagnostics.ts` 深模块接口。
-- 不让 React 页面理解公式解析细节。
-- 不宣称完整 LaTeX 文档编译，也不宣称 Pix2Text/Qwen-VL 模型重跑。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-10-katex-formula-diagnostics.md`
-- 前端诊断模块：`E:/Codex/MathForge/apps/web/src/lib/diagnostics.ts`
-- 浏览器测试：`E:/Codex/MathForge/apps/web/tests/e2e/app-smoke.spec.ts`
-- 仓库自检：`E:/Codex/MathForge/tests/test_main.py`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-cd apps\web
-npm run build
-# OK
-
-npm run e2e
-# 2 passed
-
-npm run e2e:real
-# 3 passed
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_main
-# Ran 14 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 78 tests - OK
-```
-
-### 备注
-
-第一次 E2E fixture 使用 `$\\frac{1}{ }$`，KaTeX 实际接受该公式；随后改为 `$\\frac{1}{$`，即完整定界但语法错误的公式，浏览器诊断断言通过。构建成功，但 markdown-preview chunk 超过 500 kB；后续若首屏成本变明显，可以把 KaTeX parse 校验延后或拆分。
-
-## MathForge Round 11 应用附录：Chunked Upload Restart Recovery
-
-### 当前状态
-
-MathForge 的分片上传协议已经能续传、取消和完成任务；Round 09 证明取消会清理会话。但还缺少证据证明 API 进程重启后，未取消的分片上传会话可以从磁盘 manifest 恢复并继续完成。
-
-### 本轮方向
-
-继续应用“事实层优先”和“深模块接口”原则：不新增上传协议，只通过现有 start/status/PUT/complete 路由证明 `work/api_uploads/chunks/{upload_id}/manifest.json` 与 chunk 文件足以支撑新 FastAPI app 实例恢复上传。
-
-### 复用原则
-
-- 复用现有 manifest 和 chunk 文件布局。
-- 复用 `resume_key` 和稳定 upload ID 机制。
-- 复用 `TaskManager` 的测试 patch，避免真实 OCR 子进程运行。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-11-chunked-upload-restart-recovery.md`
-- API 契约测试：`E:/Codex/MathForge/tests/test_api_contract.py`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_contract
-# Ran 28 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 79 tests - OK
-
-cd apps\web
-npm run e2e
-# 2 passed
-
-npm run e2e:real
-# 3 passed
-
-npm run build
-# OK, with existing markdown-preview chunk size warning
-```
-
-### 备注
-
-本轮证明“正常 manifest + chunk 文件”可跨 API 重启恢复；损坏 manifest、缺失 chunk 文件和浏览器标签页刷新时序仍需后续单独覆盖。
-
-## MathForge Round 12 应用附录：Chunked Upload Repair Diagnostics
-
-### 当前状态
-
-MathForge 的分片上传已经覆盖正常续传、取消后干净重启和 API 重启后恢复继续上传。但损坏 manifest 或缺失 chunk 时，后端过去只返回裸错误文本，用户和前端难以判断下一步该重传、取消还是重新开始。
-
-### 本轮方向
-
-继续应用“接口契约优先”和“诚实修复边界”原则：不自动修复本地损坏状态，只在现有 FastAPI `detail` 文本中提供明确下一步。损坏 manifest 提示取消该上传会话后重新开始；缺失 chunk 提示重新上传缺失分片，或取消后重新开始。
-
-### 复用原则
-
-- 复用现有 start/status/PUT/complete/DELETE 路由和 string `detail` 错误表面。
-- 复用现有前端错误展示路径，不新增结构化错误 schema。
-- 不修改上传存储格式，不自动删除用户本地损坏状态。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-12-chunked-upload-repair-diagnostics.md`
-- API 错误提示：`E:/Codex/MathForge/apps/api/main.py`
-- API 契约测试：`E:/Codex/MathForge/tests/test_api_contract.py`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_contract
-# Ran 30 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 81 tests - OK
-
-cd apps\web
-npm run e2e
-# 2 passed
-
-npm run e2e:real
-# 3 passed
-
-npm run build
-# OK, with existing markdown-preview chunk size warning
-```
-
-### 备注
-
-这是“可操作诊断”，不是自动修复。浏览器网络中断、标签页刷新时序和更细的前端恢复 UX 仍需后续覆盖。
-
-## MathForge Round 13 应用附录：Browser Upload Network Failure E2E
-
-### 当前状态
-
-MathForge 的分片上传已经覆盖后端契约层面的续传、取消、API 重启恢复、损坏 manifest 诊断和缺失分片诊断。但浏览器实际发起分片 `PUT` 时，如果本机 FastAPI 服务断开或网络请求失败，过去缺少端到端证据证明用户会看到可操作恢复提示。
-
-### 本轮方向
-
-继续应用“事实层优先”和“接口契约优先”原则：不新增上传协议，不声称自动恢复；让 Playwright 驱动真实 React 文件输入和上传按钮，mock API 只在公共 chunk `PUT` 处模拟网络失败，然后验证浏览器展示检查服务、重试或取消重来的提示，并确认失败后仍可点击取消上传清理未完成会话。
-
-### 复用原则
-
-- 复用现有 React `uploadConversionTaskChunked()` 封装和 FastAPI chunked upload 路由形态。
-- 复用 Playwright mock E2E，不引入新的浏览器测试框架。
-- 保留用户取消上传的 Abort 语义，不把主动取消误报为网络失败。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-13-browser-upload-network-failure-e2e.md`
-- 前端上传封装：`E:/Codex/MathForge/apps/web/src/lib/api.ts`
-- 浏览器测试：`E:/Codex/MathForge/apps/web/tests/e2e/app-smoke.spec.ts`
-- 仓库自检：`E:/Codex/MathForge/tests/test_main.py`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-cd apps\web
-npm run build
-# OK, with existing markdown-preview chunk size warning
-
-npm run e2e
-# 3 passed
-
-npm run e2e:real
-# 3 passed
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_contract
-# Ran 30 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_main
-# Ran 14 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest discover -s tests
-# Ran 81 tests - OK
-```
-
-### 备注
-
-本轮关闭“浏览器网络失败提示”这一部分缺口，但标签页刷新时序、自动修复损坏 manifest、整本未转换扫描 PDF 的即时 OCR 索引仍未完成。
-
-## MathForge Round 14 应用附录：Chunked Upload Tab Reload Recovery Prompt
-
-### 当前状态
-
-MathForge 已经证明后端分片 manifest 可支持续传、取消、API 重启恢复和损坏状态诊断；Round 13 也证明了浏览器分片 `PUT` 网络失败会给出恢复提示。但刷新浏览器标签页后，React 内存里的 `File[]` 和 upload id 会丢失，用户看不到后端仍可能存在的未完成上传会话。
-
-### 本轮方向
-
-继续应用“事实层优先”和“诚实边界”原则：后端 manifest 仍是分片字节事实层；浏览器 localStorage 只保存会话元数据，不保存 PDF 文件内容。刷新后，UI 提示用户重新选择同一批 PDF，随后复用原 `resume_key` 和既有 start/PUT/complete 路由继续上传。
-
-### 复用原则
-
-- 复用现有 `resume_key`、chunk manifest 和 `DELETE` 清理会话接口。
-- 复用 React 页面和 Playwright mock E2E，不新增上传协议。
-- 明确浏览器安全边界：不能也不应该自动保存本地 PDF 字节。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-06-30-round-14-chunked-upload-tab-reload-recovery.md`
-- 前端上传封装：`E:/Codex/MathForge/apps/web/src/lib/api.ts`
-- React 上传页：`E:/Codex/MathForge/apps/web/src/pages/PdfParsePage.tsx`
-- 浏览器测试：`E:/Codex/MathForge/apps/web/tests/e2e/app-smoke.spec.ts`
-- 仓库自检：`E:/Codex/MathForge/tests/test_main.py`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-cd apps\web
-npm run build
-# OK, with existing markdown-preview chunk size warning
-
-npm run e2e
-# 4 passed
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_main
-# Ran 14 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_contract
-# Ran 30 tests - OK
-```
-
-### 备注
-
-本轮关闭“标签页刷新时序 E2E”这一部分缺口，但不做损坏 manifest 自动修复，也不为未转换扫描 PDF 生成即时 OCR 搜索索引。
-
-## MathForge Round 15 应用附录：Chunk Manifest Backup Auto-Repair
-
-### 当前状态
-
-Round 12 已经为损坏或不完整的分片上传会话提供取消/重来或重传缺失分片的提示；Round 14 进一步证明了正常 manifest 可支撑浏览器刷新后的续传提示。但 README 中仍保留了“损坏清单目前只提示取消重来，不自动修复”的缺口。
-
-### 本轮方向
-
-继续应用“事实层优先”和“保守修复边界”原则：不从任意残留 chunk 文件猜测文件清单，而是在 MathForge 每次成功写 `manifest.json` 时维护同目录 `manifest.json.bak`。当主清单损坏但备份通过同一 schema 校验时，API 自动从备份恢复主清单；主备都坏时仍要求取消重来。
-
-### 复用原则
-
-- 复用现有 manifest schema、start/status/PUT/complete/DELETE 路由和契约测试结构。
-- 复用原子写入模式，通过临时文件替换主清单和备份清单。
-- 不引入新上传协议，不改变 assembled 输出或转换任务创建语义。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-07-01-round-15-chunk-manifest-backup-auto-repair.md`
-- FastAPI 上传实现：`E:/Codex/MathForge/apps/api/main.py`
-- API 契约测试：`E:/Codex/MathForge/tests/test_api_contract.py`
-- 仓库自检：`E:/Codex/MathForge/tests/test_main.py`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_contract
-# Ran 31 tests - OK
-```
-
-### 备注
-
-本轮关闭“主 manifest 损坏但可从已知备份恢复”的缺口。它不是任意残片重建；如果主备清单都坏，用户仍需取消该会话后重新开始。
-
-## MathForge Round 16 应用附录：Disk-Staged Image OCR Payload Manifest
-
-### 当前状态
-
-Round 07 已经让 `image_ocr` 成为 durable 内部任务，API 重启后可按保存 payload 重新排队。但当浏览器提交多张或高分辨率截图时，原实现把 base64 图片数组直接持久化到 SQLite 任务 payload，长期会让 `data/api_tasks.sqlite3` 膨胀。
-
-### 本轮方向
-
-继续应用“本地事实层优先”原则：图片字节落盘到 `work/image_ocr_staging/{staging_id}/`，并由 `manifest.json` 记录文件名、路径和大小；SQLite 任务 payload 只保存 `image_manifest_path`、图片数量、标题、选项和 MinerU 参数。Runner 读取 manifest 后仍复用 `ManualImportService.import_images_with_ocr()`。
-
-### 复用原则
-
-- 复用现有 `ManualAsset`、`ManualImportService.import_images_with_ocr()` 和 `TaskManager.start_durable()`。
-- 保留旧 payload 内联 `images` 兼容读取，避免已经持久化的任务被新版本遗弃。
-- 不新增 OCR 队列系统，不引入 Pix2Text/Qwen-VL 复核队列。
-
-### 产物
-
-- MathForge 轮次计划：`E:\Codex\MathForge\docs\plans\2026-07-01-round-16-disk-staged-image-ocr-payload.md`
-- FastAPI 实现：`E:/Codex/MathForge/apps/api/main.py`
-- API 契约测试：`E:/Codex/MathForge/tests/test_api_contract.py`
-- 任务恢复测试：`E:/Codex/MathForge/tests/test_api_tasks.py`
-- 仓库自检：`E:/Codex/MathForge/tests/test_main.py`
-- 开发进度：`E:/Codex/MathForge/docs/development-progress.md`
-- 研究桥接记录：`E:\Codex\MathForge\docs\research\codex-session-archive-research.md`
-
-### 验证
-
-```powershell
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_contract.ApiContractTests.test_intake_image_ocr_task_imports_result_through_queue
-# Ran 1 test - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_api_tasks
-# Ran 18 tests - OK
-
-$env:PYTHONPATH='src'; .\.venv\Scripts\python.exe -m unittest tests.test_main
-# Ran 14 tests - OK
-```
-
-### 备注
-
-本轮关闭“大量图片仍建议落盘 staging manifest”的持久化缺口。当时旧 staging 目录的保留/清理策略、复杂队列管理面板和 Pix2Text/Qwen-VL 局部复核队列仍需后续单独设计；其中 staging 保留/清理已在 MathForge Round 17 通过 dry-run/apply 维护入口补齐。
-
-## ThreadVault v0.18 实施附录：Backup Retention
-
-### 当前状态
-
-ThreadVault v0.17 已提供 `backup-history list/latest/verify-latest`，可以发现和校验规范命名的本地 SQLite 备份。但长期使用后，备份目录会持续增长，用户需要一个可预览、可脚本化、不会误删坏文件的保留策略入口。
+v0.17 已提供 `backup-history list/latest/verify-latest`，能够发现并校验备份目录中的规范备份文件。但备份数量增长后，用户仍需要手动删除旧备份，容易误删坏文件、非规范文件或仍需保留的证据文件。
 
 ### v0.18 方向
 
-新增 `threadvault backup-history prune --dir DIR --keep N [--apply] --json`。命令默认 dry-run，只返回保留、可删除和 warning 列表；只有显式 `--apply` 才删除旧备份。删除对象仅限已通过验证的 `threadvault-backup-*.db` 文件。
+新增 `threadvault backup-history prune --dir DIR --keep N [--apply] --json`。默认只预览将保留和可删除的备份；只有显式传入 `--apply` 才删除旧备份。删除范围限制为 `backup-history list` 已验证通过的规范 `threadvault-backup-*.db` 文件。
 
 ### 安全原则
 
-备份可能包含私有 Codex 会话内容，因此 v0.18 不做云同步、不做 restore、不做自动删除。坏备份和非 SQLite backup-like 文件作为 warning 留给用户手动判断，不进入自动删除集合。
+备份文件可能包含本地私有会话内容。v0.18 不做云同步、不做 restore、不做自动清理；坏备份或非 SQLite backup-like 文件只作为 warning 返回，不自动删除，避免破坏排障证据。
 
 ### 复用原则
 
-复用 ThreadVault 已验证的 `audit-history prune` dry-run/apply 模式、v0.17 备份目录发现逻辑、v0.16 SQLite 备份校验逻辑，以及现有 JSON schema/capabilities/validate-json 契约链。外部项目只借鉴“机器友好、可审计维护命令”的接口形态，不复制源码。
+复用 v0.10 `audit-history prune` 的成熟 dry-run/apply 命令形态，复用 v0.17 备份发现和 v0.16 备份校验逻辑，不重新发明备份识别规则。继续通过 JSON schema、capabilities 和 `validate-json` 固化 agent-friendly 输出。
 
 ### 发现的问题
 
-Windows 上，备份刚被 SQLite 校验后可能存在短暂文件句柄释放延迟，直接删除会偶发 `PermissionError`。v0.18 在删除前触发垃圾回收，并对 `PermissionError` 做短重试，配套回归测试覆盖 prune 行为。
+Windows 上，刚通过 SQLite 校验的备份文件可能因文件句柄释放延迟导致删除时出现 `PermissionError`。实现中加入删除前 `gc.collect()` 和短重试，避免把平台文件锁抖动暴露为误删或失败。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-18-backup-retention/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-18-backup-retention/external-review.md`
@@ -1633,25 +954,25 @@ Windows 上，备份刚被 SQLite 校验后可能存在短暂文件句柄释放�
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/backup_history_prune.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v18_backup_prune.py`
 
-## ThreadVault v0.19 实施附录：Backup Retention Config
+## v0.19 实施附录：Backup Retention Config
 
 ### 当前状态
 
-v0.18 已经让备份保留具备 dry-run、显式 apply 和 schema 校验，但保留数量仍需每次通过 `--keep` 指定。项目内部已有 `audit-history prune --config` 成熟路径，可以直接复用同一配置模块和优先级规则。
+v0.18 已提供安全的 `backup-history prune --keep N`，但每次都需要在命令行重复指定保留数量。v0.11 已经为 audit history 建立过本地 config retention 模式，因此备份保留可以复用同一配置模块，而不是新增一套配置读取逻辑。
 
 ### v0.19 方向
 
-新增 `[backup_history] keep = N`。`backup-history prune` 增加 `--config`，当 CLI 未传 `--keep` 时从配置读取 `backup_history.keep`；当 CLI 显式传入 `--keep` 时覆盖配置。JSON 输出新增 `keep_source`，用于说明保留数量来自 `cli` 还是 `config`。
+新增 `[backup_history] keep = N`。`threadvault backup-history prune --config threadvault.toml --json` 可直接使用配置默认值；显式 `--keep` 仍优先于 config。JSON 输出新增 `keep_source`，便于 agent 判断本次保留数量来自 CLI 还是配置。
 
 ### 安全原则
 
-配置只是默认值，不会创建后台任务，也不会自动删除文件。删除仍需用户显式传入 `--apply`。备份可能包含本地 Codex 会话内容，因此本轮不做云同步、restore、加密或压缩。
+配置只提供默认保留数量，不会触发自动删除。`backup-history prune` 继续默认 dry-run，只有显式 `--apply` 才删除旧备份。备份文件可能包含私有会话内容，因此仍只操作用户指定的本地备份目录。
 
 ### 复用原则
 
-复用 `threadvault.app_config`，复用 v0.11 audit retention config 的命令形态和错误处理，复用 v0.18 backup prune 的删除安全边界。外部项目只借鉴机器友好维护命令的接口形态，不复制源码。
+复用 `threadvault.app_config` 作为唯一 TOML 解析模块，复用 `audit-history prune` 的优先级和错误消息形态，继续通过 JSON schema/capabilities/validate-json 固化输出契约。不修改 Codex 原始 transcript、`CODEX_HOME` 或 `state_5.sqlite`。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-19-backup-retention-config/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-19-backup-retention-config/external-review.md`
@@ -1660,25 +981,25 @@ v0.18 已经让备份保留具备 dry-run、显式 apply 和 schema 校验，但
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/backup_history_prune.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v19_backup_config.py`
 
-## ThreadVault v0.20 实施附录：Backup Provenance Manifest
+## v0.20 实施附录：Backup Provenance Manifest
 
 ### 当前状态
 
-ThreadVault 已具备本地 SQLite 备份、校验、历史列表、保留清理和保留配置。但备份文件本身缺少可随文件长期保存的 provenance 信息；如果未来要设计 restore，必须先能判断“这个备份是什么、来自哪里、是否被改动过”。
+v0.15-v0.19 已经覆盖数据库备份、备份校验、备份历史、备份保留和保留配置。但备份 provenance 只存在于命令 stdout 中，备份文件被移动或长期保存后，缺少可验证的来源信息和 checksum 证据。
 
 ### v0.20 方向
 
-`threadvault backup` 成功后默认写入 `<backup>.manifest.json`。manifest 包含 manifest version、生成时间、备份路径、备份 SHA256、字节数、schema version、stats、source db 路径和 source db SHA256。新增 `backup-manifest --backup PATH --json` 和 `backup-verify --manifest` 进行只读校验。
+成功执行 `threadvault backup` 后，默认在备份文件旁写入 `<backup>.manifest.json`。manifest 记录版本、生成时间、备份路径、备份 SHA256、字节数、schema version、stats、source db 路径和 source db SHA256。新增 `backup-manifest` 和 `backup-verify --manifest` 做只读校验。
 
 ### 安全原则
 
-manifest 不包含原始会话正文，但包含本地路径和校验和，应当按本地私有元数据处理。本轮不做 restore、不做覆盖、不做自动修复、不做云同步。
+manifest 不包含原始 transcript 正文，但包含本地路径和 checksum，应视为本地私有元数据。v0.20 不做 restore、不覆盖数据库、不自动修复 manifest、不上传任何内容。
 
 ### 复用原则
 
-复用 Python 标准库 `hashlib.sha256` 的流式哈希、现有 SQLite backup/verify 流程、JSON schema/validate-json 契约，以及 sidecar 文件这一成熟 provenance 形态。避免修改备份数据库内部结构。
+复用 Python `hashlib.sha256` 流式文件哈希，避免一次性读取大数据库；复用现有 `backup-verify` read-only 校验和 JSON schema/capabilities 契约；sidecar 方式不修改 SQLite 备份内部结构。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-20-backup-provenance-manifest/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-20-backup-provenance-manifest/external-review.md`
@@ -1687,25 +1008,25 @@ manifest 不包含原始会话正文，但包含本地路径和校验和，应�
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/backup_manifest.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v20_backup_manifest.py`
 
-## ThreadVault v0.21 实施附录：Restore Plan Preflight
+## v0.21 实施附录：Restore Plan Preflight
 
 ### 当前状态
 
-ThreadVault 现在已有本地备份、备份校验、manifest provenance、备份历史和保留策略。但 restore 是覆盖型高风险操作，应先有一个只读计划命令，把备份健康、manifest 状态和目标路径风险讲清楚。
+ThreadVault 已经能创建、校验、追踪和保留备份，并且 v0.20 增加了 manifest provenance。但真正 restore 是高风险写操作，不能在缺少预检和目标路径风险报告的情况下直接实现。
 
 ### v0.21 方向
 
-新增 `threadvault restore-plan --backup BACKUP --target-db TARGET --json`。命令复用现有备份校验和 manifest 校验，输出 `ok/errors/warnings/recommended_actions`，并报告目标路径状态。它是预检计划，不执行恢复。
+新增 `threadvault restore-plan --backup BACKUP --target-db TARGET --json`。该命令只读：复用 backup verify 和 manifest verify，报告目标路径是否存在、父目录是否存在、目标是否等于备份文件，以及未来 restore 前建议动作。
 
 ### 安全原则
 
-本轮不复制、不覆盖、不删除、不移动数据库。缺失 manifest 只作为 legacy warning；target 等于 backup 是 error；target 已存在是 warning，并提示未来 restore 前必须先备份当前目标。
+`restore-plan` 不复制、不覆盖、不移动、不删除、不恢复数据库。缺失 manifest 对老备份只给 warning，不阻断；目标等于备份文件属于 blocking error；目标已存在给 warning，提示未来 restore 需要显式 overwrite 与预恢复备份。
 
 ### 复用原则
 
-复用 v0.16 的 `verify_database_backup()`、v0.20 的 `verify_backup_manifest()` 和 JSON schema/validate-json 契约。新增 `restore_plan` 深模块，不在 CLI 中散落路径风险判断。
+复用 v0.16 read-only backup verification、v0.20 manifest verification 和现有 JSON schema/capabilities 机制。新增 `restore_plan` 深模块，把路径风险和 recommended actions 聚合在一个小接口中。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-21-restore-plan-preflight/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-21-restore-plan-preflight/external-review.md`
@@ -1714,25 +1035,25 @@ ThreadVault 现在已有本地备份、备份校验、manifest provenance、备�
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/restore_plan.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v21_restore_plan.py`
 
-## ThreadVault v0.22 实施附录：Safe Restore
+## v0.22 实施附录：Safe Restore
 
 ### 当前状态
 
-ThreadVault 已经具备 restore plan、backup verification 和 manifest provenance。下一步可以实现真正 restore，但必须保持危险操作显式化，避免误覆盖用户本地数据库。
+v0.21 已能生成只读 restore plan，但用户仍需要一个真正执行恢复的入口。恢复是高风险写操作，必须延续 ThreadVault 既有的 dry-run、显式 apply、显式 overwrite、执行前校验和执行后校验原则。
 
 ### v0.22 方向
 
-新增 `threadvault restore --backup BACKUP --target-db TARGET --json`。默认 dry-run，不写文件；`--apply` 才恢复。目标已存在时必须 `--overwrite`，且 apply overwrite 必须传 `--pre-restore-backup-dir`，先创建目标当前状态的本地备份。缺失 manifest 默认阻断 apply，只有 `--allow-missing-manifest` 才允许 legacy backup。
+新增 `threadvault restore --backup BACKUP --target-db TARGET --json`。默认 dry-run；`--apply` 才写入。apply 前要求 backup verify 通过；manifest 必须通过，除非显式 `--allow-missing-manifest` 支持 legacy 备份。目标已存在时必须 `--overwrite`，且 apply overwrite 还必须提供 `--pre-restore-backup-dir`。
 
 ### 安全原则
 
-restore 只写用户指定的 ThreadVault archive database，不触碰 Codex 原始会话目录。执行前校验 backup 和 manifest，执行后校验 restored target 并返回 doctor 信息。覆盖前必须做 pre-restore backup。
+restore 只操作用户指定的 ThreadVault SQLite archive 目标，不写 Codex 原始 transcripts。覆盖前必须先用 SQLite backup API 备份当前目标。恢复后自动校验 restored target，并返回 verification/doctor 信息。
 
 ### 复用原则
 
-复用现有 `restore_plan`、`verify_database_backup()`、`verify_backup_manifest()` 和 SQLite `Connection.backup()` 作为安全门禁。复制已验证备份文件使用 Python 标准库 `shutil.copy2`，不发明底层文件复制逻辑。
+复用 v0.21 restore-plan、v0.16 backup verification、v0.20 manifest verification 和 v0.15 SQLite backup API。实际复制使用 Python 标准库 `shutil.copy2`，源文件是已验证的本地 backup artifact，不是 live SQLite 数据库。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-22-safe-restore/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-22-safe-restore/external-review.md`
@@ -1741,25 +1062,25 @@ restore 只写用户指定的 ThreadVault archive database，不触碰 Codex 原
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/restore.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v22_restore.py`
 
-## ThreadVault v0.23 实施附录：Restore History
+## v0.23 实施附录：Restore History
 
 ### 当前状态
 
-v0.22 让 ThreadVault 第一次具备真正 restore 能力，并通过 dry-run/apply、manifest、pre-restore backup 和 post-restore verification 控制风险。但 applied restore 仍缺少长期本地审计记录。
+v0.22 已经支持真正 restore，并具备 dry-run、apply、overwrite gate、pre-restore backup 和 restored target verification。但 applied restore 如果只存在于 shell 输出中，不利于后续审计和排障。
 
 ### v0.23 方向
 
-新增本地 JSONL restore history。成功 `restore --apply` 后追加一条记录；提供 `restore-history list/latest --json`。记录只包含操作元数据：时间、backup/target 路径、checksum、flags、pre-restore backup destination、schema version 和 stats。
+新增本地 JSONL restore history。`restore --apply` 成功后追加一条 metadata record；新增 `restore-history list/latest` 查询。历史记录包含 restore 时间、backup/target 路径、apply/overwrite/allow_missing_manifest flags、backup/target SHA256、pre-restore backup destination、schema version 和 stats。
 
 ### 安全原则
 
-restore history 是本地私有元数据，不上传、不同步、不记录 transcript 正文。dry-run 和失败 restore 不写 history，避免把未发生的操作误记为已执行。
+restore history 不写入 Codex 原始状态，不写入 restored SQLite 内部，也不包含 transcript 正文。但它包含本地路径和 checksum，应作为本地私有元数据处理。dry-run 和失败 restore 不写 history。
 
 ### 复用原则
 
-复用 audit-history 的 list/latest 形态、JSONL append-only 方式和 `backup_manifest.sha256_file` 流式 checksum。新增 `restore_history` 深模块，保持 restore 执行逻辑和历史读写逻辑分离。
+复用 audit-history 的 list/latest 命令形态，复用 JSONL 作为 append-only local audit trail，复用 `backup_manifest.sha256_file` 做流式 checksum。新增 `restore_history` 深模块，避免在 CLI 或 restore 执行逻辑中散落 JSONL 解析。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-23-restore-history/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-23-restore-history/external-review.md`
@@ -1768,25 +1089,25 @@ restore history 是本地私有元数据，不上传、不同步、不记录 tra
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/restore_history_list.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v23_restore_history.py`
 
-## ThreadVault v0.24 实施附录：Restore History Retention
+## v0.24 实施附录：Restore History Retention
 
 ### 当前状态
 
-restore history 已经能记录 applied restore，但长期运行会增长。与 audit report 或 backup file 不同，restore history 是单个 JSONL 文件，因此 retention 应该重写记录，而不是删除独立文件。
+v0.23 已经让 successful applied restore 进入本地 JSONL history。随着 restore 次数增长，用户需要一个安全的保留策略，但 restore history 是单个 JSONL 文件，不能照搬“删除旧文件”的 backup-history prune。
 
 ### v0.24 方向
 
-新增 `threadvault restore-history prune --history PATH --keep N [--apply] --json`。命令默认 dry-run，`--apply` 才重写 JSONL。只裁剪 valid restore records，保留 latest N；malformed/non-object line 保留并作为 warning 呈现。
+新增 `threadvault restore-history prune --history PATH --keep N [--apply] --json`。默认 dry-run；`--apply` 才重写 history JSONL。命令保留最新 N 条 valid record，malformed/non-object line 继续保留并作为 warning 返回。
 
 ### 安全原则
 
-该命令不删除备份数据库、不删除 restored target、不触碰 Codex 原始 transcript。restore history 包含本地路径和 checksum，仍作为本地私有元数据处理。
+该命令只重写 restore history JSONL 文件，不删除 backup 文件、不删除 restored database、不触碰 Codex transcript。malformed line 可能是手工编辑或损坏证据，因此默认保留。
 
 ### 复用原则
 
-复用 audit-history/backup-history 的 dry-run/apply 用户体验，但实现上尊重 JSONL 单文件特性。JSONL 解析、warning 和重写逻辑集中在 `restore_history` 深模块。
+复用 audit-history/backup-history 的 dry-run/apply 接口形态，复用 restore_history 深模块集中处理 JSONL 宽容解析和重写，不在 CLI 中手写记录筛选。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-24-restore-history-retention/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-24-restore-history-retention/external-review.md`
@@ -1795,25 +1116,25 @@ restore history 已经能记录 applied restore，但长期运行会增长。与
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/restore_history_prune.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v24_restore_history_prune.py`
 
-## ThreadVault v0.25 实施附录：Restore History Retention Config
+## v0.25 实施附录：Restore History Retention Config
 
 ### 当前状态
 
-restore history retention 已能通过 `restore-history prune --keep N` 安全裁剪 valid JSONL records，但长期脚本和本地维护任务需要一个可审计、可复用的默认值来源。
+v0.24 已支持 `restore-history prune --keep N`，但脚本化环境每次都要传入 `--keep`，不利于长期固定策略。项目中 audit history 和 backup history 已有本地 TOML retention default，可复用同一配置模型。
 
 ### v0.25 方向
 
-新增 `[restore_history] keep = N` 本地配置。`restore-history prune` 支持 `--config PATH`，没有显式 `--keep` 时使用配置默认值；显式 `--keep` 仍覆盖配置。JSON 输出新增 `keep_source`，便于 agent 和脚本判断 retention 决策来源。
+新增 `[restore_history] keep = N`。`restore-history prune` 增加 `--config PATH`，当没有显式 `--keep` 时从配置读取默认值。CLI `--keep` 优先级最高，JSON 输出新增 `keep_source` 标明来自 `cli` 还是 `config`。
 
 ### 安全原则
 
-配置不代表自动执行清理。命令仍默认 dry-run，只有 `--apply` 才会重写 restore history JSONL；不会删除 backups、restored databases 或 Codex transcripts。restore history 仍按本地私有元数据处理。
+配置只提供默认值，不会触发自动清理。`restore-history prune` 仍然默认 dry-run，只有传入 `--apply` 才会重写 restore history JSONL。该命令仍不删除 backup、restored database 或 Codex transcript。
 
 ### 复用原则
 
-复用既有 audit/backup retention config pattern，不新增第二套配置格式。TOML 解析和校验保留在 `app_config` 深模块，CLI 只处理优先级和 JSON 输出。
+复用 audit-history/backup-history 的配置解析和 `keep_source` 输出形态，所有 TOML 解析继续集中在 `app_config` 模块，CLI 只负责解析优先级和调用 store。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-25-restore-history-retention-config/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-25-restore-history-retention-config/external-review.md`
@@ -1822,25 +1143,25 @@ restore history retention 已能通过 `restore-history prune --keep N` 安全�
 - JSON schema：`E:/Codex/ThreadVault/docs/schemas/restore_history_prune.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v25_restore_history_config.py`
 
-## ThreadVault v0.26 实施附录：Retention Resolution Helper
+## v0.26 实施附录：Retention Resolution Helper
 
 ### 当前状态
 
-audit-history、backup-history 和 restore-history prune 现在都支持 `--keep` 与本地 config default，并用 `keep_source` 标记来源。三处逻辑行为一致但分散在 CLI 中，长期容易发生 drift。
+v0.11 audit history、v0.19 backup history 和 v0.25 restore history 都形成了相同的 retention keep 决策规则：CLI `--keep` 优先，否则读取对应 config section，最后输出 `keep_source`。三处 CLI helper 已经出现重复，后续维护容易发生错误消息或优先级漂移。
 
 ### v0.26 方向
 
-新增 `threadvault.retention.resolve_retention_keep()`，统一处理 `--keep` 优先、config fallback、missing config error 和 invalid config propagation。各 prune 命令保持现有 public interface 不变。
+新增 `threadvault.retention.resolve_retention_keep()`，集中处理 keep 来源解析。audit、backup、restore 三类 prune 命令继续保留原有命令行参数和 JSON 输出，只把内部解析逻辑交给 helper。
 
 ### 安全原则
 
-本轮不新增删除能力，不自动执行 prune。helper 只返回 keep count 和来源；各 artifact 的删除/重写逻辑仍在原模块中，避免把 audit report、backup file、restore history JSONL 的不同安全语义混在一起。
+helper 只解析 retention count，不执行删除、不重写 JSONL、不扫描 Codex transcripts。audit report、backup file、restore history JSONL 仍由各自模块执行 artifact-specific prune safety rules。
 
 ### 复用原则
 
-复用 ThreadVault 既有 retention 行为和 `app_config` TOML parser。按 `codebase-design` 的 deep module 原则，本轮只抽公共决策，不抽 artifact-specific implementation。
+复用既有 TOML `app_config`，不新增配置格式。按 `codebase-design` 原则，只在三处真实调用已经共享同一规则时抽取深模块，避免把不同 artifact 的 prune 行为过度泛化。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-26-retention-resolution-helper/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-26-retention-resolution-helper/external-review.md`
@@ -1848,25 +1169,25 @@ audit-history、backup-history 和 restore-history prune 现在都支持 `--keep
 - CLI 接入：`E:/Codex/ThreadVault/src/threadvault/cli.py`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v26_retention.py`
 
-## ThreadVault v0.27 实施附录：Retention Schema Contract
+## v0.27 实施附录：Retention Schema Contract
 
 ### 当前状态
 
-v0.26 已统一 retention keep 解析，但 JSON schema 对 `keep_source` 的描述不完全一致。audit prune schema 没有要求该字段必填，backup/restore prune schema 又没有限定 enum。
+v0.26 后 runtime 已经统一输出 `keep_source=cli|config`。但 schema 层存在轻微 drift：audit prune schema 有 enum 但没有 required，backup/restore prune schema required 了 `keep_source` 却允许任意 string。
 
 ### v0.27 方向
 
-收紧 `audit_history_prune`、`backup_history_prune`、`restore_history_prune` 三个 schema：`keep_source` 必填，并且只能是 `cli` 或 `config`。这与 runtime 输出一致，使 agent 和脚本可以更可靠地校验 payload。
+统一三类 retention prune schema：`keep_source` 必填，且 enum 限定为 `cli` 或 `config`。这让 agent 和脚本可以可靠区分保留数量来源，并能拒绝 synthetic payload 中的未知来源值。
 
 ### 安全原则
 
-只更新 schema contract，不改变 prune 执行、不新增写操作、不读取真实 Codex transcript。
+本轮不改变运行时行为、不执行 prune、不触碰 Codex transcript。只收紧 JSON schema 和 packaged schema artifacts。
 
 ### 复用原则
 
-复用既有 JSON schema/validate-json 设施和 v0.5 机器友好契约原则。新增共享 `KEEP_SOURCE_SCHEMA`，把契约放在 schema module 内集中维护。
+复用 v0.5/v0.6 的机器友好 JSON contract 和 `validate-json` 基础设施，新增共享 `KEEP_SOURCE_SCHEMA`，避免 schema 字段在三处再次漂移。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-27-retention-schema-contract/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-27-retention-schema-contract/external-review.md`
@@ -1874,25 +1195,25 @@ v0.26 已统一 retention keep 解析，但 JSON schema 对 `keep_source` 的描
 - Packaged schemas：`E:/Codex/ThreadVault/docs/schemas/`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v27_retention_schema_contract.py`
 
-## ThreadVault v0.28 实施附录：Capabilities Schema Contract
+## v0.28 实施附录：Capabilities Schema Contract
 
 ### 当前状态
 
-`capabilities --json` 已经承担 agent discovery 入口职责，runtime 输出包含稳定性策略、JSON 输出命令、导出格式、导出 profile、隐私模式、搜索字段和 feature flags。但正式 schema 没有把这些字段全部纳入 required contract。
+`capabilities --json` 是 agent 发现 ThreadVault 能力的主入口。runtime 已稳定输出 `stability_policy`、`json_outputs`、`export_formats`、`export_profiles`、`privacy_modes`、`search_fields` 和 `feature_flags`，README 也把这些字段作为机器友好入口的一部分描述。但 capabilities schema 只 required 早期核心字段。
 
 ### v0.28 方向
 
-收紧 capabilities schema，要求 runtime 已稳定输出的 discovery fields；同时更新 `robot-docs schemas --json` 的 capabilities 摘要，使 robot docs 与正式 JSON schema 对齐。
+收紧 `capabilities` schema，使其 required 字段覆盖已稳定输出的 discovery metadata；同时更新 `robot-docs schemas --json` 的 capabilities 字段摘要，让机器帮助和正式 schema 对齐。
 
 ### 安全原则
 
-本轮只处理公开 JSON contract，不改数据库、不改真实语料导入、不改备份/恢复/导出行为。
+本轮只更新 schema 和 robot docs contract，不扫描真实 Codex home、不改数据库、不改变导入/导出/restore 行为。
 
 ### 复用原则
 
-复用 ThreadVault 既有 schema/validate-json 机制，不新增 manifest 格式。延续 CASS-style robot-friendly discovery 思路：agent 入口需要完整、明确、可验证。
+复用 v0.5/v0.6 的 machine-friendly JSON contract 和 `validate-json` 基础设施，借鉴 CASS-style capabilities/health 入口的“完整、可验证、适合 agent 调用”原则。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-28-capabilities-schema-contract/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-28-capabilities-schema-contract/external-review.md`
@@ -1901,25 +1222,25 @@ v0.26 已统一 retention keep 解析，但 JSON schema 对 `keep_source` 的描
 - Packaged schema：`E:/Codex/ThreadVault/docs/schemas/capabilities.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v28_capabilities_schema_contract.py`
 
-## ThreadVault v0.29 实施附录：Doctor Schema Contract
+## v0.29 实施附录：Doctor Schema Contract
 
 ### 当前状态
 
-`doctor --json` 已经是本地健康诊断主入口，runtime 输出包含 schema version、schema objects、parse health、maintenance suggestions、环境和 Codex home 探测信息。但正式 schema 只 required 早期核心字段。
+`doctor --json` 是本地健康诊断入口。runtime 已输出 schema version、schema objects、parse health、maintenance suggestions、Python/platform/db path/Codex home/session dirs/jsonl count/Codex state 等 top-level 诊断字段。但 doctor schema 仍只 required 早期的 `ok`、`checks`、`stats`。
 
 ### v0.29 方向
 
-收紧 doctor schema，要求 runtime 已稳定输出的 top-level diagnostic fields；嵌套对象保持 permissive，便于后续追加诊断细节。
+收紧 `doctor` schema，要求 runtime 已稳定输出的 top-level diagnostic fields。嵌套结构继续保持宽容，支持未来诊断项追加。
 
 ### 安全原则
 
-doctor payload 包含本地路径和环境信息，应保持本地使用。本轮只更新 schema contract，不改真实语料读取、不改导入导出和备份恢复行为。
+doctor 输出包含本地路径和环境元数据，只作为本地诊断使用。本轮不改 runtime、不扫描或导出 transcript 原文，只更新 schema contract 和 packaged schema。
 
 ### 复用原则
 
-复用 ThreadVault 既有 doctor/runtime 输出和 JSON Schema infrastructure。延续 CASS-style health/triage 的 agent-friendly 原则，让诊断输出可被机器可靠验证。
+复用 v0.5 doctor maintenance fields 和 v0.6 `validate-json` 基础设施，借鉴 CASS-style health/triage 输出的 machine-verifiable 思路。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-29-doctor-schema-contract/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-29-doctor-schema-contract/external-review.md`
@@ -1927,169 +1248,52 @@ doctor payload 包含本地路径和环境信息，应保持本地使用。本�
 - Packaged schema：`E:/Codex/ThreadVault/docs/schemas/doctor.schema.json`
 - 回归测试：`E:/Codex/ThreadVault/tests/test_v29_doctor_schema_contract.py`
 
-## ThreadVault v0.30 实施附录：Completion Gap Audit
+## v0.30 实施附录：Completion Gap Audit
 
 ### 当前状态
 
-ThreadVault 当前已完成本地优先 CLI MVP，并明显超出最初 MVP：包括 agent-friendly JSON contracts、匿名真实语料 audit、隐私 allowlist、备份/恢复/保留维护、schema registry、doctor 和 self-test。
+ThreadVault 已完成原始 CLI MVP，并在后续阶段补充了 agent-friendly JSON 契约、真实语料匿名审计、隐私 allowlist、备份/恢复/保留维护、schema validation 和 doctor/self-test 等长期维护能力。
 
 ### v0.30 方向
 
-执行完成度和缺口审计，新增 `docs/v0/phases/phase-30-completion-gap-audit/completion-gap-audit.md`，用当前命令、schema、测试、README、阶段计划和研究附录作为证据，区分已完成、部分完成、延期和下一步。
+暂停功能开发，执行阶段性完成度和缺口审计。新增 `docs/v0/phases/phase-30-completion-gap-audit/completion-gap-audit.md`，按原始 MVP、v0.2-v0.5 加固目标、后续维护能力、文档溯源和延期范围逐项分类。
 
 ### 审计结论
 
-CLI/data-layer MVP 和后续维护硬化基本完成。剩余主要是明确不属于第一阶段的 Web/TUI/桌面端/MCP/REST/vector/cloud/team/external LLM 工作。是否更新 DOCX 可作为单独正式交付阶段。
+CLI/data-layer MVP 和 agent-friendly maintenance hardening 已基本完成。剩余主要是已明确延期的非 CLI 范围：Web UI、TUI、桌面端、MCP、REST API、向量数据库、云同步、团队权限和外部 LLM 自动摘要。
 
 ### 复用原则
 
-复用 ThreadVault 已有 `capabilities --json`、`schemas list --json`、`doctor --json` 和测试结果作为完成证据，不新增另一套审计格式。延续 CASS-style machine-verifiable readiness 思路。
+复用 ThreadVault 自身 `capabilities`、`doctor`、`self-test`、schema registry 和测试结果作为完成度证据，借鉴 CASS-style health/triage 的 machine-verifiable readiness 思路。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-30-completion-gap-audit/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-30-completion-gap-audit/external-review.md`
 - 完成度审计：`E:/Codex/ThreadVault/docs/v0/phases/phase-30-completion-gap-audit/completion-gap-audit.md`
 
-## ThreadVault v0.31 实施附录：Final CLI MVP Acceptance
+## v0.31 实施附录：Final CLI MVP Acceptance
 
 ### 当前状态
 
-v0.30 已完成 CLI/data-layer 完成度审计，并建议用端到端 smoke 作为最终验收证据。
+v0.30 完成度审计判断 CLI/data-layer MVP 已基本完成，需要一次端到端验收链作为最终证据。
 
 ### v0.31 方向
 
-使用 fixture Codex home 执行最终 CLI 验收链：导入、列表、搜索、摘要、导出、隐私扫描与脱敏导出、stats、doctor、self-test、reindex、backup、backup verify、manifest、restore-plan、restore 和 restore history。
+使用 `tests/fixtures/codex_home` 在临时目录执行完整 CLI 验收：import、list、search、summarize、四种 export、privacy-scan、redact export、stats、doctor、self-test、reindex、backup、manifest、restore-plan、restore 和 restore-history。
 
 ### 验收结论
 
-最终 CLI MVP acceptance 通过：导入 4 个 sessions、28 个 events；搜索 `pytest` 命中 3 条；摘要有 6 个 evidence event IDs；Markdown/JSON/JSONL/CSV 导出成功；隐私扫描发现 3 条并能 redaction export；FTS reindex 计数一致；backup/manifest/restore/restore history 全部通过。
+最终 CLI/data-layer acceptance 通过。导入 4 个 session、28 个 events，搜索 `pytest` 命中 3 条，摘要包含 6 个 evidence event id，四种导出格式均写入，隐私扫描发现 3 条，reindex 后 `events=28` 且 `events_fts=28`，备份/验证/manifest/restore/restore-history 全部通过。
 
 ### 安全原则
 
-验收只使用 `tests/fixtures/codex_home`，不扫描真实 Codex home。DOCX 同步可作为独立正式交付阶段。
+验收只使用 fixture Codex home，不扫描真实私人 Codex transcript。DOCX 同步仍保留为可选正式交付阶段。
 
-### 产物
+### 阶段产物
 
 - 阶段计划：`E:/Codex/ThreadVault/docs/v0/phases/phase-31-final-cli-mvp-acceptance/plan.md`
 - 外部复查：`E:/Codex/ThreadVault/docs/v0/phases/phase-31-final-cli-mvp-acceptance/external-review.md`
 - 最终验收：`E:/Codex/ThreadVault/docs/v0/phases/phase-31-final-cli-mvp-acceptance/final-cli-mvp-acceptance.md`
-
-## MathForge Round 17 应用附录：Image OCR Staging Cleanup
-
-### 当前状态
-
-MathForge Round 16 已把浏览器图片 OCR 的原始图片从 SQLite payload 移到 `work/image_ocr_staging/{staging_id}/manifest.json`。这解决了任务库膨胀问题，但也留下了暂存目录长期增长的运维缺口。
-
-### 应用原则
-
-继续复用 ThreadVault 维护命令中的 dry-run/apply 安全形态：先盘点本地事实，再执行显式清理。MathForge 不新增后台清理器，不扫描任意用户目录，只处理自己生成的 `work/image_ocr_staging/imgocr_*` 会话。
-
-### 产物
-
-- 计划：`E:\Codex\MathForge\docs\plans\2026-07-01-round-17-image-ocr-staging-cleanup.md`
-- 后端 helper：`_image_ocr_active_manifest_paths()`、`_cleanup_image_ocr_staging()`
-- API：`GET /api/intake/images/ocr-staging`、`POST /api/intake/images/ocr-staging/cleanup`
-- React：快速入库页图片 OCR 暂存盘点/清理控件
-- 测试：dry-run/apply 删除测试、queued/running `image_ocr` manifest 保护测试
-
-### 边界
-
-清理只删除符合条件的 staging 会话目录，不删除 `work/manual_imports/` 导入证据，不删除题库图片资产，不尝试判断已导入题目的内容安全性。queued/running 任务引用的 manifest 会被保留。
-
-## MathForge Round 18 应用附录：Real Backend Failure Summary E2E
-
-### 当前状态
-
-MathForge 已有 mock Playwright 覆盖失败摘要卡，但真实后端 E2E 主要覆盖成功路径：PDF 渲染、转换资产搜索和组卷导出。失败任务路径仍缺少真实 API 证据。
-
-### 应用原则
-
-继续应用“真实事实优先”：让浏览器测试通过 FastAPI 创建一个真实失败的 Pix2Text 可选引擎任务，再验证 UI 展示 API 返回的失败摘要、分类、证据行和建议。该测试不声称 Pix2Text 已实现，只验证 unavailable adapter 的诚实失败路径。
-
-### 发现并修复
-
-- 临时 API 数据根没有 `main.py` 时，TaskManager 原先会把命令指向数据根下不存在的入口；现已回退到仓库真实 `main.py`。
-- Windows 子进程输出中文失败日志时可能被解码成乱码；现为子 Python conversion process 设置 `PYTHONIOENCODING=utf-8` 与 `PYTHONUTF8=1`。
-
-### 产物
-
-- 计划：`E:\Codex\MathForge\docs\plans\2026-07-01-round-18-real-backend-failure-summary-e2e.md`
-- E2E：`E:/Codex/MathForge/apps/web/tests/e2e-real/task-failure-real-backend.spec.ts`
-- 夹具：`E:/Codex/MathForge/apps/web/tests/fixtures/real_backend_server.py`
-- 任务层修复：`E:/Codex/MathForge/apps/api/tasks.py`
-- 回归测试：`E:/Codex/MathForge/tests/test_api_tasks.py`
-
-### 验证
-
-`python -m unittest discover -s tests` 通过 86 条测试；`npm run build` 通过且仅保留既有 chunk warning；`npm run e2e` 4 passed；`npm run e2e:real` 4 passed。
-
-## MathForge Round 19 应用附录：Task Queue Bulk Management Panel
-
-### 当前状态
-
-MathForge 已有 SQLite 持久化任务记录、最近任务队列、筛选、分页、单任务取消和单任务重试。但 README 中“复杂 OCR 队列批量管理”仍没有可操作入口，用户处理多条失败或排队 OCR 任务时需要逐条点击。
-
-### 应用原则
-
-继续复用现有接口，不新增队列服务、不发明第二套任务状态。批量管理只在 React 层对已筛选/分页的任务做选择，然后逐个调用已有 `/api/tasks/{task_id}/cancel` 和 `/api/tasks/{task_id}/retry`。这延续 ThreadVault 维护命令的可审计思想：每个动作仍能落到既有任务日志和既有 API 契约。
-
-### 产物
-
-- 计划：`E:\Codex\MathForge\docs\plans\2026-07-01-round-19-task-queue-bulk-management.md`
-- React：`E:/Codex/MathForge/apps/web/src/pages/PdfParsePage.tsx`
-- 样式：`E:/Codex/MathForge/apps/web/src/styles.css`
-- Mock E2E：`E:/Codex/MathForge/apps/web/tests/e2e/app-smoke.spec.ts`
-- 自检：`E:/Codex/MathForge/tests/test_main.py`
-
-### 边界
-
-本轮只实现队列列表的批量选择、批量取消 queued/running 任务和批量重试 failed conversion 任务。不实现内部任务强制抢占、不引入专用队列后端，也不实现 Pix2Text/Qwen-VL 局部公式重跑编排。
-
-## MathForge Round 20 应用附录：On-demand PDF OCR Search Index
-
-### 当前状态
-
-MathForge 已能搜索已入库题库 OCR 文本和已完成转换资产里的 OCR Markdown，但完全未转换、未导入题库的本地扫描 PDF 仍缺少搜索入口。
-
-### 应用原则
-
-继续使用“本地事实层 + 显式任务”的模式：未导入 PDF 的 OCR 搜索索引落在 `work/pdf_ocr_search_index/`，由 manifest 记录源 PDF、任务 ID、引擎和 Markdown 缓存路径。搜索接口只读已生成缓存，不在查询请求里隐式启动 OCR。
-
-### 产物
-
-- 计划：`E:\Codex\MathForge\docs\plans\2026-07-01-round-20-on-demand-pdf-ocr-search-index.md`
-- API：`GET /api/pdf-ocr-index/status`、`POST /api/pdf-ocr-index/tasks`、`GET /api/pdf-ocr-index/search`
-- React：PDF 解析页“未导入 PDF 的 OCR 搜索索引”面板
-- 测试：缓存搜索、缺缓存提示、任务入队和非 PDF 拒绝契约测试
-- 占位接口：`/api/paper-template-marketplace/status`、`/api/paper-template-marketplace/templates`、`/api/paper-template-marketplace/sync`
-
-### 边界
-
-索引生成仍依赖本机 OCR 引擎实际可用；本轮不实现模型安装器、不实现 Pix2Text/Qwen-VL 局部公式重跑，也不实现答题卡主题模板市场或云端多人协作。市场/云协作只保留明确 disabled 的扩展接口，sync 返回 501。
-
-## MathForge Round 21 应用附录：OCR Model Health Framework
-
-### 当前状态
-
-MathForge 已有 OCR 引擎注册表，可告诉用户 Marker/olmOCR/Qwen-VL/Pix2Text 是否检测到本地包或命令。但这还不足以指导安装，也不能表达官方建议的环境隔离、模型权重、GPU 风险和后续适配器边界。
-
-### 应用原则
-
-继续采用“先记录可验证事实，再执行自动化”的原则。不同引擎的官方安装形态差异较大：olmOCR 建议独立 conda 环境，Qwen-VL 依赖 Transformers、qwen-vl-utils、模型权重和硬件资源，Pix2Text 与 Marker 也有不同 extras/命令入口。因此本轮只建立健康检查和安装计划，不自动安装、不下载模型、不声称真实推理可用。
-
-### 产物
-
-- 计划：`E:\Codex\MathForge\docs\plans\2026-07-01-round-21-ocr-model-health-framework.md`
-- Registry 深接口：`EngineInstallPlan`、`EngineProbe`、`engine_health_payloads()`、`engine_install_plan_payload()`
-- API：`GET /api/ocr-engines/health`、`GET /api/ocr-engines/{engine_key}/install-plan`
-- React：PDF 转换页“模型环境健康检查”面板
-- 测试：API health/install-plan 契约测试与仓库自检
-
-### 边界
-
-健康检查只证明本机包/命令事实和安装计划可见，不证明模型权重、显存、推理速度或真实 OCR 质量。Marker/olmOCR/Qwen-VL/Pix2Text 的 `convert_pdf_to_markdown` 真实运行器和 Pix2Text/Qwen-VL 局部公式重跑队列仍需后续轮次实现。
-
-
 
 

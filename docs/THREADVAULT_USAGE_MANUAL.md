@@ -968,7 +968,6 @@ threadvault restore --backup BACKUP.db --target-db RESTORED.db --apply --json
 - 开发进度：`docs/development-progress.md`
 - 最终验收：`docs/v0/phases/phase-31-final-cli-mvp-acceptance/final-cli-mvp-acceptance.md`
 - 完成度审计：`docs/v0/phases/phase-30-completion-gap-audit/completion-gap-audit.md`
-- 研究报告 Markdown：`docs/archive/mathforge-research-appendices.md`
 - 研究报告归档副本：`docs/v0/research/codex-session-archive-research.md`
 
 ## 13. 最小验收命令

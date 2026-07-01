@@ -204,7 +204,6 @@ The root README is intentionally short. Detailed planning, usage, contracts, and
 - `docs/roadmap/major-version-roadmap.md` - major-version roadmap.
 - `docs/roadmap/v1-personal-knowledge-layer.md` - next development line.
 - `docs/schemas/` - packaged JSON Schema contract artifacts.
-- `docs/archive/mathforge-research-appendices.md` - archived research appendices.
 
 ## Development
 
@@ -224,3 +223,7 @@ threadvault robot-docs schemas --json
 ```
 
 Before starting new feature work, read `docs/roadmap/v1-personal-knowledge-layer.md` and `docs/v0/README.md`.
+
+## License
+
+ThreadVault is released under the MIT License. See `LICENSE` for details.

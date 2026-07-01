@@ -591,7 +591,7 @@ v0.3 聚焦可维护性与互操作性：建立阶段规划归档、开发进度
 - 阶段计划：`docs/v0/phases/`
 - 开发进度：`docs/development-progress.md`
 - 外部项目核查：各阶段目录下的 `external-review.md`
-- 研究报告 Markdown：`docs/archive/mathforge-research-appendices.md` 与 `docs/v0/research/codex-session-archive-research.md`
+- 研究报告 Markdown：`docs/v0/research/codex-session-archive-research.md`
 
 DOCX 报告暂不作为每阶段必改文件；仅在需要正式交付版时使用文档处理流程同步。
 

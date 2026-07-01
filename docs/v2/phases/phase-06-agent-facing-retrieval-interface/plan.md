@@ -16,7 +16,6 @@ This phase intentionally implements an agent-friendly JSON interface, not a full
 - `docs/v0/README.md`
 - `docs/development-progress.md`
 - `docs/v0/research/codex-session-archive-research.md` as historical context for agent-oriented exports and comparable projects
-- `docs/archive/mathforge-research-appendices.md` only if a design question needs archived appendix context
 
 The active v2 roadmap is `docs/roadmap/v2-retrieval-and-interfaces.md`. Older prompt text that mentions `docs/roadmap/v2-personal-knowledge-layer.md` or `docs/v0-v1/` is stale and must not recreate those paths.
 

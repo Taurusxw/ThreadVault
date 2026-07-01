@@ -73,7 +73,7 @@ The remaining work is not a blocking CLI MVP gap. It is mostly product-direction
 | Per-phase plan Markdown | complete | `docs/v0/phases/phase-*/plan.md` through v0.30. |
 | Per-phase external review Markdown | complete | Standardized external-review files under `docs/v0/phases/` through v0.30. |
 | Development progress log | complete | `docs/development-progress.md`. |
-| Research report appendices | complete | `docs/archive/mathforge-research-appendices.md` and `docs/v0/research/codex-session-archive-research.md`. |
+| Research report archive | complete | `docs/v0/research/codex-session-archive-research.md`. |
 | DOCX updated every phase | intentionally deferred | User previously accepted Markdown as source of truth; DOCX is not updated unless explicitly requested. |
 
 ## Known Deferred Scope

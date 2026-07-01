@@ -12,8 +12,7 @@ v3 starts from the accepted v2 retrieval and interfaces layer. The active roadma
   `docs/roadmap/v3-clients-and-team-governance.md`, `docs/v2/README.md`,
   `docs/v2/phases/phase-07-v2-acceptance-smoke/v2-acceptance.md`, and
   `docs/development-progress.md`.
-- Use `docs/v0/research/codex-session-archive-research.md` and
-  `docs/archive/mathforge-research-appendices.md` only when a phase needs historical research context.
+- Use `docs/v0/research/codex-session-archive-research.md` only when a phase needs historical research context.
 - Each phase gets its own directory under `phases/`.
 - Each phase must include a detailed `plan.md` before implementation.
 - Design notes, reviews, acceptance reports, or gap audits stay beside the phase plan when needed.

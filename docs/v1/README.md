@@ -11,8 +11,7 @@ v1 starts from the completed `v0.31.0` CLI/data-layer baseline and adds automati
   `docs/roadmap/v1-personal-knowledge-layer.md`, `docs/v0/README.md`,
   and `docs/development-progress.md`.
 - When a phase depends on prior research or comparable existing projects, cite the relevant archived Markdown in the phase plan, especially
-  `docs/v0/research/codex-session-archive-research.md` and
-  `docs/archive/mathforge-research-appendices.md`.
+  `docs/v0/research/codex-session-archive-research.md`.
 - Each phase gets its own directory under `phases/`.
 - Each phase must include a detailed `plan.md` before implementation.
 - Design notes, reviews, acceptance reports, or gap audits stay beside the phase plan when needed.

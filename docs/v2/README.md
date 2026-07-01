@@ -12,8 +12,7 @@ v2 starts from the accepted v1 personal knowledge layer and adds a stable retrie
   `docs/v0/README.md`, and `docs/development-progress.md`.
 - The initial v2 goal text mentioned `docs/roadmap/v2-personal-knowledge-layer.md` and `docs/v0-v1/`; those paths do not exist in the current repository. Use the actual v2 roadmap plus the separate `docs/v0/` and `docs/v1/` archives.
 - When a phase depends on prior research or comparable existing projects, cite the relevant archived Markdown in the phase plan, especially
-  `docs/v0/research/codex-session-archive-research.md` and
-  `docs/archive/mathforge-research-appendices.md`.
+  `docs/v0/research/codex-session-archive-research.md`.
 - Each phase gets its own directory under `phases/`.
 - Each phase must include a detailed `plan.md` before implementation.
 - Design notes, reviews, acceptance reports, or gap audits stay beside the phase plan when needed.

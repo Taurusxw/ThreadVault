@@ -8,7 +8,14 @@ version = "0.31.0"
 description = "Local-first Codex session archive CLI."
 readme = "README.md"
 requires-python = ">=3.11"
+license = { file = "LICENSE" }
 authors = [{ name = "ThreadVault contributors" }]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
 dependencies = [
   "jinja2>=3.1",
   "jsonschema>=4.22",
