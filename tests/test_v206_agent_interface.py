@@ -31,7 +31,7 @@ def test_agent_manifest_contract_and_privacy_defaults() -> None:
     assert payload["contract_version"] == "agent_interface.v1"
     assert payload["interface"]["default_mode"] == "hybrid"
     assert payload["interface"]["modes"] == ["hybrid", "fts"]
-    assert payload["capabilities"]["mcp_runtime_included"] is False
+    assert payload["capabilities"]["mcp_runtime_included"] is True
     assert payload["privacy"]["raw_paths_in_default_output"] is False
     assert payload["schemas"]["retrieval"] == "agent_retrieval"
 
@@ -114,9 +114,9 @@ def test_capabilities_robot_docs_and_schema_registry_include_agent_interface() -
 
 def test_v206_docs_exist() -> None:
     for path in [
-        Path("docs/v2/phases/phase-06-agent-facing-retrieval-interface/plan.md"),
-        Path("docs/v2/phases/phase-06-agent-facing-retrieval-interface/design-notes.md"),
-        Path("docs/v2/README.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-06-agent-facing-retrieval-interface/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-06-agent-facing-retrieval-interface/design-notes.md"),
+        Path("docs/progress/archive/legacy-v2/README.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"

@@ -196,9 +196,9 @@ def test_export_backup_preflight_discovery_schema_and_docs() -> None:
     assert Path("docs/schemas/governance_export_backup_preflight.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-13-export-backup-governance-preflight/plan.md"),
-        Path("docs/v3/phases/phase-13-export-backup-governance-preflight/design-notes.md"),
-        Path("docs/v3/phases/phase-13-export-backup-governance-preflight/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-13-export-backup-governance-preflight/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-13-export-backup-governance-preflight/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-13-export-backup-governance-preflight/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

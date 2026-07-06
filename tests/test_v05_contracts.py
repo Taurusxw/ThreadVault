@@ -141,9 +141,9 @@ def test_doctor_schema_objects_and_maintenance_fields(tmp_path: Path) -> None:
 
 def test_v05_docs_and_gitignore_policy() -> None:
     required = [
-        Path("docs/v0/phases/phase-05-quality-contracts-maintenance/plan.md"),
-        Path("docs/v0/phases/phase-05-quality-contracts-maintenance/external-review.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-05-quality-contracts-maintenance/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-05-quality-contracts-maintenance/external-review.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]
     for path in required:
         assert path.exists(), f"missing {path}"

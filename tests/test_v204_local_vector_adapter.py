@@ -73,7 +73,7 @@ def test_vector_index_query_and_status_contracts(tmp_path: Path) -> None:
         row = conn.execute("SELECT COUNT(*) AS count FROM vector_chunks").fetchone()
         schema_row = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
     assert row["count"] == index_payload["indexed"]["total_chunks"]
-    assert int(schema_row["value"]) == SCHEMA_VERSION == 4
+    assert int(schema_row["value"]) == SCHEMA_VERSION
 
     query_result = runner.invoke(
         app,
@@ -155,9 +155,9 @@ def test_capabilities_robot_docs_and_schema_registry_include_vector_adapter() ->
 
 def test_v204_docs_exist() -> None:
     for path in [
-        Path("docs/v2/phases/phase-04-local-vector-adapter/plan.md"),
-        Path("docs/v2/phases/phase-04-local-vector-adapter/design-notes.md"),
-        Path("docs/v2/README.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-04-local-vector-adapter/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-04-local-vector-adapter/design-notes.md"),
+        Path("docs/progress/archive/legacy-v2/README.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"

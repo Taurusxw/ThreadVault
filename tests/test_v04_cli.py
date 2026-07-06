@@ -86,9 +86,9 @@ def test_summary_evidence_quality_fields(tmp_path: Path) -> None:
 
 def test_v04_docs_and_gitignore_policy() -> None:
     for path in [
-        Path("docs/v0/phases/phase-04-real-corpus-privacy-hardening/plan.md"),
-        Path("docs/v0/phases/phase-04-real-corpus-privacy-hardening/external-review.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-04-real-corpus-privacy-hardening/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-04-real-corpus-privacy-hardening/external-review.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"
     gitignore = Path(".gitignore").read_text(encoding="utf-8")

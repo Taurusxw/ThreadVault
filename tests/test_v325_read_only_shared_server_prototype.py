@@ -144,9 +144,9 @@ def test_read_only_server_discovery_schema_docs_and_gap_audit() -> None:
     assert gap["completion"]["current_phase"] == "phase-33-v3-final-acceptance-smoke"
 
     for path in [
-        Path("docs/v3/phases/phase-25-read-only-shared-server-prototype/plan.md"),
-        Path("docs/v3/phases/phase-25-read-only-shared-server-prototype/design-notes.md"),
-        Path("docs/v3/phases/phase-25-read-only-shared-server-prototype/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-25-read-only-shared-server-prototype/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-25-read-only-shared-server-prototype/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-25-read-only-shared-server-prototype/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

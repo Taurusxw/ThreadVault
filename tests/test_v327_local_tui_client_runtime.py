@@ -133,9 +133,9 @@ def test_client_tui_runtime_discovery_schema_docs_and_gap_audit() -> None:
     assert Path("docs/schemas/client_tui_runtime.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-27-local-tui-client-runtime/plan.md"),
-        Path("docs/v3/phases/phase-27-local-tui-client-runtime/design-notes.md"),
-        Path("docs/v3/phases/phase-27-local-tui-client-runtime/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-27-local-tui-client-runtime/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-27-local-tui-client-runtime/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-27-local-tui-client-runtime/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

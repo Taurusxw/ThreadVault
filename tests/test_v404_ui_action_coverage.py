@@ -10,7 +10,7 @@ from threadvault.schemas import validate_payload
 from threadvault.store import ArchiveStore, capabilities, robot_guide, robot_schemas
 
 FIXTURES = Path("tests/fixtures/codex_home")
-PHASE_DIR = Path("docs/v4/phases/phase-04-ui-action-coverage")
+PHASE_DIR = Path("docs/progress/archive/legacy-v4/phases/phase-04-ui-action-coverage")
 
 
 def import_fixture(tmp_path: Path) -> tuple[ArchiveStore, PersonalUIServerConfig]:
@@ -143,6 +143,12 @@ def test_personal_ui_action_registry_allows_confirmed_dangerous_and_previewed_sa
         "client_export_preview",
         {"session": "sess-current", "out": str(tmp_path / "preview"), "profile": "markdown"},
     )
+    export_session = action(
+        store,
+        config,
+        "export_session",
+        {"session": "sess-current", "out": str(tmp_path / "session-export"), "preview_accepted": True},
+    )
     backup = action(store, config, "backup", {"out": str(tmp_path / "backups")})
 
     assert reindex["status_code"] == 200
@@ -151,6 +157,10 @@ def test_personal_ui_action_registry_allows_confirmed_dangerous_and_previewed_sa
     assert any(path.endswith("personal_ui_action.schema.json") for path in schema_write["payload"]["result"]["files"])
     assert export_preview["status_code"] == 200
     assert export_preview["payload"]["result"]["diagnostics"]["writes_files"] is False
+    assert export_session["status_code"] == 200
+    assert export_session["payload"]["result"]["path"].endswith("sess-current.md")
+    assert "PrivacyFinding" not in str(export_session["payload"]["result"])
+    assert export_session["payload"]["result"]["privacy"]["effective_findings_count"] >= 0
     assert backup["status_code"] == 200
     assert backup["payload"]["result"]["target_path"]
 
@@ -168,14 +178,22 @@ def test_personal_ui_registry_discovery_docs_and_ui_controls() -> None:
     assert "personal_ui_action" in schemas
     assert "paramsForAction" in APP_JS
     assert "preview_accepted" in APP_JS
+    assert "preview_accepted: true" not in APP_JS
+    assert "hasMatchingExportPreview(action)" in APP_JS
+    assert "client_export_preview" in APP_JS
+    assert "preview-export" in APP_JS
+    assert "generateExportPreview" in APP_JS
+    assert "text_preview" in APP_JS
+    assert "Action cancelled." in APP_JS
+    assert "if (requiresConfirm(action) && !confirmAction)" in APP_JS
     assert "window.confirm" in APP_JS
 
     for path in [
         PHASE_DIR / "plan.md",
         PHASE_DIR / "design-notes.md",
         PHASE_DIR / "acceptance.md",
-        Path("docs/v4/README.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v4/README.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

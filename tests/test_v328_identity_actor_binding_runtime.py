@@ -194,9 +194,9 @@ def test_identity_actor_binding_discovery_docs_and_gap_audit() -> None:
     assert Path("docs/schemas/governance_identity_actor_binding.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-28-identity-actor-binding-runtime/plan.md"),
-        Path("docs/v3/phases/phase-28-identity-actor-binding-runtime/design-notes.md"),
-        Path("docs/v3/phases/phase-28-identity-actor-binding-runtime/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-28-identity-actor-binding-runtime/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-28-identity-actor-binding-runtime/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-28-identity-actor-binding-runtime/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

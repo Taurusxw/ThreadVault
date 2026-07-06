@@ -204,9 +204,9 @@ def test_restore_retention_preflight_discovery_schema_and_docs() -> None:
     assert Path("docs/schemas/governance_restore_retention_preflight.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-14-restore-retention-governance-preflight/plan.md"),
-        Path("docs/v3/phases/phase-14-restore-retention-governance-preflight/design-notes.md"),
-        Path("docs/v3/phases/phase-14-restore-retention-governance-preflight/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-14-restore-retention-governance-preflight/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-14-restore-retention-governance-preflight/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-14-restore-retention-governance-preflight/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

@@ -12,20 +12,22 @@ from threadvault.store import capabilities, robot_guide, robot_schemas
 
 def test_v3_phase_01_docs_and_navigation_exist() -> None:
     for path in [
-        Path("docs/v3/README.md"),
-        Path("docs/v3/phases/phase-01-client-interface-readiness-audit/plan.md"),
-        Path("docs/v3/phases/phase-01-client-interface-readiness-audit/design-notes.md"),
-        Path("docs/v3/phases/phase-01-client-interface-readiness-audit/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/README.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-01-client-interface-readiness-audit/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-01-client-interface-readiness-audit/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-01-client-interface-readiness-audit/acceptance.md"),
         Path("docs/roadmap/v3-clients-and-team-governance.md"),
-        Path("docs/v2/phases/phase-07-v2-acceptance-smoke/v2-acceptance.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-07-v2-acceptance-smoke/v2-acceptance.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"
 
     docs_readme = Path("docs/README.md").read_text(encoding="utf-8")
-    v3_readme = Path("docs/v3/README.md").read_text(encoding="utf-8")
-    phase_plan = Path("docs/v3/phases/phase-01-client-interface-readiness-audit/plan.md").read_text(encoding="utf-8")
-    phase_notes = Path("docs/v3/phases/phase-01-client-interface-readiness-audit/design-notes.md").read_text(
+    v3_readme = Path("docs/progress/archive/legacy-v3/README.md").read_text(encoding="utf-8")
+    phase_plan = Path("docs/progress/archive/legacy-v3/phases/phase-01-client-interface-readiness-audit/plan.md").read_text(
+        encoding="utf-8"
+    )
+    phase_notes = Path("docs/progress/archive/legacy-v3/phases/phase-01-client-interface-readiness-audit/design-notes.md").read_text(
         encoding="utf-8"
     )
 
@@ -41,7 +43,7 @@ def test_v3_phase_01_docs_and_navigation_exist() -> None:
 
 def test_v3_readiness_discovery_surfaces_cover_client_needs() -> None:
     caps = capabilities()
-    for command in ["retrieval", "summary-pipeline", "vector", "agent", "export-target"]:
+    for command in ["retrieval", "summary-pipeline", "vector", "agent", "export-target", "mcp"]:
         assert command in caps["commands"]
     for json_output in [
         "retrieval query",
@@ -50,6 +52,8 @@ def test_v3_readiness_discovery_surfaces_cover_client_needs() -> None:
         "vector status",
         "agent manifest",
         "agent retrieve",
+        "mcp manifest",
+        "mcp serve",
         "export-target markdown",
     ]:
         assert json_output in caps["json_outputs"]
@@ -57,6 +61,7 @@ def test_v3_readiness_discovery_surfaces_cover_client_needs() -> None:
     flags = caps["feature_flags"]
     assert flags["local_first"] is True
     assert flags["agent_retrieval_interface"] is True
+    assert flags["mcp_stdio_server"] is True
     assert flags["summary_evidence_chunks"] is True
     assert flags["hybrid_retrieval"] is True
     assert flags["local_vector_adapter"] is True
@@ -67,8 +72,10 @@ def test_v3_readiness_discovery_surfaces_cover_client_needs() -> None:
     guide = robot_guide()
     assert guide["agent_interface"]["module"] == "threadvault.agent_interface"
     assert guide["agent_interface"]["default_mode"] == "hybrid"
-    assert guide["agent_interface"]["mcp_runtime_included"] is False
+    assert guide["agent_interface"]["mcp_runtime_included"] is True
     assert guide["agent_interface"]["local_debug_opt_in"] is True
+    assert guide["mcp_interface"]["module"] == "threadvault.mcp"
+    assert guide["mcp_interface"]["writes_files"] is False
     assert guide["retrieval"]["hybrid_degrades_to_fts"] is True
     assert guide["summary_pipeline"]["embedding_generated"] is False
     assert guide["vector"]["enabled_by_default"] is False
@@ -80,6 +87,7 @@ def test_v3_readiness_contracts_and_agent_manifest_are_client_safe() -> None:
     for schema_name in [
         "agent_interface_manifest",
         "agent_retrieval",
+        "mcp_manifest",
         "hybrid_retrieval",
         "summary_chunks",
         "vector_status",
@@ -94,7 +102,7 @@ def test_v3_readiness_contracts_and_agent_manifest_are_client_safe() -> None:
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert validate_payload("agent_interface_manifest", payload)["ok"] is True
-    assert payload["capabilities"]["mcp_runtime_included"] is False
+    assert payload["capabilities"]["mcp_runtime_included"] is True
     assert payload["capabilities"]["vector_optional"] is True
     assert payload["capabilities"]["local_vector_enabled"] is False
     assert payload["privacy"]["local_first"] is True

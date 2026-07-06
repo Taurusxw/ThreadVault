@@ -103,10 +103,10 @@ def test_enforcement_gaps_discovery_schema_and_docs() -> None:
     assert Path("docs/schemas/governance_enforcement_gaps.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-10-governance-enforcement-gap-audit/plan.md"),
-        Path("docs/v3/phases/phase-10-governance-enforcement-gap-audit/design-notes.md"),
-        Path("docs/v3/phases/phase-10-governance-enforcement-gap-audit/gap-audit.md"),
-        Path("docs/v3/phases/phase-10-governance-enforcement-gap-audit/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-10-governance-enforcement-gap-audit/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-10-governance-enforcement-gap-audit/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-10-governance-enforcement-gap-audit/gap-audit.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-10-governance-enforcement-gap-audit/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

@@ -87,7 +87,7 @@ def test_backup_history_prune_schema_config_show_and_docs(tmp_path: Path) -> Non
     assert json.loads(result.output)["backup_history"]["keep"] == 2
 
     for path in [
-        Path("docs/v0/phases/phase-19-backup-retention-config/plan.md"),
-        Path("docs/v0/phases/phase-19-backup-retention-config/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-19-backup-retention-config/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-19-backup-retention-config/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

@@ -7,7 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from threadvault.cli import app
-from threadvault.database import connect
+from threadvault.database import classify_index_text, connect
 from threadvault.retrieval import RetrievalQuery, retrieve
 from threadvault.schemas import validate_payload
 from threadvault.store import ArchiveStore
@@ -32,6 +32,32 @@ def test_retrieval_query_fts_returns_fixture_results(tmp_path: Path) -> None:
     assert results
     assert all(result.event_id for result in results)
     assert any(result.rank is not None for result in results)
+
+
+def test_clean_knowledge_index_skips_binary_and_low_value_noise() -> None:
+    binary = classify_index_text(
+        {
+            "top_type": "response_item",
+            "sub_type": "function_call_output",
+            "tool_name": None,
+            "file_path": None,
+            "text_content": "data:image/png;base64,AAAA",
+        }
+    )
+    token_count = classify_index_text(
+        {
+            "top_type": "event_msg",
+            "sub_type": "token_count",
+            "tool_name": None,
+            "file_path": None,
+            "text_content": '{"total": 123}',
+        }
+    )
+
+    assert binary["index_policy"] == "metadata_only"
+    assert "AAAA" not in (binary["indexed_text"] or "")
+    assert token_count["index_policy"] == "skip_low_value"
+    assert token_count["indexed_text"] is None
 
 
 def test_archive_store_search_preserves_cli_json_contracts(tmp_path: Path) -> None:
@@ -100,9 +126,9 @@ def test_capabilities_include_v2_retrieval_module() -> None:
 
 def test_v201_docs_exist() -> None:
     for path in [
-        Path("docs/v2/README.md"),
-        Path("docs/v2/phases/phase-01-retrieval-module-fts-wrapper/plan.md"),
-        Path("docs/v2/phases/phase-01-retrieval-module-fts-wrapper/acceptance.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v2/README.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-01-retrieval-module-fts-wrapper/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-01-retrieval-module-fts-wrapper/acceptance.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"

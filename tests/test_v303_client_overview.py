@@ -99,9 +99,9 @@ def test_client_overview_discovery_and_docs() -> None:
     assert Path("docs/schemas/client_overview.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-03-client-overview-workflow/plan.md"),
-        Path("docs/v3/phases/phase-03-client-overview-workflow/design-notes.md"),
-        Path("docs/v3/phases/phase-03-client-overview-workflow/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-03-client-overview-workflow/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-03-client-overview-workflow/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-03-client-overview-workflow/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

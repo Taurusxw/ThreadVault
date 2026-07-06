@@ -78,7 +78,7 @@ def test_readme_uses_literal_string_for_windows_regex() -> None:
 
 def test_v14_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-14-config-init-template/plan.md"),
-        Path("docs/v0/phases/phase-14-config-init-template/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-14-config-init-template/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-14-config-init-template/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

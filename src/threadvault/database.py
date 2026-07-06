@@ -9,7 +9,7 @@ from typing import Any
 
 from .models import ParsedSession, SearchResult, SessionRow
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 REQUIRED_TABLES = {
     "meta",
     "sessions",
@@ -28,11 +28,30 @@ REQUIRED_INDEXES = {
     "idx_events_timestamp",
     "idx_events_tool",
     "idx_events_type",
+    "idx_events_index_policy",
+    "idx_events_value_level",
     "idx_sessions_cwd",
     "idx_vector_chunks_session",
     "idx_vector_chunks_adapter",
 }
 REQUIRED_TRIGGERS = {"events_ai", "events_ad", "events_au"}
+LOW_VALUE_EVENT_TYPES = {
+    ("event_msg", "token_count"),
+    ("event_msg", "patch_apply_end"),
+    ("event_msg", "task_started"),
+    ("event_msg", "task_complete"),
+    ("event_msg", "web_search_end"),
+    ("event_msg", "thread_goal_updated"),
+    ("event_msg", "item_completed"),
+    ("event_msg", "turn_aborted"),
+    ("response_item", "reasoning"),
+    ("response_item", "web_search_call"),
+    ("response_item", "tool_search_output"),
+    ("session_meta", None),
+}
+MAX_FULL_INDEX_CHARS = 5000
+TOOL_HEAD_CHARS = 1200
+TOOL_TAIL_CHARS = 800
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
@@ -49,6 +68,68 @@ def connect_readonly(db_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def classify_index_text(event_or_row: Any) -> dict[str, str | None]:
+    top_type = _event_value(event_or_row, "top_type")
+    sub_type = _event_value(event_or_row, "sub_type")
+    tool_name = _event_value(event_or_row, "tool_name")
+    file_path = _event_value(event_or_row, "file_path")
+    text = _event_value(event_or_row, "text_content") or ""
+
+    if not text.strip():
+        return {"indexed_text": None, "index_policy": "skip_empty", "value_level": "noise"}
+    if (top_type, sub_type) in LOW_VALUE_EVENT_TYPES:
+        return {"indexed_text": None, "index_policy": "skip_low_value", "value_level": "noise"}
+    if _contains_inline_binary(text):
+        return {
+            "indexed_text": _binary_placeholder(top_type, sub_type, tool_name, file_path),
+            "index_policy": "metadata_only",
+            "value_level": "evidence",
+        }
+    if sub_type in {"function_call_output", "custom_tool_call_output"}:
+        if len(text) > TOOL_HEAD_CHARS + TOOL_TAIL_CHARS:
+            return {
+                "indexed_text": _head_tail_text(text, TOOL_HEAD_CHARS, TOOL_TAIL_CHARS),
+                "index_policy": "truncated",
+                "value_level": "evidence",
+            }
+        return {"indexed_text": text, "index_policy": "full", "value_level": "evidence"}
+    if len(text) > MAX_FULL_INDEX_CHARS:
+        return {
+            "indexed_text": _head_tail_text(text, 2500, 1500),
+            "index_policy": "truncated",
+            "value_level": "core",
+        }
+    return {"indexed_text": text, "index_policy": "full", "value_level": "core"}
+
+
+def _event_value(event_or_row: Any, name: str) -> Any:
+    if isinstance(event_or_row, sqlite3.Row):
+        return event_or_row[name]
+    if isinstance(event_or_row, dict):
+        return event_or_row.get(name)
+    return getattr(event_or_row, name, None)
+
+
+def _contains_inline_binary(text: str) -> bool:
+    return "data:image/" in text or ";base64," in text
+
+
+def _binary_placeholder(top_type: str | None, sub_type: str | None, tool_name: str | None, file_path: str | None) -> str:
+    parts = ["[binary or image evidence omitted from search index]"]
+    if top_type or sub_type:
+        parts.append(f"type={top_type or ''}/{sub_type or ''}")
+    if tool_name:
+        parts.append(f"tool={tool_name}")
+    if file_path:
+        parts.append(f"file={file_path}")
+    return " ".join(parts)
+
+
+def _head_tail_text(text: str, head_chars: int, tail_chars: int) -> str:
+    omitted = max(0, len(text) - head_chars - tail_chars)
+    return f"{text[:head_chars]}\n[... {omitted} chars omitted from search index ...]\n{text[-tail_chars:]}"
 
 
 def backup_database(db_path: Path, out: Path, force: bool = False) -> dict[str, Any]:
@@ -187,6 +268,9 @@ def init_db(conn: sqlite3.Connection) -> None:
           tool_name TEXT NULL,
           file_path TEXT NULL,
           text_content TEXT NULL,
+          indexed_text TEXT NULL,
+          index_policy TEXT NOT NULL DEFAULT 'full',
+          value_level TEXT NOT NULL DEFAULT 'core',
           payload_json TEXT NOT NULL,
           line_no INTEGER NULL,
           FOREIGN KEY(session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
@@ -218,27 +302,27 @@ def init_db(conn: sqlite3.Connection) -> None:
           session_id UNINDEXED,
           tool_name,
           file_path,
-          text_content,
+          indexed_text,
           content='events',
           content_rowid='event_id',
           tokenize='unicode61'
         );
 
         CREATE TRIGGER IF NOT EXISTS events_ai AFTER INSERT ON events BEGIN
-          INSERT INTO events_fts(rowid, session_id, tool_name, file_path, text_content)
-          VALUES (new.event_id, new.session_id, new.tool_name, new.file_path, new.text_content);
+          INSERT INTO events_fts(rowid, session_id, tool_name, file_path, indexed_text)
+          VALUES (new.event_id, new.session_id, new.tool_name, new.file_path, new.indexed_text);
         END;
 
         CREATE TRIGGER IF NOT EXISTS events_ad AFTER DELETE ON events BEGIN
-          INSERT INTO events_fts(events_fts, rowid, session_id, tool_name, file_path, text_content)
-          VALUES ('delete', old.event_id, old.session_id, old.tool_name, old.file_path, old.text_content);
+          INSERT INTO events_fts(events_fts, rowid, session_id, tool_name, file_path, indexed_text)
+          VALUES ('delete', old.event_id, old.session_id, old.tool_name, old.file_path, old.indexed_text);
         END;
 
         CREATE TRIGGER IF NOT EXISTS events_au AFTER UPDATE ON events BEGIN
-          INSERT INTO events_fts(events_fts, rowid, session_id, tool_name, file_path, text_content)
-          VALUES ('delete', old.event_id, old.session_id, old.tool_name, old.file_path, old.text_content);
-          INSERT INTO events_fts(rowid, session_id, tool_name, file_path, text_content)
-          VALUES (new.event_id, new.session_id, new.tool_name, new.file_path, new.text_content);
+          INSERT INTO events_fts(events_fts, rowid, session_id, tool_name, file_path, indexed_text)
+          VALUES ('delete', old.event_id, old.session_id, old.tool_name, old.file_path, old.indexed_text);
+          INSERT INTO events_fts(rowid, session_id, tool_name, file_path, indexed_text)
+          VALUES (new.event_id, new.session_id, new.tool_name, new.file_path, new.indexed_text);
         END;
 
         CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
@@ -252,6 +336,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     _migrate_v2(conn)
     _migrate_v3(conn)
     _migrate_v4(conn)
+    _migrate_v5(conn)
     conn.execute(
         "INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', ?)",
         (str(SCHEMA_VERSION),),
@@ -320,6 +405,101 @@ def _migrate_v4(conn: sqlite3.Connection) -> None:
 
         CREATE INDEX IF NOT EXISTS idx_vector_chunks_session ON vector_chunks(session_id);
         CREATE INDEX IF NOT EXISTS idx_vector_chunks_adapter ON vector_chunks(adapter, dimensions);
+        """
+    )
+
+
+def _migrate_v5(conn: sqlite3.Connection) -> None:
+    event_cols = {row["name"] for row in conn.execute("PRAGMA table_info(events)").fetchall()}
+    added_columns = False
+    if "indexed_text" not in event_cols:
+        conn.execute("ALTER TABLE events ADD COLUMN indexed_text TEXT NULL")
+        added_columns = True
+    if "index_policy" not in event_cols:
+        conn.execute("ALTER TABLE events ADD COLUMN index_policy TEXT NOT NULL DEFAULT 'full'")
+        added_columns = True
+    if "value_level" not in event_cols:
+        conn.execute("ALTER TABLE events ADD COLUMN value_level TEXT NOT NULL DEFAULT 'core'")
+        added_columns = True
+
+    rows = conn.execute(
+        """
+        SELECT event_id, top_type, sub_type, tool_name, file_path, text_content
+        FROM events
+        WHERE
+          index_policy IS NULL
+          OR value_level IS NULL
+          OR (indexed_text IS NULL AND index_policy = 'full' AND value_level = 'core')
+        """
+    ).fetchall()
+    if rows:
+        conn.executemany(
+            "UPDATE events SET indexed_text = ?, index_policy = ?, value_level = ? WHERE event_id = ?",
+            [
+                (
+                    classification["indexed_text"],
+                    classification["index_policy"],
+                    classification["value_level"],
+                    row["event_id"],
+                )
+                for row in rows
+                for classification in [classify_index_text(row)]
+            ],
+        )
+
+    conn.executescript(
+        """
+        CREATE INDEX IF NOT EXISTS idx_events_index_policy ON events(index_policy);
+        CREATE INDEX IF NOT EXISTS idx_events_value_level ON events(value_level);
+        """
+    )
+    if added_columns or _fts_uses_legacy_text_content(conn):
+        recreate_clean_fts(conn)
+
+
+def _fts_uses_legacy_text_content(conn: sqlite3.Connection) -> bool:
+    row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'events_fts'").fetchone()
+    return bool(row and "text_content" in (row["sql"] or ""))
+
+
+def recreate_clean_fts(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        DROP TRIGGER IF EXISTS events_ai;
+        DROP TRIGGER IF EXISTS events_ad;
+        DROP TRIGGER IF EXISTS events_au;
+        DROP TABLE IF EXISTS events_fts;
+
+        CREATE VIRTUAL TABLE events_fts USING fts5(
+          session_id UNINDEXED,
+          tool_name,
+          file_path,
+          indexed_text,
+          content='events',
+          content_rowid='event_id',
+          tokenize='unicode61'
+        );
+
+        CREATE TRIGGER events_ai AFTER INSERT ON events BEGIN
+          INSERT INTO events_fts(rowid, session_id, tool_name, file_path, indexed_text)
+          VALUES (new.event_id, new.session_id, new.tool_name, new.file_path, new.indexed_text);
+        END;
+
+        CREATE TRIGGER events_ad AFTER DELETE ON events BEGIN
+          INSERT INTO events_fts(events_fts, rowid, session_id, tool_name, file_path, indexed_text)
+          VALUES ('delete', old.event_id, old.session_id, old.tool_name, old.file_path, old.indexed_text);
+        END;
+
+        CREATE TRIGGER events_au AFTER UPDATE ON events BEGIN
+          INSERT INTO events_fts(events_fts, rowid, session_id, tool_name, file_path, indexed_text)
+          VALUES ('delete', old.event_id, old.session_id, old.tool_name, old.file_path, old.indexed_text);
+          INSERT INTO events_fts(rowid, session_id, tool_name, file_path, indexed_text)
+          VALUES (new.event_id, new.session_id, new.tool_name, new.file_path, new.indexed_text);
+        END;
+
+        INSERT INTO events_fts(rowid, session_id, tool_name, file_path, indexed_text)
+        SELECT event_id, session_id, tool_name, file_path, indexed_text
+        FROM events;
         """
     )
 
@@ -518,9 +698,10 @@ class SessionWriter:
             """
             INSERT INTO events (
               session_id, timestamp, top_type, sub_type, role, call_id,
-              tool_name, file_path, text_content, payload_json, line_no,
+              tool_name, file_path, text_content, indexed_text, index_policy,
+              value_level, payload_json, line_no,
               turn_id, turn_index
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
@@ -533,12 +714,16 @@ class SessionWriter:
                     event.tool_name,
                     event.file_path,
                     event.text_content,
+                    classification["indexed_text"],
+                    classification["index_policy"],
+                    classification["value_level"],
                     json.dumps(event.payload, ensure_ascii=False, sort_keys=True),
                     event.line_no,
                     event.turn_id,
                     event.turn_index,
                 )
                 for event in self.event_batch
+                for classification in [classify_index_text(event)]
             ],
         )
         self.event_batch = []
@@ -666,7 +851,7 @@ def search_events(
         params.append(fts_query)
     else:
         use_like = True
-        filters.append("COALESCE(e.text_content, '') LIKE ?")
+        filters.append("COALESCE(e.indexed_text, '') LIKE ?")
         params.append(f"%{query}%")
     if session_id:
         filters.append("e.session_id = ?")
@@ -687,7 +872,7 @@ def search_events(
         filters.append("e.tool_name = ?")
         params.append(tool)
     params.append(limit)
-    snippet_expr = "e.text_content AS snippet" if use_like else "snippet(events_fts, 3, '[', ']', '...', 12) AS snippet"
+    snippet_expr = "e.indexed_text AS snippet" if use_like else "snippet(events_fts, 3, '[', ']', '...', 12) AS snippet"
     rank_expr = "0.0 AS rank" if use_like else "bm25(events_fts) AS rank"
     if fields == "minimal":
         snippet_expr = "NULL AS snippet"
@@ -816,7 +1001,55 @@ def stats(conn: sqlite3.Connection) -> dict[str, Any]:
           (SELECT MAX(updated_at) FROM sessions) AS updated_at
         """
     ).fetchone()
-    return dict(row)
+    payload = dict(row)
+    payload["search_index"] = search_index_stats(conn)
+    return payload
+
+
+def search_index_stats(conn: sqlite3.Connection) -> dict[str, Any]:
+    row = conn.execute(
+        """
+        SELECT
+          COUNT(*) AS total_events,
+          SUM(CASE WHEN COALESCE(indexed_text, '') != '' THEN 1 ELSE 0 END) AS searchable_events,
+          SUM(CASE WHEN index_policy LIKE 'skip_%' THEN 1 ELSE 0 END) AS skipped_events,
+          SUM(CASE WHEN index_policy = 'truncated' THEN 1 ELSE 0 END) AS truncated_events,
+          SUM(CASE WHEN index_policy = 'metadata_only' THEN 1 ELSE 0 END) AS metadata_only_events,
+          SUM(LENGTH(COALESCE(text_content, ''))) AS raw_chars,
+          SUM(LENGTH(COALESCE(indexed_text, ''))) AS indexed_chars
+        FROM events
+        """
+    ).fetchone()
+    by_policy = conn.execute(
+        """
+        SELECT index_policy, COUNT(*) AS count
+        FROM events
+        GROUP BY index_policy
+        ORDER BY count DESC, index_policy
+        """
+    ).fetchall()
+    by_value = conn.execute(
+        """
+        SELECT value_level, COUNT(*) AS count
+        FROM events
+        GROUP BY value_level
+        ORDER BY count DESC, value_level
+        """
+    ).fetchall()
+    raw_chars = row["raw_chars"] or 0
+    indexed_chars = row["indexed_chars"] or 0
+    return {
+        "total_events": row["total_events"] or 0,
+        "searchable_events": row["searchable_events"] or 0,
+        "skipped_events": row["skipped_events"] or 0,
+        "truncated_events": row["truncated_events"] or 0,
+        "metadata_only_events": row["metadata_only_events"] or 0,
+        "raw_chars": raw_chars,
+        "indexed_chars": indexed_chars,
+        "indexed_char_ratio": (indexed_chars / raw_chars) if raw_chars else 0,
+        "by_policy": [dict(item) for item in by_policy],
+        "by_value_level": [dict(item) for item in by_value],
+    }
 
 
 def doctor(conn: sqlite3.Connection) -> dict[str, Any]:
@@ -888,6 +1121,7 @@ def doctor(conn: sqlite3.Connection) -> dict[str, Any]:
         "warning_codes_top": top_warnings,
         "warning_ratio": (warning_count / event_count) if event_count else 0,
     }
+    index_health = search_index_stats(conn)
     if warning_count > event_count and event_count:
         maintenance_suggestions.append({
             "code": "high_warning_ratio",
@@ -898,6 +1132,7 @@ def doctor(conn: sqlite3.Connection) -> dict[str, Any]:
         "checks": checks,
         "stats": stats(conn),
         "parse_health": parse_health,
+        "search_index": index_health,
         "schema_version": SCHEMA_VERSION,
         "schema_objects": {key: sorted(value) for key, value in objects.items()},
         "maintenance_suggestions": maintenance_suggestions,
@@ -922,10 +1157,27 @@ def _sqlite_objects(conn: sqlite3.Connection) -> dict[str, set[str]]:
 
 def reindex_fts(conn: sqlite3.Connection) -> dict[str, Any]:
     with conn:
+        rows = conn.execute(
+            "SELECT event_id, top_type, sub_type, tool_name, file_path, text_content FROM events"
+        ).fetchall()
+        conn.executemany(
+            "UPDATE events SET indexed_text = ?, index_policy = ?, value_level = ? WHERE event_id = ?",
+            [
+                (
+                    classification["indexed_text"],
+                    classification["index_policy"],
+                    classification["value_level"],
+                    row["event_id"],
+                )
+                for row in rows
+                for classification in [classify_index_text(row)]
+            ],
+        )
         conn.execute("INSERT INTO events_fts(events_fts) VALUES ('rebuild')")
     return {
         "events": conn.execute("SELECT COUNT(*) AS count FROM events").fetchone()["count"],
         "events_fts": conn.execute("SELECT COUNT(*) AS count FROM events_fts").fetchone()["count"],
+        "search_index": search_index_stats(conn),
     }
 
 

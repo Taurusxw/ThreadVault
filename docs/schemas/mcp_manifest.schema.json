@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "server",
+    "tools",
+    "privacy",
+    "integration_guidance"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "server": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "name",
+        "module",
+        "transport",
+        "protocol_version",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        },
+        "transport": {
+          "type": "string",
+          "enum": [
+            "stdio"
+          ]
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "name",
+          "description",
+          "input_schema"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "input_schema": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "local_first",
+        "cloud_sync",
+        "external_model_calls",
+        "raw_paths_in_default_output",
+        "local_debug_opt_in",
+        "writes_files"
+      ],
+      "properties": {
+        "local_first": {
+          "type": "boolean"
+        },
+        "cloud_sync": {
+          "type": "boolean"
+        },
+        "external_model_calls": {
+          "type": "boolean"
+        },
+        "raw_paths_in_default_output": {
+          "type": "boolean"
+        },
+        "local_debug_opt_in": {
+          "type": "boolean"
+        },
+        "writes_files": {
+          "type": "boolean"
+        }
+      }
+    },
+    "integration_guidance": {
+      "type": "object"
+    }
+  }
+}

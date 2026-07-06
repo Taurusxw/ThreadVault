@@ -116,9 +116,9 @@ def test_server_policy_readiness_discovery_schema_and_docs() -> None:
     assert Path("docs/schemas/governance_server_policy_readiness.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-19-server-policy-readiness/plan.md"),
-        Path("docs/v3/phases/phase-19-server-policy-readiness/design-notes.md"),
-        Path("docs/v3/phases/phase-19-server-policy-readiness/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-19-server-policy-readiness/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-19-server-policy-readiness/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-19-server-policy-readiness/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

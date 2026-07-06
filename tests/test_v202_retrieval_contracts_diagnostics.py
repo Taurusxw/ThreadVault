@@ -121,10 +121,10 @@ def test_capabilities_robot_docs_and_schema_registry_include_retrieval_contracts
 
 def test_v202_docs_exist() -> None:
     for path in [
-        Path("docs/v2/phases/phase-02-retrieval-json-contracts-diagnostics/plan.md"),
-        Path("docs/v2/phases/phase-02-retrieval-json-contracts-diagnostics/design-notes.md"),
-        Path("docs/v2/README.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-02-retrieval-json-contracts-diagnostics/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-02-retrieval-json-contracts-diagnostics/design-notes.md"),
+        Path("docs/progress/archive/legacy-v2/README.md"),
         Path("docs/THREADVAULT_USAGE_MANUAL.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"

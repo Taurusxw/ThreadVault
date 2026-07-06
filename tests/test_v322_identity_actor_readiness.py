@@ -115,9 +115,9 @@ def test_identity_actor_readiness_discovery_schema_and_docs() -> None:
     assert Path("docs/schemas/governance_identity_actor_readiness.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-22-identity-actor-binding-readiness/plan.md"),
-        Path("docs/v3/phases/phase-22-identity-actor-binding-readiness/design-notes.md"),
-        Path("docs/v3/phases/phase-22-identity-actor-binding-readiness/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-22-identity-actor-binding-readiness/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-22-identity-actor-binding-readiness/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-22-identity-actor-binding-readiness/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

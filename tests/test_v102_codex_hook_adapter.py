@@ -137,8 +137,8 @@ def test_capabilities_and_schema_registry_include_codex_hook_adapter() -> None:
 
 def test_v102_docs_exist() -> None:
     for path in [
-        Path("docs/v1/README.md"),
-        Path("docs/v1/phases/phase-02-codex-hook-adapter/plan.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v1/README.md"),
+        Path("docs/progress/archive/legacy-v1/phases/phase-02-codex-hook-adapter/plan.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"

@@ -94,7 +94,7 @@ def test_restore_history_prune_missing_history_is_empty_plan(tmp_path: Path) -> 
 
 def test_v24_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-24-restore-history-retention/plan.md"),
-        Path("docs/v0/phases/phase-24-restore-history-retention/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-24-restore-history-retention/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-24-restore-history-retention/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

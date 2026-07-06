@@ -9,6 +9,7 @@
     "exists",
     "loaded",
     "sections",
+    "storage",
     "privacy",
     "audit_history",
     "backup_history",
@@ -44,6 +45,9 @@
       "items": {
         "type": "string"
       }
+    },
+    "storage": {
+      "type": "object"
     },
     "privacy": {
       "type": "object"

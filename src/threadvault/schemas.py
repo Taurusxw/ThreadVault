@@ -234,6 +234,7 @@ def contract_schemas() -> dict[str, dict[str, Any]]:
                 "files": {"type": "integer"},
                 "first_seen_at": {"type": ["string", "null"]},
                 "updated_at": {"type": ["string", "null"]},
+                "search_index": {"type": "object"},
             },
             required=["sessions", "events", "turns", "warnings"],
         ),
@@ -698,6 +699,58 @@ def contract_schemas() -> dict[str, dict[str, Any]]:
                 },
             },
             required=["contract_version", "request", "results", "diagnostics", "privacy"],
+        ),
+        "mcp_manifest": object_schema(
+            {
+                "contract_version": {"type": "string"},
+                "server": {
+                    "type": "object",
+                    "additionalProperties": True,
+                    "required": ["name", "module", "transport", "protocol_version", "version"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "module": {"type": "string"},
+                        "transport": {"type": "string", "enum": ["stdio"]},
+                        "protocol_version": {"type": "string"},
+                        "version": {"type": "string"},
+                    },
+                },
+                "tools": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": True,
+                        "required": ["name", "description", "input_schema"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "description": {"type": "string"},
+                            "input_schema": {"type": "object"},
+                        },
+                    },
+                },
+                "privacy": {
+                    "type": "object",
+                    "additionalProperties": True,
+                    "required": [
+                        "local_first",
+                        "cloud_sync",
+                        "external_model_calls",
+                        "raw_paths_in_default_output",
+                        "local_debug_opt_in",
+                        "writes_files",
+                    ],
+                    "properties": {
+                        "local_first": {"type": "boolean"},
+                        "cloud_sync": {"type": "boolean"},
+                        "external_model_calls": {"type": "boolean"},
+                        "raw_paths_in_default_output": {"type": "boolean"},
+                        "local_debug_opt_in": {"type": "boolean"},
+                        "writes_files": {"type": "boolean"},
+                    },
+                },
+                "integration_guidance": {"type": "object"},
+            },
+            required=["contract_version", "server", "tools", "privacy", "integration_guidance"],
         ),
         "client_interface_manifest": object_schema(
             {
@@ -4750,6 +4803,7 @@ def contract_schemas() -> dict[str, dict[str, Any]]:
                 "loaded": {"type": "boolean"},
                 "loaded_path": {"type": ["string", "null"]},
                 "sections": {"type": "array", "items": {"type": "string"}},
+                "storage": {"type": "object"},
                 "privacy": {"type": "object"},
                 "audit_history": {"type": "object"},
                 "backup_history": {"type": "object"},
@@ -4763,6 +4817,7 @@ def contract_schemas() -> dict[str, dict[str, Any]]:
                 "exists",
                 "loaded",
                 "sections",
+                "storage",
                 "privacy",
                 "audit_history",
                 "backup_history",

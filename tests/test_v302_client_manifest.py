@@ -90,11 +90,11 @@ def test_client_manifest_discovery_and_schema_registry() -> None:
 
 def test_v302_docs_exist_and_retired_report_policy_holds() -> None:
     for path in [
-        Path("docs/v3/phases/phase-02-client-manifest-entrypoint/plan.md"),
-        Path("docs/v3/phases/phase-02-client-manifest-entrypoint/design-notes.md"),
-        Path("docs/v3/phases/phase-02-client-manifest-entrypoint/acceptance.md"),
-        Path("docs/v3/README.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-02-client-manifest-entrypoint/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-02-client-manifest-entrypoint/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-02-client-manifest-entrypoint/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/README.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

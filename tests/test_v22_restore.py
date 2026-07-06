@@ -148,7 +148,7 @@ def test_restore_missing_manifest_requires_explicit_opt_in(tmp_path: Path) -> No
 
 def test_v22_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-22-safe-restore/plan.md"),
-        Path("docs/v0/phases/phase-22-safe-restore/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-22-safe-restore/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-22-safe-restore/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

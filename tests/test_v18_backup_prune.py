@@ -82,8 +82,8 @@ def test_backup_history_prune_schema_and_docs(tmp_path: Path) -> None:
     assert json.loads(result.output)["ok"] is True
 
     for path in [
-        Path("docs/v0/phases/phase-18-backup-retention/plan.md"),
-        Path("docs/v0/phases/phase-18-backup-retention/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-18-backup-retention/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-18-backup-retention/external-review.md"),
         Path("docs/schemas/backup_history_prune.schema.json"),
     ]:
         assert path.exists(), f"missing {path}"

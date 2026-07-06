@@ -238,9 +238,9 @@ def test_business_command_instrumentation_discovery_schema_docs_and_gap_audit() 
     assert gap["completion"]["blocking_count"] == 0
 
     for path in [
-        Path("docs/v3/phases/phase-32-business-command-governance-instrumentation/plan.md"),
-        Path("docs/v3/phases/phase-32-business-command-governance-instrumentation/design-notes.md"),
-        Path("docs/v3/phases/phase-32-business-command-governance-instrumentation/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-32-business-command-governance-instrumentation/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-32-business-command-governance-instrumentation/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-32-business-command-governance-instrumentation/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

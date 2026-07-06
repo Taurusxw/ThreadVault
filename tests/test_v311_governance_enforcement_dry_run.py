@@ -165,9 +165,9 @@ def test_enforcement_check_discovery_schema_and_docs() -> None:
     assert Path("docs/schemas/governance_enforcement_check.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-11-governance-enforcement-dry-run/plan.md"),
-        Path("docs/v3/phases/phase-11-governance-enforcement-dry-run/design-notes.md"),
-        Path("docs/v3/phases/phase-11-governance-enforcement-dry-run/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-11-governance-enforcement-dry-run/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-11-governance-enforcement-dry-run/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-11-governance-enforcement-dry-run/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

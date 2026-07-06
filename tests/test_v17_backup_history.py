@@ -105,7 +105,7 @@ def test_backup_history_schemas_and_docs(tmp_path: Path) -> None:
         assert result.exit_code == 0, result.output
 
     for path in [
-        Path("docs/v0/phases/phase-17-backup-history/plan.md"),
-        Path("docs/v0/phases/phase-17-backup-history/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-17-backup-history/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-17-backup-history/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

@@ -145,9 +145,9 @@ def test_capabilities_and_schema_registry_include_export_target_manifest() -> No
 
 def test_v103_docs_exist() -> None:
     for path in [
-        Path("docs/v1/README.md"),
-        Path("docs/v1/phases/phase-03-export-target-manifest/plan.md"),
-        Path("docs/v1/phases/phase-03-export-target-manifest/acceptance.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v1/README.md"),
+        Path("docs/progress/archive/legacy-v1/phases/phase-03-export-target-manifest/plan.md"),
+        Path("docs/progress/archive/legacy-v1/phases/phase-03-export-target-manifest/acceptance.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"

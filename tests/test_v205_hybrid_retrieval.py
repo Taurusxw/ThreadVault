@@ -121,9 +121,9 @@ def test_capabilities_robot_docs_and_schema_registry_include_hybrid_retrieval() 
 
 def test_v205_docs_exist() -> None:
     for path in [
-        Path("docs/v2/phases/phase-05-hybrid-ranking-explanations/plan.md"),
-        Path("docs/v2/phases/phase-05-hybrid-ranking-explanations/design-notes.md"),
-        Path("docs/v2/README.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-05-hybrid-ranking-explanations/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-05-hybrid-ranking-explanations/design-notes.md"),
+        Path("docs/progress/archive/legacy-v2/README.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"

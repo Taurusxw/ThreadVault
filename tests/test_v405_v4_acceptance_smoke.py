@@ -11,7 +11,7 @@ from threadvault.schemas import get_schema, validate_payload
 from threadvault.store import ArchiveStore, capabilities, robot_guide, robot_schemas
 
 FIXTURES = Path("tests/fixtures/codex_home")
-PHASE_DIR = Path("docs/v4/phases/phase-05-v4-acceptance-smoke")
+PHASE_DIR = Path("docs/progress/archive/legacy-v4/phases/phase-05-v4-acceptance-smoke")
 
 
 def import_fixture(tmp_path: Path) -> Path:
@@ -95,8 +95,8 @@ def test_personal_ui_smoke_discovery_docs_and_schema_artifact() -> None:
         PHASE_DIR / "plan.md",
         PHASE_DIR / "design-notes.md",
         PHASE_DIR / "acceptance.md",
-        Path("docs/v4/README.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v4/README.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
         Path("docs/schemas/personal_ui_smoke.schema.json"),
     ]:
         assert path.exists(), f"missing {path}"

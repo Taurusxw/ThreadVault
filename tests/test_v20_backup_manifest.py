@@ -88,7 +88,7 @@ def test_backup_verify_with_manifest_embeds_manifest_result(tmp_path: Path) -> N
 
 def test_v20_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-20-backup-provenance-manifest/plan.md"),
-        Path("docs/v0/phases/phase-20-backup-provenance-manifest/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-20-backup-provenance-manifest/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-20-backup-provenance-manifest/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

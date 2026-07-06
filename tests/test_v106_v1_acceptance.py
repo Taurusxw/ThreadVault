@@ -121,14 +121,14 @@ def test_v1_docs_and_retired_report_policy() -> None:
         "phase-06-v1-acceptance-smoke",
     ]
     for dirname in phase_dirs:
-        phase = Path("docs/v1/phases") / dirname
+        phase = Path("docs/progress/archive/legacy-v1/phases") / dirname
         assert (phase / "plan.md").exists(), f"missing {phase / 'plan.md'}"
         if dirname != "phase-06-v1-acceptance-smoke":
             assert (phase / "acceptance.md").exists(), f"missing {phase / 'acceptance.md'}"
     for path in [
-        Path("docs/v1/README.md"),
+        Path("docs/progress/archive/legacy-v1/README.md"),
         Path("docs/THREADVAULT_USAGE_MANUAL.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
         Path("docs/roadmap/v1-personal-knowledge-layer.md"),
     ]:
         assert path.exists(), f"missing {path}"

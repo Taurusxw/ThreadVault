@@ -120,7 +120,7 @@ def test_restore_history_empty_missing_file(tmp_path: Path) -> None:
 
 def test_v23_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-23-restore-history/plan.md"),
-        Path("docs/v0/phases/phase-23-restore-history/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-23-restore-history/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-23-restore-history/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

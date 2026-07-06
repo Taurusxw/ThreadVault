@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import os
 import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .config import APP_DIR_NAME
+from .config import default_config_path
 
 
 @dataclass(frozen=True)
@@ -20,6 +19,7 @@ class AllowlistRule:
 @dataclass(frozen=True)
 class AppConfig:
     source_path: Path | None = None
+    archive_db_path: Path | None = None
     allowlist: list[AllowlistRule] = field(default_factory=list)
     audit_history_keep: int | None = None
     backup_history_keep: int | None = None
@@ -37,19 +37,12 @@ class AppConfig:
 PrivacyConfig = AppConfig
 
 
-def default_config_path() -> Path:
-    if os.name == "nt":
-        root = os.environ.get("APPDATA")
-        if root:
-            return Path(root) / APP_DIR_NAME / "threadvault.toml"
-    return Path.home() / ".config" / APP_DIR_NAME / "threadvault.toml"
-
-
 def load_app_config(path: Path | None = None) -> AppConfig:
     config_path = (path or default_config_path()).expanduser()
     if not config_path.exists():
         return AppConfig(source_path=None)
     data = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    archive_db_path = _optional_path_or_none(data.get("storage", {}).get("archive_db"), "storage.archive_db")
     raw_rules = data.get("privacy", {}).get("allowlist", [])
     allowlist: list[AllowlistRule] = []
     for item in raw_rules:
@@ -88,6 +81,7 @@ def load_app_config(path: Path | None = None) -> AppConfig:
     )
     return AppConfig(
         source_path=config_path,
+        archive_db_path=archive_db_path,
         allowlist=allowlist,
         audit_history_keep=audit_history_keep,
         backup_history_keep=backup_history_keep,
@@ -117,6 +111,12 @@ def default_config_template() -> str:
 # For Windows path regex patterns, prefer TOML literal strings:
 #   { kind = "windows_abs_path", pattern = '^E:\\\\Codex\\\\' }
 allowlist = []
+
+[storage]
+# Optional local archive database override.
+# If unset, ThreadVault uses the project-local data/threadvault.db by default.
+# This can also be overridden per process with THREADVAULT_DB or per command with --db.
+archive_db = ""
 
 [audit_history]
 # Number of latest valid anonymous audit reports to keep when prune uses config.
@@ -202,6 +202,7 @@ def describe_app_config(path: Path | None = None, include_values: bool = False) 
             "loaded": False,
             "loaded_path": None,
             "sections": [],
+            "storage": {"archive_db": None, "archive_db_configured": False},
             "privacy": {"allowlist_count": 0, "allowlist_kinds": [], "allowlist_rules": [] if include_values else None},
             "audit_history": {"keep": None},
             "backup_history": {"keep": None},
@@ -215,6 +216,7 @@ def describe_app_config(path: Path | None = None, include_values: bool = False) 
         "loaded": True,
         "loaded_path": str(config.source_path) if config.source_path else None,
         "sections": _configured_sections(config_path),
+        "storage": _storage_summary(config),
         "privacy": _privacy_summary(config, include_values=include_values),
         "audit_history": {"keep": config.audit_history_keep},
         "backup_history": {"keep": config.backup_history_keep},
@@ -248,7 +250,7 @@ def diagnose_app_config(path: Path | None = None) -> dict[str, Any]:
             errors.append({"code": "invalid_config_value", "message": str(exc)})
             suggestions.append(
                 "Fix invalid config values such as audit_history.keep, backup_history.keep, restore_history.keep, "
-                "retrieval.vector, governance.enabled, governance.identity.actors, or governance backup/policy paths."
+                "storage.archive_db, retrieval.vector, governance.enabled, governance.identity.actors, or governance backup/policy paths."
             )
     return {
         **payload,
@@ -379,6 +381,13 @@ def _retrieval_summary(config: AppConfig) -> dict[str, Any]:
             "adapter": config.vector_adapter,
             "dimensions": config.vector_dimensions,
         }
+    }
+
+
+def _storage_summary(config: AppConfig) -> dict[str, Any]:
+    return {
+        "archive_db": str(config.archive_db_path) if config.archive_db_path else None,
+        "archive_db_configured": config.archive_db_path is not None,
     }
 
 

@@ -73,7 +73,7 @@ def test_backup_verify_non_sqlite_file(tmp_path: Path) -> None:
 
 def test_v16_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-16-backup-verify/plan.md"),
-        Path("docs/v0/phases/phase-16-backup-verify/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-16-backup-verify/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-16-backup-verify/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

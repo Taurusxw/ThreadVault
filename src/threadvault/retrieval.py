@@ -155,7 +155,9 @@ def fts_index_status(conn: sqlite3.Connection) -> dict[str, Any]:
         "ok": event_count == fts_count,
         "event_count": event_count,
         "fts_count": fts_count,
-        "message": f"events={event_count}, events_fts={fts_count}",
+        "content_column": "indexed_text",
+        "index_policy": "cleaned_knowledge_index",
+        "message": f"events={event_count}, events_fts={fts_count}, content=indexed_text",
     }
 
 

@@ -144,9 +144,9 @@ def test_state_sqlite_enriches_session_metadata(tmp_path: Path) -> None:
 
 def test_traceability_documents_exist() -> None:
     required = [
-        Path("docs/v0/phases/phase-03-agent-friendly-archive/plan.md"),
-        Path("docs/development-progress.md"),
-        Path("docs/v0/phases/phase-03-agent-friendly-archive/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-03-agent-friendly-archive/plan.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-03-agent-friendly-archive/external-review.md"),
     ]
     for path in required:
         assert path.exists(), f"missing {path}"

@@ -59,7 +59,7 @@ def test_retention_prune_schemas_reject_unknown_keep_source() -> None:
 
 def test_v27_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-27-retention-schema-contract/plan.md"),
-        Path("docs/v0/phases/phase-27-retention-schema-contract/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-27-retention-schema-contract/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-27-retention-schema-contract/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

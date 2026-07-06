@@ -196,9 +196,9 @@ def test_client_export_preview_governance_instrumentation_discovery_docs_and_gap
     assert gap["completion"]["current_phase"] == "phase-33-v3-final-acceptance-smoke"
 
     for path in [
-        Path("docs/v3/phases/phase-26-client-export-preview-governance-instrumentation/plan.md"),
-        Path("docs/v3/phases/phase-26-client-export-preview-governance-instrumentation/design-notes.md"),
-        Path("docs/v3/phases/phase-26-client-export-preview-governance-instrumentation/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-26-client-export-preview-governance-instrumentation/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-26-client-export-preview-governance-instrumentation/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-26-client-export-preview-governance-instrumentation/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

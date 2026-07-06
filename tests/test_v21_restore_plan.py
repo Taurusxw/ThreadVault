@@ -87,7 +87,7 @@ def test_restore_plan_target_same_as_backup_is_error(tmp_path: Path) -> None:
 
 def test_v21_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-21-restore-plan-preflight/plan.md"),
-        Path("docs/v0/phases/phase-21-restore-plan-preflight/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-21-restore-plan-preflight/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-21-restore-plan-preflight/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

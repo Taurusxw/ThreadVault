@@ -188,9 +188,9 @@ def test_obsidian_target_capabilities_and_docs_exist() -> None:
     assert "export_target_manifest" in json.loads(result.output)["schemas"]
 
     for path in [
-        Path("docs/v1/README.md"),
-        Path("docs/v1/phases/phase-04-obsidian-markdown-vault/plan.md"),
-        Path("docs/v1/phases/phase-04-obsidian-markdown-vault/acceptance.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v1/README.md"),
+        Path("docs/progress/archive/legacy-v1/phases/phase-04-obsidian-markdown-vault/plan.md"),
+        Path("docs/progress/archive/legacy-v1/phases/phase-04-obsidian-markdown-vault/acceptance.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"

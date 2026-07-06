@@ -10,7 +10,7 @@ from threadvault.schemas import get_schema, validate_payload
 from threadvault.store import ArchiveStore, capabilities, robot_guide, robot_schemas
 
 FIXTURES = Path("tests/fixtures/codex_home")
-PHASE_DIR = Path("docs/v4/phases/phase-02-local-ui-server")
+PHASE_DIR = Path("docs/progress/archive/legacy-v4/phases/phase-02-local-ui-server")
 
 
 def import_fixture(tmp_path: Path) -> Path:
@@ -38,6 +38,19 @@ def test_personal_ui_health_preserves_local_first_defaults(tmp_path: Path) -> No
     assert payload["defaults"]["cloud_sync"] is False
     assert payload["defaults"]["external_model_calls"] is False
     assert payload["defaults"]["team_enforcement"] is False
+    assert payload["paths"]["default_export_dir"].endswith("threadvault-ui-output")
+
+
+def test_personal_ui_health_uses_configured_archive_db_path(tmp_path: Path, monkeypatch) -> None:
+    custom_db = tmp_path / "custom" / "threadvault.db"
+    config_file = tmp_path / "threadvault.toml"
+    config_file.write_text(f'[storage]\narchive_db = "{custom_db.as_posix()}"\n', encoding="utf-8")
+    monkeypatch.delenv("THREADVAULT_DB", raising=False)
+
+    payload = build_health_payload(PersonalUIServerConfig(config_path=config_file))
+
+    assert payload["paths"]["db_path"] == str(custom_db)
+    assert payload["paths"]["config_path"] == str(config_file)
 
 
 def test_personal_ui_routes_reuse_existing_archive_interfaces(tmp_path: Path) -> None:
@@ -126,8 +139,8 @@ def test_personal_ui_cli_discovery_schema_and_docs() -> None:
         PHASE_DIR / "plan.md",
         PHASE_DIR / "design-notes.md",
         PHASE_DIR / "acceptance.md",
-        Path("docs/v4/README.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v4/README.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
         Path("docs/schemas/personal_ui_health.schema.json"),
         Path("docs/schemas/personal_ui_action.schema.json"),
     ]:

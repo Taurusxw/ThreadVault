@@ -63,8 +63,8 @@ def test_corpus_audit_schema_and_validation(tmp_path: Path) -> None:
 
 def test_v07_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-07-real-corpus-anonymous-audit/plan.md"),
-        Path("docs/v0/phases/phase-07-real-corpus-anonymous-audit/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-07-real-corpus-anonymous-audit/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-07-real-corpus-anonymous-audit/external-review.md"),
         Path("docs/schemas/corpus_audit.schema.json"),
     ]:
         assert path.exists(), f"missing {path}"

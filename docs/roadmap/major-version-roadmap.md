@@ -55,9 +55,9 @@ These names are roadmap-level public interface names. The final function signatu
 
 Each major version should include:
 
-- A phase plan under `docs/v0/phases/` for v0 archives, and a version-specific equivalent for future active development.
+- A phase plan under `docs/progress/archive/legacy-v0/phases/` for v0 archives, and a version-specific equivalent for future active development.
 - An external or architecture review note beside the relevant phase plan or under the active version archive.
-- Development progress updates.
+- Development progress updates in `docs/PROGRESS.md` and round records under `docs/progress/rounds/`.
 - Focused tests for new module behavior and public JSON contracts.
 - End-to-end smoke validation with fixture data before marking the version complete.
 

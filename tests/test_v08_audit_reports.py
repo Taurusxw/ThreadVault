@@ -86,8 +86,8 @@ def test_audit_diff_reports_deltas_and_schema_validation(tmp_path: Path) -> None
 
 def test_v08_docs_and_schemas_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-08-audit-report-history-diff/plan.md"),
-        Path("docs/v0/phases/phase-08-audit-report-history-diff/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-08-audit-report-history-diff/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-08-audit-report-history-diff/external-review.md"),
         Path("docs/schemas/corpus_audit_report.schema.json"),
         Path("docs/schemas/corpus_audit_diff.schema.json"),
     ]:

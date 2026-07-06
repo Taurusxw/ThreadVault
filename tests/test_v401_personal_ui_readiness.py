@@ -2,25 +2,25 @@ from pathlib import Path
 
 from threadvault.store import capabilities
 
-PHASE_DIR = Path("docs/v4/phases/phase-01-personal-ui-readiness")
+PHASE_DIR = Path("docs/progress/archive/legacy-v4/phases/phase-01-personal-ui-readiness")
 
 
 def test_v4_phase_01_docs_and_navigation_exist() -> None:
     for path in [
-        Path("docs/v4/README.md"),
+        Path("docs/progress/archive/legacy-v4/README.md"),
         PHASE_DIR / "plan.md",
         PHASE_DIR / "design-notes.md",
         PHASE_DIR / "coverage-matrix.md",
         PHASE_DIR / "acceptance.md",
-        Path("docs/v4/phases/phase-02-local-ui-server/plan.md"),
-        Path("docs/v4/phases/phase-03-personal-ui-workbench/plan.md"),
-        Path("docs/v4/phases/phase-04-ui-action-coverage/plan.md"),
-        Path("docs/v4/phases/phase-05-v4-acceptance-smoke/plan.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v4/phases/phase-02-local-ui-server/plan.md"),
+        Path("docs/progress/archive/legacy-v4/phases/phase-03-personal-ui-workbench/plan.md"),
+        Path("docs/progress/archive/legacy-v4/phases/phase-04-ui-action-coverage/plan.md"),
+        Path("docs/progress/archive/legacy-v4/phases/phase-05-v4-acceptance-smoke/plan.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"
 
-    readme = Path("docs/v4/README.md").read_text(encoding="utf-8")
+    readme = Path("docs/progress/archive/legacy-v4/README.md").read_text(encoding="utf-8")
     plan = (PHASE_DIR / "plan.md").read_text(encoding="utf-8")
     notes = (PHASE_DIR / "design-notes.md").read_text(encoding="utf-8")
 
@@ -34,10 +34,10 @@ def test_v4_phase_01_docs_and_navigation_exist() -> None:
 
 
 def test_v4_future_phase_plans_preserve_requested_public_interfaces() -> None:
-    phase_02 = Path("docs/v4/phases/phase-02-local-ui-server/plan.md").read_text(encoding="utf-8")
-    phase_03 = Path("docs/v4/phases/phase-03-personal-ui-workbench/plan.md").read_text(encoding="utf-8")
-    phase_04 = Path("docs/v4/phases/phase-04-ui-action-coverage/plan.md").read_text(encoding="utf-8")
-    phase_05 = Path("docs/v4/phases/phase-05-v4-acceptance-smoke/plan.md").read_text(encoding="utf-8")
+    phase_02 = Path("docs/progress/archive/legacy-v4/phases/phase-02-local-ui-server/plan.md").read_text(encoding="utf-8")
+    phase_03 = Path("docs/progress/archive/legacy-v4/phases/phase-03-personal-ui-workbench/plan.md").read_text(encoding="utf-8")
+    phase_04 = Path("docs/progress/archive/legacy-v4/phases/phase-04-ui-action-coverage/plan.md").read_text(encoding="utf-8")
+    phase_05 = Path("docs/progress/archive/legacy-v4/phases/phase-05-v4-acceptance-smoke/plan.md").read_text(encoding="utf-8")
 
     assert "src/threadvault/personal_ui.py" in phase_02
     assert "threadvault ui serve --host 127.0.0.1 --port 8766 --open" in phase_02

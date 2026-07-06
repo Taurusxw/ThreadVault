@@ -109,9 +109,9 @@ def test_v3_acceptance_smoke_discovery_schema_and_docs() -> None:
     assert Path("docs/schemas/governance_v3_acceptance_smoke.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-33-v3-final-acceptance-smoke/plan.md"),
-        Path("docs/v3/phases/phase-33-v3-final-acceptance-smoke/design-notes.md"),
-        Path("docs/v3/phases/phase-33-v3-final-acceptance-smoke/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-33-v3-final-acceptance-smoke/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-33-v3-final-acceptance-smoke/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-33-v3-final-acceptance-smoke/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

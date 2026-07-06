@@ -26,6 +26,7 @@ from .client_runtime import render_client_tui
 from .codex_hooks import hook_continue_response, invalid_hook_payload_result
 from .config import default_db_path
 from .importer import sample_codex_home
+from .mcp import McpRuntimeConfig, mcp_manifest, serve_mcp
 from .personal_ui import PersonalUIServerConfig, run_personal_ui_smoke, serve_personal_ui
 from .privacy import has_high_risk
 from .retention import resolve_retention_keep
@@ -38,12 +39,12 @@ app = typer.Typer(help="ThreadVault: local-first Codex session archive.")
 console = Console()
 
 
-def _db_option(value: Path | None) -> Path:
-    return (value or default_db_path()).expanduser()
+def _db_option(value: Path | None, config: Path | None = None) -> Path:
+    return (value or default_db_path(config)).expanduser()
 
 
-def _store(db: Path | None) -> ArchiveStore:
-    return ArchiveStore(_db_option(db))
+def _store(db: Path | None, config: Path | None = None) -> ArchiveStore:
+    return ArchiveStore(_db_option(db, config))
 
 
 def _print_json(value) -> None:
@@ -407,6 +408,9 @@ app.add_typer(client_app, name="client")
 
 ui_app = typer.Typer(help="Personal local Web UI utilities.")
 app.add_typer(ui_app, name="ui")
+
+mcp_app = typer.Typer(help="Model Context Protocol stdio server utilities.")
+app.add_typer(mcp_app, name="mcp")
 
 governance_app = typer.Typer(help="Optional governance discovery utilities.")
 app.add_typer(governance_app, name="governance")
@@ -965,7 +969,7 @@ def ui_serve_command(
     ui_config = PersonalUIServerConfig(
         host=host,
         port=port,
-        db_path=_db_option(db),
+        db_path=_db_option(db, config),
         config_path=config,
         language=language,
         exit_on_close=effective_exit_on_close,
@@ -974,7 +978,7 @@ def ui_serve_command(
     if host != "127.0.0.1":
         console.print("[yellow]Non-loopback binding is explicit; 127.0.0.1 remains the default.[/yellow]")
     try:
-        serve_personal_ui(_store(db), ui_config, open_browser=open_browser)
+        serve_personal_ui(_store(db, config), ui_config, open_browser=open_browser)
     except KeyboardInterrupt:
         console.print("[yellow]Stopping Personal UI.[/yellow]")
 
@@ -998,8 +1002,8 @@ def ui_smoke_command(
             store.import_codex(Path("tests/fixtures/codex_home"))
             effective_work_dir = work_dir or Path(temp_dir.name) / "work"
         else:
-            db_path = _db_option(db)
-            store = _store(db)
+            db_path = _db_option(db, config)
+            store = _store(db, config)
             effective_work_dir = work_dir
         ui_config = PersonalUIServerConfig(host="127.0.0.1", port=8766, db_path=db_path, config_path=config)
         payload = run_personal_ui_smoke(store, ui_config, query=query, session_id=session, work_dir=effective_work_dir)
@@ -1016,6 +1020,33 @@ def ui_smoke_command(
         )
     if not payload["ok"]:
         raise typer.Exit(code=1)
+
+
+@mcp_app.command("manifest")
+def mcp_manifest_command(
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Emit the ThreadVault MCP server manifest."""
+    payload = mcp_manifest()
+    if json_output:
+        _print_json(payload)
+        return
+    table = Table(title="ThreadVault MCP Server")
+    table.add_column("Key")
+    table.add_column("Value")
+    table.add_row("transport", escape(payload["server"]["transport"]))
+    table.add_row("protocol", escape(payload["server"]["protocol_version"]))
+    table.add_row("tools", str(len(payload["tools"])))
+    console.print(table)
+
+
+@mcp_app.command("serve")
+def mcp_serve_command(
+    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
+    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml for capability discovery.")] = None,
+) -> None:
+    """Run the ThreadVault MCP stdio server."""
+    serve_mcp(McpRuntimeConfig(db_path=_db_option(db, config), config_path=config))
 
 
 @governance_app.command("status")

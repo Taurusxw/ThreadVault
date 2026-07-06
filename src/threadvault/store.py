@@ -133,6 +133,7 @@ from .governance import (
 from .hybrid_retrieval import HYBRID_RETRIEVAL_CONTRACT_VERSION, HybridRetrievalRequest, hybrid_retrieve
 from .importer import import_codex_home, sample_codex_home
 from .ingestion import IngestionRequest, enqueue_ingestion, list_ingestion_queue, process_ingestion_queue
+from .mcp_contracts import MCP_MANIFEST_CONTRACT_VERSION, MCP_PROTOCOL_VERSION
 from .models import SearchResult, SessionRow, Summary
 from .privacy import RULES_VERSION, effective_findings, scan_sensitive_text
 from .restore import restore_backup
@@ -641,10 +642,10 @@ class ArchiveStore:
         )
 
         phase_docs = [
-            Path("docs/v3/README.md"),
-            Path("docs/v3/phases/phase-33-v3-final-acceptance-smoke/plan.md"),
-            Path("docs/v3/phases/phase-33-v3-final-acceptance-smoke/design-notes.md"),
-            Path("docs/v3/phases/phase-33-v3-final-acceptance-smoke/acceptance.md"),
+            Path("docs/progress/archive/legacy-v3/README.md"),
+            Path("docs/progress/archive/legacy-v3/phases/phase-33-v3-final-acceptance-smoke/plan.md"),
+            Path("docs/progress/archive/legacy-v3/phases/phase-33-v3-final-acceptance-smoke/design-notes.md"),
+            Path("docs/progress/archive/legacy-v3/phases/phase-33-v3-final-acceptance-smoke/acceptance.md"),
         ]
         add_check(
             "discovery_schema_and_docs",
@@ -1474,6 +1475,7 @@ def capabilities() -> dict[str, Any]:
             "agent",
             "client",
             "ui",
+            "mcp",
             "governance",
         ],
         "json_outputs": [
@@ -1541,6 +1543,8 @@ def capabilities() -> dict[str, Any]:
             "client export-preview",
             "client warnings",
             "ui smoke",
+            "mcp manifest",
+            "mcp serve",
             "governance status",
             "governance audit append",
             "governance audit list",
@@ -1602,6 +1606,9 @@ def capabilities() -> dict[str, Any]:
             "personal_ui_desktop_wrapper": False,
             "personal_ui_team_mode": False,
             "personal_ui_cloud_sync": False,
+            "mcp_stdio_server": True,
+            "mcp_read_only_tools": True,
+            "mcp_export_preview": True,
             "governance_baseline": True,
             "governance_audit_log": True,
             "governance_permission_preflight": True,
@@ -1675,6 +1682,8 @@ def robot_guide() -> dict[str, Any]:
             "threadvault client export-preview --session SESSION_ID --out OUT --json",
             "threadvault client export-preview --session SESSION_ID --out OUT --governance-role reviewer --json",
             "threadvault client warnings --session SESSION_ID --json",
+            "threadvault mcp manifest --json",
+            "threadvault mcp serve",
             PERSONAL_UI_SERVE_COMMAND,
             PERSONAL_UI_SMOKE_COMMAND,
             "threadvault governance status --json",
@@ -1823,8 +1832,28 @@ def robot_guide() -> dict[str, Any]:
             "schemas": ["agent_interface_manifest", "agent_retrieval"],
             "default_mode": "hybrid",
             "modes": ["hybrid", "fts"],
-            "mcp_runtime_included": False,
+            "mcp_runtime_included": True,
             "local_debug_opt_in": True,
+        },
+        "mcp_interface": {
+            "module": "threadvault.mcp",
+            "manifest_contract_version": MCP_MANIFEST_CONTRACT_VERSION,
+            "schema": "mcp_manifest",
+            "protocol_version": MCP_PROTOCOL_VERSION,
+            "transport": "stdio",
+            "serve_command": "threadvault mcp serve",
+            "manifest_command": "threadvault mcp manifest --json",
+            "tools": [
+                "threadvault_capabilities",
+                "threadvault_stats",
+                "threadvault_doctor",
+                "threadvault_retrieve",
+                "threadvault_session",
+                "threadvault_export_preview",
+            ],
+            "writes_files": False,
+            "external_model_calls": False,
+            "raw_paths_default": False,
         },
         "retrieval": {
             "module": "threadvault.retrieval",
@@ -1959,6 +1988,13 @@ def robot_schemas() -> dict[str, Any]:
             "results": "object[]",
             "diagnostics": "object",
             "privacy": "object",
+        },
+        "mcp_manifest": {
+            "contract_version": "string",
+            "server": "object",
+            "tools": "object[]",
+            "privacy": "object",
+            "integration_guidance": "object",
         },
         "client_interface_manifest": {
             "contract_version": "string",

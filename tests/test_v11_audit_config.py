@@ -102,7 +102,7 @@ def test_audit_history_prune_rejects_invalid_config_keep(tmp_path: Path) -> None
 
 def test_v11_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-11-audit-retention-config/plan.md"),
-        Path("docs/v0/phases/phase-11-audit-retention-config/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-11-audit-retention-config/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-11-audit-retention-config/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

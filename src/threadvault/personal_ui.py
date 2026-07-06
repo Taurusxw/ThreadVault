@@ -32,6 +32,7 @@ PERSONAL_UI_ACTION_CONTRACT_VERSION = "personal_ui_action.v1"
 PERSONAL_UI_SMOKE_CONTRACT_VERSION = "personal_ui_smoke.v1"
 PERSONAL_UI_SERVE_COMMAND = "threadvault ui serve --host 127.0.0.1 --port 8766 --open"
 PERSONAL_UI_SMOKE_COMMAND = "threadvault ui smoke --json"
+PERSONAL_UI_EXPORT_DIR = "threadvault-ui-output"
 
 
 @dataclass(frozen=True)
@@ -177,7 +178,7 @@ INDEX_HTML = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ThreadVault Personal UI</title>
-  <link rel="stylesheet" href="/assets/app.css?v=20260701-scroll2">
+  <link rel="stylesheet" href="/assets/app.css?v=20260702-paths">
 </head>
 <body>
   <aside class="nav" aria-label="Primary">
@@ -202,6 +203,18 @@ INDEX_HTML = """<!doctype html>
         <span id="status-dot" class="status-dot"></span>
         <span id="status">Starting...</span>
         <span id="db-path" class="muted"></span>
+        <span id="export-path" class="muted"></span>
+      </div>
+      <div id="activity" class="activity" aria-live="polite" hidden>
+        <div class="activity-main">
+          <span class="spinner" aria-hidden="true"></span>
+          <strong id="activity-title">Working</strong>
+        </div>
+        <ol id="activity-steps"></ol>
+      </div>
+      <div class="mode-switch" aria-label="Interface mode">
+        <button id="mode-basic" class="mode-button" data-ui-mode="basic" type="button">Basic Mode</button>
+        <button id="mode-pro" class="mode-button" data-ui-mode="pro" type="button">Pro Mode</button>
       </div>
       <form id="global-search" class="search-form">
         <input id="query" type="search" placeholder="Search archive" autocomplete="off">
@@ -228,7 +241,7 @@ INDEX_HTML = """<!doctype html>
     </div>
     <pre id="json">{}</pre>
   </aside>
-  <script src="/assets/app.js?v=20260701-scroll2"></script>
+  <script src="/assets/app.js?v=20260702-paths"></script>
 </body>
 </html>
 """
@@ -262,6 +275,16 @@ body {
   color: var(--ink);
   background: var(--panel);
   overflow: hidden;
+}
+body.mode-basic {
+  grid-template-columns: minmax(420px, 1fr);
+}
+body.mode-basic .nav,
+body.mode-basic .json-panel {
+  display: none;
+}
+body.mode-basic .content {
+  align-content: start;
 }
 .nav {
   background: #eef2f6;
@@ -297,7 +320,7 @@ body {
 }
 .topbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   padding: 12px 16px;
@@ -316,7 +339,8 @@ body {
   overflow: hidden;
 }
 .status-block span { overflow-wrap: anywhere; }
-#db-path {
+#db-path,
+#export-path {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -331,6 +355,136 @@ body {
 }
 .status-dot.ok { background: var(--ok); }
 .status-dot.fail { background: var(--danger); }
+.activity {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #b7d9d4;
+  border-radius: 8px;
+  background: #f0fdfa;
+}
+.activity[hidden] { display: none; }
+.activity-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #99f6e4;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex: 0 0 auto;
+}
+.activity.is-done .spinner {
+  position: relative;
+  border-color: var(--ok);
+  background: var(--ok);
+  animation: none;
+}
+.activity.is-done .spinner::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.activity.is-failed .spinner {
+  border-color: var(--danger);
+  border-top-color: var(--danger);
+  animation: none;
+}
+.activity ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.activity li, .workflow-step {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+}
+.activity li.is-active, .workflow-step.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #ecfdf5;
+}
+.activity li.is-done, .workflow-step.is-done {
+  border-color: #bbf7d0;
+  color: var(--ok);
+  background: #f0fdf4;
+}
+.workflow-status {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  line-height: 1.45;
+}
+.workflow-status.is-waiting {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+.workflow-status.is-ready {
+  border-color: #99f6e4;
+  background: #f0fdfa;
+}
+.workflow-status.is-done {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+.primary-write-action {
+  width: auto;
+  justify-self: start;
+  margin-top: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.mode-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(88px, auto));
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.mode-switch .mode-button {
+  width: auto;
+  margin: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  text-align: center;
+}
+.mode-switch .mode-button.is-active {
+  background: var(--panel);
+  color: var(--accent);
+  box-shadow: var(--shadow);
+}
 .search-form {
   display: grid;
   grid-template-columns: minmax(120px, 1fr) 108px minmax(72px, auto);
@@ -350,12 +504,43 @@ button.secondary {
   color: var(--ink);
   border-color: var(--line);
 }
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+button.is-disabled {
+  opacity: 0.72;
+  cursor: help;
+  border-style: dashed;
+  background: var(--surface);
+  color: var(--muted);
+}
+button.is-running {
+  position: relative;
+  color: transparent !important;
+}
+button.is-running::after {
+  content: attr(data-busy-label);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--accent-ink);
+}
+button.secondary.is-running::after,
+.action-button.is-running::after {
+  color: var(--accent);
+}
 input, select, textarea {
   padding: 9px 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
   min-width: 0;
   background: var(--panel);
+}
+.input-wide {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  min-width: 28ch;
 }
 textarea {
   width: 100%;
@@ -379,6 +564,71 @@ textarea {
 }
 .section-heading h1 { margin: 0 0 4px; font-size: 24px; }
 .section-heading p { margin: 0; color: var(--muted); }
+.basic-hero {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  max-width: 1080px;
+}
+.basic-hero .section-heading h1 {
+  font-size: 32px;
+}
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.quick-action {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-height: 172px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.quick-action h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.quick-action p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.quick-action button {
+  width: auto;
+  margin-top: auto;
+  justify-self: start;
+  padding: 9px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+.quick-action .toolbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.basic-search-results {
+  display: grid;
+  gap: 10px;
+}
+.result-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.result-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
 .toolbar, .form-grid, .button-row {
   display: grid;
   gap: 10px;
@@ -397,6 +647,16 @@ textarea {
 .panel h3 { margin: 14px 0 8px; font-size: 14px; }
 .hint, .danger-note { color: var(--muted); font-size: 13px; line-height: 1.45; }
 .danger-note { color: var(--danger); }
+.summary-note {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0 0 10px;
+}
+.workflow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pill {
   display: inline-flex;
@@ -473,6 +733,8 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-heig
   }
   .content { overflow: visible; }
   .topbar, .search-form, .toolbar, .form-grid, .button-row { grid-template-columns: 1fr; }
+  .mode-switch, .quick-actions { grid-template-columns: 1fr; }
+  body.mode-basic { grid-template-columns: 1fr; }
   .json-panel {
     display: block;
     border-left: 0;
@@ -486,11 +748,99 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-heig
 
 
 APP_JS = """
+const UI_MODE_KEY = "threadvault.uiMode";
+
 const state = {
-  activeView: "archive",
+  activeView: "home",
+  uiMode: "basic",
   health: null,
   overview: null,
   selectedSession: null,
+  exportControls: {
+    session: "",
+    profile: "markdown",
+    privacyMode: "warn",
+  },
+  exportPreview: null,
+  exportResult: null,
+  activeTask: null,
+};
+
+const uiText = {
+  requestFailed: "Request failed",
+  requiresConfirm: "requires confirm=true.",
+  applyRequiresConfirm: "apply requires confirm=true.",
+  confirmPromptSuffix: " requires confirmation. Continue?",
+  statusConnector: " on ",
+  statusOk: "ok",
+  bootError: "error",
+  exportPreviewMissing: "Generate a matching preview before writing files.",
+  exportPreviewReady: "Preview ready",
+  exportPreviewStale: "Export preview reset after input change.",
+  exportWritten: "Export written",
+  exportStepChoose: "1. Choose session and format",
+  exportStepPreview: "2. Generate preview",
+  exportStepWrite: "3. Write files",
+  exportNeedsPreview: "Next step: generate a preview. Write buttons explain why they are locked if clicked.",
+  exportReadyToWrite: "Next step: review the preview, then click the enabled write button.",
+  exportComplete: "Export complete. The output path is shown below.",
+  exportLocked: "Locked until the preview matches this write action.",
+  actionCancelled: "Action cancelled.",
+  noRecentSession: "No imported sessions are available yet.",
+  basicSkillPrompt: "Open or search a session first, then generate a Codex Skill export preview.",
+  working: "Working",
+  done: "Done",
+  failed: "Failed",
+  busyLabel: "Running...",
+  openingViewPrefix: "Opening",
+  switchingModePrefix: "Switching to",
+  privacyModes: {
+    warn: "Warn only",
+    redact: "Redact automatically",
+    fail: "Block on high risk",
+  },
+};
+
+const actionLabels = {
+  reindex: "Reindex",
+  vacuum: "Vacuum",
+  restore_apply: "Restore apply",
+  schema_write: "Schema write",
+  schemas_write: "Schemas write",
+  backup_history_prune: "Backup history prune",
+  restore_history_prune: "Restore history prune",
+  audit_history_prune: "Audit history prune",
+};
+
+const roleLabels = {
+  assistant: "助手",
+  developer: "开发者",
+  system: "系统",
+  tool: "工具",
+  user: "用户",
+};
+
+const actionProgress = {
+  client_export_preview: {
+    title: "Generating export preview",
+    steps: ["Read session", "Scan privacy", "Plan files"],
+  },
+  export_session: {
+    title: "Writing session export",
+    steps: ["Check preview", "Write file", "Report path"],
+  },
+  export_target_markdown: {
+    title: "Writing Markdown export",
+    steps: ["Check preview", "Write files", "Report path"],
+  },
+  export_target_obsidian: {
+    title: "Writing Obsidian export",
+    steps: ["Check preview", "Write vault", "Report path"],
+  },
+  export_target_skill: {
+    title: "Writing Skill export",
+    steps: ["Check preview", "Write skill files", "Report path"],
+  },
 };
 
 const views = {
@@ -540,6 +890,15 @@ function byId(id) {
   return document.getElementById(id);
 }
 
+function getStoredMode() {
+  const stored = window.localStorage.getItem(UI_MODE_KEY);
+  return stored === "pro" ? "pro" : "basic";
+}
+
+function setStoredMode(mode) {
+  window.localStorage.setItem(UI_MODE_KEY, mode === "pro" ? "pro" : "basic");
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -558,12 +917,141 @@ function setStatus(label, ok) {
   byId("status-dot").className = ok === false ? "status-dot fail" : "status-dot ok";
 }
 
+function pathLabel(label, value) {
+  return value ? `${label}: ${value}` : "";
+}
+
+function setActivity(title, steps, activeIndex, done) {
+  const node = byId("activity");
+  const titleNode = byId("activity-title");
+  const stepsNode = byId("activity-steps");
+  if (!node || !titleNode || !stepsNode) return;
+  if (!title) {
+    node.hidden = true;
+    node.classList.remove("is-running", "is-done", "is-failed");
+    titleNode.textContent = uiText.working;
+    stepsNode.innerHTML = "";
+    return;
+  }
+  node.hidden = false;
+  const failed = String(title).startsWith(`${uiText.failed}:`);
+  node.classList.toggle("is-done", Boolean(done));
+  node.classList.toggle("is-failed", failed);
+  node.classList.toggle("is-running", !done && !failed);
+  titleNode.textContent = title;
+  stepsNode.innerHTML = (steps || []).map((step, index) => {
+    const cls = done || index < activeIndex ? "is-done" : index === activeIndex ? "is-active" : "";
+    return `<li class="${cls}">${escapeHtml(step)}</li>`;
+  }).join("");
+}
+
+function setButtonBusy(button, busy) {
+  if (!button) return;
+  if (busy) {
+    button.dataset.wasDisabled = button.disabled ? "true" : "false";
+    button.dataset.busyLabel = uiText.busyLabel;
+    button.disabled = true;
+    button.classList.add("is-running");
+    button.setAttribute("aria-busy", "true");
+    return;
+  }
+  button.classList.remove("is-running");
+  button.removeAttribute("aria-busy");
+  if (button.dataset.wasDisabled !== "true") button.disabled = false;
+  delete button.dataset.wasDisabled;
+  delete button.dataset.busyLabel;
+}
+
+async function runWithFeedback(task, work) {
+  const steps = task.steps || [task.title || uiText.working];
+  const title = task.title || uiText.working;
+  const startedAt = Date.now();
+  state.activeTask = task;
+  setStatus(title, true);
+  setActivity(title, steps, 0, false);
+  setButtonBusy(task.button, true);
+  try {
+    const result = await work();
+    setActivity(uiText.done, steps, steps.length, true);
+    setStatus(task.success || uiText.done, true);
+    return result;
+  } catch (error) {
+    setActivity(`${uiText.failed}: ${error.message}`, steps, 0, false);
+    setStatus(error.message, false);
+    throw error;
+  } finally {
+    const remaining = Math.max(0, 280 - (Date.now() - startedAt));
+    if (remaining) await new Promise((resolve) => setTimeout(resolve, remaining));
+    setButtonBusy(task.button, false);
+    state.activeTask = null;
+  }
+}
+
+function applyMode(mode) {
+  state.uiMode = mode === "pro" ? "pro" : "basic";
+  document.body.classList.toggle("mode-basic", state.uiMode === "basic");
+  document.body.classList.toggle("mode-pro", state.uiMode === "pro");
+  document.querySelectorAll(".mode-button").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.uiMode === state.uiMode);
+  });
+}
+
+function actionLabel(action) {
+  return actionLabels[action] || action;
+}
+
+function roleLabel(role) {
+  return roleLabels[role] || role;
+}
+
+function formatTimestamp(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const pad = (part) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function eventPreview(event) {
+  return event.text_preview || event.text || event.preview || event.content || "";
+}
+
+function cleanSummary(summary) {
+  const raw = summary.title || summary.topic || "";
+  if (!raw) return "No summary loaded.";
+  const compact = String(raw).trim();
+  if (compact.startsWith("<environment_context>") || compact.includes("<cwd>") || compact.includes("<shell>")) {
+    return [
+      "This summary starts with raw environment context, so the main UI folded it into a short note.",
+      "Inspect the JSON panel for the original text.",
+    ].join(" ");
+  }
+  return compact;
+}
+
+function statusLabel(status) {
+  return status === "ok" ? uiText.statusOk : status;
+}
+
+function apiErrorMessage(payload) {
+  const action = payload.action || "";
+  if (payload.status === "confirm_required" && action) {
+    if (payload.message === `${action} requires confirm=true.`) {
+      return `${actionLabel(action)} ${uiText.requiresConfirm}`;
+    }
+    if (payload.message === `${action} apply requires confirm=true.`) {
+      return `${actionLabel(action)} ${uiText.applyRequiresConfirm}`;
+    }
+  }
+  return payload.message || payload.error || uiText.requestFailed;
+}
+
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
   const payload = await response.json();
   setJson(payload);
   if (!response.ok || payload.ok === false) {
-    throw new Error(payload.message || payload.error || "Request failed");
+    throw new Error(apiErrorMessage(payload));
   }
   return payload;
 }
@@ -586,9 +1074,11 @@ function heading(viewName) {
   `;
 }
 
-function placeholderButton(label, action, dangerText) {
+function placeholderButton(label, action, dangerText, disabled) {
+  const disabledAttr = disabled ? ` aria-disabled="true" disabled data-disabled-reason="${escapeHtml(dangerText)}"` : "";
+  const disabledClass = disabled ? " is-disabled" : "";
   return `
-    <button class="action-button" type="button" data-action="${action}">
+    <button class="action-button${disabledClass}" type="button" data-action="${action}"${disabledAttr}>
       ${label}
     </button>
     <p class="hint">${dangerText}</p>
@@ -600,13 +1090,153 @@ function valueOf(id) {
   return node ? node.value : "";
 }
 
+function selectedExportControls() {
+  return {
+    session: valueOf("export-session") || state.exportControls.session || state.selectedSession || "",
+    profile: valueOf("export-profile") || state.exportControls.profile || "markdown",
+    privacyMode: valueOf("privacy-mode") || state.exportControls.privacyMode || "warn",
+  };
+}
+
+function syncExportControls() {
+  state.exportControls = selectedExportControls();
+  return state.exportControls;
+}
+
+function exportActionForProfile(profile) {
+  if (profile === "obsidian") return "export_target_obsidian";
+  if (profile === "skill") return "export_target_skill";
+  if (profile === "session") return "export_session";
+  return "export_target_markdown";
+}
+
+function previewProfileForExport(profile) {
+  return profile === "session" ? "markdown" : profile;
+}
+
+function exportPreviewKey(action, controls) {
+  return JSON.stringify({
+    action,
+    session: controls.session || "",
+    profile: controls.profile || "markdown",
+    privacyMode: controls.privacyMode || "warn",
+  });
+}
+
+function currentExportPreviewKey(action) {
+  return exportPreviewKey(action, selectedExportControls());
+}
+
+function hasMatchingExportPreview(action) {
+  return Boolean(state.exportPreview && state.exportPreview.key === currentExportPreviewKey(action));
+}
+
+function exportPrivacySummary(result) {
+  const privacy = result && result.privacy ? result.privacy : {};
+  const effective = privacy.effective_findings_count ?? privacy.findings_count ?? 0;
+  const highRisk = privacy.high_risk_findings_count ?? privacy.high_count ?? 0;
+  return { effective, highRisk, blocked: Boolean(privacy.blocked) };
+}
+
+function exportOutputPaths(result) {
+  if (!result) return [];
+  if (Array.isArray(result)) {
+    return result
+      .map((item) => (typeof item === "string" ? item : item && item.path ? item.path : null))
+      .filter(Boolean);
+  }
+  if (Array.isArray(result.files)) return result.files.map((item) => item.path || item).filter(Boolean);
+  if (Array.isArray(result.planned_files)) return result.planned_files.map((item) => item.path || item).filter(Boolean);
+  if (result.path) return [result.path];
+  if (result.target_path) return [result.target_path];
+  if (result.root) return [result.root];
+  return [];
+}
+
+function exportModeLabel(profile) {
+  if (profile === "session") return "Session export";
+  if (profile === "obsidian") return "Obsidian";
+  if (profile === "skill") return "Skill";
+  return "Markdown";
+}
+
+function exportWriteLabel(profile) {
+  if (profile === "session") return "Export session";
+  if (profile === "obsidian") return "Export obsidian";
+  if (profile === "skill") return "Export skill";
+  return "Export markdown";
+}
+
+function renderExportSummary() {
+  const preview = state.exportPreview;
+  const result = state.exportResult;
+  if (!preview && !result) {
+    return `<p class="summary-note">${uiText.exportPreviewMissing}</p>`;
+  }
+  const latest = result || preview;
+  const privacy = exportPrivacySummary(latest.payload?.result || latest.payload || {});
+  const paths = exportOutputPaths(latest.payload?.result || latest.payload || {});
+  const status = result ? uiText.exportWritten : uiText.exportPreviewReady;
+  return `
+    <p class="summary-note">
+      ${status}: ${exportModeLabel(latest.controls.profile)} ·
+      ${uiText.privacyModes[latest.controls.privacyMode] || latest.controls.privacyMode}
+    </p>
+    <div class="pill-row">
+      <span class="pill">Session ${escapeHtml(latest.controls.session || "-")}</span>
+      <span class="pill">Privacy findings ${escapeHtml(privacy.effective)}</span>
+      <span class="pill">High risk ${escapeHtml(privacy.highRisk)}</span>
+      <span class="pill">${privacy.blocked ? "Blocked" : "Allowed"}</span>
+    </div>
+    <p class="hint">${paths.length ? escapeHtml(paths.join(", ")) : "No output path reported in this response."}</p>
+  `;
+}
+
+function renderExportWorkflow() {
+  const hasPreview = Boolean(state.exportPreview);
+  const hasResult = Boolean(state.exportResult);
+  return `
+    <div class="workflow" aria-label="Export workflow">
+      <span class="workflow-step is-done">${uiText.exportStepChoose}</span>
+      <span class="workflow-step ${hasPreview || hasResult ? "is-done" : "is-active"}">${uiText.exportStepPreview}</span>
+      <span class="workflow-step ${hasResult ? "is-done" : hasPreview ? "is-active" : ""}">${uiText.exportStepWrite}</span>
+    </div>
+  `;
+}
+
+function renderExportStage() {
+  const currentAction = exportActionForProfile((state.exportControls || {}).profile || "markdown");
+  const readyToWrite = hasMatchingExportPreview(currentAction);
+  const message = state.exportResult
+    ? uiText.exportComplete
+    : readyToWrite
+      ? uiText.exportReadyToWrite
+      : uiText.exportNeedsPreview;
+  const cls = state.exportResult ? "is-done" : readyToWrite ? "is-ready" : "is-waiting";
+  return `<div class="workflow-status ${cls}" role="status">${message}</div>`;
+}
+
+function renderExportPrimaryAction() {
+  if (state.exportResult) return "";
+  const controls = state.exportControls || {};
+  const profile = controls.profile || "markdown";
+  const currentAction = exportActionForProfile(profile);
+  if (!hasMatchingExportPreview(currentAction)) return "";
+  return `
+    <button class="primary-write-action" type="button" data-action="${currentAction}">
+      ${exportWriteLabel(profile)}
+    </button>
+  `;
+}
+
 function paramsForAction(action) {
-  const session = valueOf("export-session") || state.selectedSession || "";
-  const profile = valueOf("export-profile") || "markdown";
-  const privacyMode = valueOf("privacy-mode") || "warn";
+  const exportControls = selectedExportControls();
+  const session = exportControls.session || state.selectedSession || "";
+  const profile = exportControls.profile || "markdown";
+  const privacyMode = exportControls.privacyMode || "warn";
   const schemaJson = valueOf("schema-json");
   const base = { session, privacy_mode: privacyMode };
-  const out = "threadvault-ui-output";
+  const out = state.health?.paths?.default_export_dir || "threadvault-ui-output";
   const commonQuery = byId("query") ? byId("query").value || "pytest" : "pytest";
   const simple = {
     stats: {},
@@ -648,10 +1278,15 @@ function paramsForAction(action) {
     return { out: "docs/schemas" };
   }
   if (action === "export_session") {
-    return { ...base, out, format: "md", profile: "full", preview_accepted: true };
+    const params = { ...base, out, format: "md", profile: "full" };
+    if (hasMatchingExportPreview(action)) params.preview_accepted = true;
+    return params;
   }
   if (action === "export_target_markdown" || action === "export_target_obsidian" || action === "export_target_skill") {
-    return { ...base, out, profile, preview_accepted: true };
+    const targetProfile = action.replace("export_target_", "");
+    const params = { ...base, out, profile: targetProfile };
+    if (hasMatchingExportPreview(action)) params.preview_accepted = true;
+    return params;
   }
   return {};
 }
@@ -695,6 +1330,11 @@ function renderSessionTable(sessions) {
   `;
 }
 
+function recentSession() {
+  const sessions = state.overview && Array.isArray(state.overview.sessions) ? state.overview.sessions : [];
+  return sessions.length ? sessions[0] : null;
+}
+
 async function loadOverview(extraQuery) {
   const suffix = extraQuery ? "?" + extraQuery : "?limit=20";
   const payload = await fetchJson("/api/client/overview" + suffix);
@@ -717,6 +1357,59 @@ async function renderArchive() {
       </form>
     </div>
     ${renderSessionTable(sessions)}
+  `;
+}
+
+function renderBasicSearchResults(payload) {
+  const results = payload && payload.results ? payload.results : [];
+  if (!results.length) {
+    return `<div class="panel"><p class="hint">No matching old records yet.</p></div>`;
+  }
+  return `
+    <div class="basic-search-results">
+      ${results.map((result) => `
+        <article class="result-card">
+          <button class="link-button" type="button" data-open-session="${escapeHtml(result.session_id || "")}">
+            ${escapeHtml(result.session_id || "Unknown session")}
+          </button>
+          <p>${escapeHtml(result.snippet || result.text || result.summary || "")}</p>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderHome(payload) {
+  const latest = recentSession();
+  const latestLabel = latest ? latest.updated_at || latest.created_at || latest.session_id : uiText.noRecentSession;
+  byId("content").innerHTML = `
+    <div class="basic-hero">
+      <div class="section-heading">
+        <h1>Start with what you need</h1>
+        <p>ThreadVault keeps the advanced controls available, but Basic Mode focuses on the three daily moves.</p>
+      </div>
+      <div class="quick-actions">
+        <section class="quick-action">
+          <h2>Search old records</h2>
+          <p>Find previous Codex work by keyword, error text, project name, or decision.</p>
+          <form id="basic-search" class="toolbar">
+            <input name="q" placeholder="Search old records" value="${escapeHtml(byId("query").value || "")}">
+            <button type="submit">Search</button>
+          </form>
+        </section>
+        <section class="quick-action">
+          <h2>Open latest session</h2>
+          <p>${escapeHtml(latestLabel)}</p>
+          <button id="open-latest-session" type="button"${latest ? "" : " disabled"}>Open latest</button>
+        </section>
+        <section class="quick-action">
+          <h2>Export for Codex reuse</h2>
+          <p>Generate a Codex Skill preview from the current or latest session, then write it after review.</p>
+          <button id="basic-skill-preview" type="button"${latest || state.selectedSession ? "" : " disabled"}>Prepare Skill export</button>
+        </section>
+      </div>
+      ${payload ? renderBasicSearchResults(payload) : ""}
+    </div>
   `;
 }
 
@@ -786,12 +1479,13 @@ function renderSession(payload) {
   const summary = payload ? payload.summary || {} : {};
   const events = payload ? payload.events || [] : [];
   const evidenceIds = summary.evidence_event_ids || payload?.evidence_event_ids || [];
+  const summaryText = cleanSummary(summary);
   const eventRows = events.map((event) => `
     <tr>
       <td>${escapeHtml(event.event_id || event.id || "")}</td>
-      <td>${escapeHtml(event.role || event.type || "")}</td>
-      <td>${escapeHtml(event.created_at || "")}</td>
-      <td>${escapeHtml(event.text || event.preview || event.content || "")}</td>
+      <td>${escapeHtml(roleLabel(event.role || event.type || ""))}</td>
+      <td>${escapeHtml(formatTimestamp(event.created_at || event.timestamp || ""))}</td>
+      <td>${escapeHtml(eventPreview(event))}</td>
     </tr>
   `).join("");
   byId("content").innerHTML = `
@@ -799,7 +1493,12 @@ function renderSession(payload) {
     <div class="panel">
       <h2>Session Lookup</h2>
       <form id="session-lookup" class="toolbar">
-        <input name="session" placeholder="Session ID" value="${escapeHtml(session.session_id || state.selectedSession || "")}">
+        <input
+          class="input-wide"
+          name="session"
+          placeholder="Session ID"
+          value="${escapeHtml(session.session_id || state.selectedSession || "")}"
+        >
         <button type="submit">Open Session</button>
         <button type="button" id="load-warnings" class="secondary">Warnings</button>
         <button type="button" id="session-export-preview" class="secondary">Export Preview</button>
@@ -807,7 +1506,7 @@ function renderSession(payload) {
     </div>
     <div class="panel">
       <h2>Summary</h2>
-      <p>${escapeHtml(summary.title || summary.topic || "No summary loaded.")}</p>
+      <p class="summary-note">${escapeHtml(summaryText)}</p>
       <div class="pill-row">${evidenceIds.map((id) => `<span class="pill">${escapeHtml(id)}</span>`).join("")}</div>
     </div>
     <div class="table-wrap">
@@ -820,33 +1519,67 @@ function renderSession(payload) {
 }
 
 function renderExport() {
+  const controls = state.exportControls || {};
+  const session = controls.session || state.selectedSession || "";
+  const profile = controls.profile || "markdown";
+  const privacyMode = controls.privacyMode || "warn";
+  const writeActions = {
+    export_session: hasMatchingExportPreview("export_session"),
+    export_target_markdown: hasMatchingExportPreview("export_target_markdown"),
+    export_target_obsidian: hasMatchingExportPreview("export_target_obsidian"),
+    export_target_skill: hasMatchingExportPreview("export_target_skill"),
+  };
   byId("content").innerHTML = `
     ${heading("export")}
     <div class="panel">
       <h2>Export Preview</h2>
+      ${renderExportWorkflow()}
+      ${renderExportStage()}
       <div class="form-grid">
-        <input id="export-session" placeholder="Session ID" value="${escapeHtml(state.selectedSession || "")}">
+        <input class="input-wide" id="export-session" placeholder="Session ID" value="${escapeHtml(session)}">
         <select id="export-profile">
-          <option value="markdown">Markdown</option>
-          <option value="obsidian">Obsidian</option>
-          <option value="skill">Skill</option>
-          <option value="session">Session export</option>
+          <option value="markdown"${profile === "markdown" ? " selected" : ""}>Markdown</option>
+          <option value="obsidian"${profile === "obsidian" ? " selected" : ""}>Obsidian</option>
+          <option value="skill"${profile === "skill" ? " selected" : ""}>Skill</option>
+          <option value="session"${profile === "session" ? " selected" : ""}>Session export</option>
         </select>
         <select id="privacy-mode">
-          <option value="warn">Privacy warn</option>
-          <option value="redact">Privacy redact</option>
-          <option value="fail">Privacy fail</option>
+          <option value="warn"${privacyMode === "warn" ? " selected" : ""}>Privacy warn</option>
+          <option value="redact"${privacyMode === "redact" ? " selected" : ""}>Privacy redact</option>
+          <option value="fail"${privacyMode === "fail" ? " selected" : ""}>Privacy fail</option>
         </select>
-        <button id="preview-export" type="button">Preview Required</button>
+        <button id="preview-export" type="button">Generate Preview</button>
       </div>
-      <p class="hint">Phase 03 exposes the workflow. Phase 04 will wire export actions after preview is available.</p>
+      <div id="export-summary">${renderExportSummary()}</div>
+      ${renderExportPrimaryAction()}
+      <p class="hint">Changing session, profile, or privacy mode invalidates the current preview.</p>
     </div>
     <div class="panel">
       <h2>Write Actions</h2>
-      ${placeholderButton("Export session", "export_session", "Preview must be accepted before writing a session export.")}
-      ${placeholderButton("Export markdown", "export_target_markdown", "Preview must be generated before writing files.")}
-      ${placeholderButton("Export obsidian", "export_target_obsidian", "Preview must be generated before writing files.")}
-      ${placeholderButton("Export skill", "export_target_skill", "Preview must be generated before writing files.")}
+      ${placeholderButton(
+        "Export session",
+        "export_session",
+        writeActions.export_session ? uiText.exportReadyToWrite : "Preview must match the session export selection before writing.",
+        !writeActions.export_session,
+      )}
+      ${placeholderButton(
+        "Export markdown",
+        "export_target_markdown",
+        writeActions.export_target_markdown ? uiText.exportReadyToWrite : "Preview must match Markdown before writing files.",
+        !writeActions.export_target_markdown,
+      )}
+      ${placeholderButton(
+        "Export obsidian",
+        "export_target_obsidian",
+        writeActions.export_target_obsidian ? uiText.exportReadyToWrite : "Preview must match Obsidian before writing files.",
+        !writeActions.export_target_obsidian,
+      )}
+      ${placeholderButton(
+        "Export skill",
+        "export_target_skill",
+        writeActions.export_target_skill ? uiText.exportReadyToWrite : "Preview must match Skill before writing files.",
+        !writeActions.export_target_skill,
+      )}
     </div>
   `;
 }
@@ -955,6 +1688,7 @@ function renderGovernance() {
 }
 
 async function renderActiveView(payload) {
+  if (state.uiMode === "basic" && state.activeView === "home") return renderHome(payload);
   if (state.activeView === "archive") return renderArchive();
   if (state.activeView === "search") return renderSearch(payload);
   if (state.activeView === "session") return renderSession(payload);
@@ -972,9 +1706,14 @@ async function runRetrieve(query, mode, limit) {
   const payload = await fetchJson(
     `/api/retrieve?q=${encodeURIComponent(query)}&mode=${encodeURIComponent(routeMode)}&limit=${encodeURIComponent(limit || 20)}`,
   );
-  state.activeView = "search";
-  activateNav("search");
-  renderSearch(payload);
+  if (state.uiMode === "basic") {
+    state.activeView = "home";
+    renderHome(payload);
+  } else {
+    state.activeView = "search";
+    activateNav("search");
+    renderSearch(payload);
+  }
 }
 
 function activateNav(viewName) {
@@ -984,22 +1723,122 @@ function activateNav(viewName) {
   });
 }
 
+async function switchMode(mode) {
+  applyMode(mode);
+  setStoredMode(state.uiMode);
+  if (state.uiMode === "basic") {
+    state.activeView = "home";
+    await renderHome();
+    return;
+  }
+  state.activeView = "archive";
+  activateNav("archive");
+  await renderArchive();
+}
+
+async function openLatestSession() {
+  const latest = recentSession();
+  if (!latest || !latest.session_id) {
+    setStatus(uiText.noRecentSession, false);
+    return;
+  }
+  state.activeView = "session";
+  activateNav("session");
+  await openSession(latest.session_id);
+}
+
+async function prepareBasicSkillExport() {
+  const latest = recentSession();
+  const session = state.selectedSession || (latest && latest.session_id) || "";
+  if (!session) {
+    setStatus(uiText.basicSkillPrompt, false);
+    return;
+  }
+  state.selectedSession = session;
+  state.exportControls = {
+    session,
+    profile: "skill",
+    privacyMode: "warn",
+  };
+  state.exportPreview = null;
+  state.exportResult = null;
+  await generateExportPreview();
+}
+
+async function generateExportPreview() {
+  const controls = syncExportControls();
+  const action = exportActionForProfile(controls.profile);
+  const payload = await postAction("client_export_preview", {
+    session: controls.session,
+    out: state.health?.paths?.default_export_dir || "threadvault-ui-output",
+    profile: previewProfileForExport(controls.profile),
+    privacy_mode: controls.privacyMode,
+  }, false);
+  state.exportPreview = {
+    key: exportPreviewKey(action, controls),
+    action,
+    controls: { ...controls },
+    payload,
+  };
+  state.exportResult = null;
+  renderExport();
+  setStatus(uiText.exportPreviewReady, true);
+}
+
+function progressForAction(action) {
+  return actionProgress[action] || {
+    title: actionLabel(action),
+    steps: ["Send request", "Run action", "Show result"],
+  };
+}
+
 function bindEvents() {
+  applyMode(getStoredMode());
+
   document.querySelectorAll(".nav-button").forEach((button) => {
     button.addEventListener("click", async () => {
       activateNav(button.dataset.view);
-      await renderActiveView();
+      await runWithFeedback(
+        {
+          title: `${uiText.openingViewPrefix} ${button.textContent.trim()}`,
+          steps: ["Switch view", "Load content"],
+          button,
+        },
+        () => renderActiveView(),
+      ).catch(() => {});
+    });
+  });
+
+  document.querySelectorAll(".mode-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await runWithFeedback(
+        {
+          title: `${uiText.switchingModePrefix} ${button.textContent.trim()}`,
+          steps: ["Save mode", "Render view"],
+          button,
+        },
+        () => switchMode(button.dataset.uiMode),
+      ).catch(() => {});
     });
   });
 
   byId("global-search").addEventListener("submit", async (event) => {
     event.preventDefault();
-    await runRetrieve(byId("query").value || "pytest", byId("search-mode").value, 20);
+    const button = event.submitter instanceof HTMLButtonElement ? event.submitter : null;
+    await runWithFeedback(
+      { title: "Searching archive", steps: ["Send query", "Rank matches", "Render results"], button },
+      () => runRetrieve(byId("query").value || "pytest", byId("search-mode").value, 20),
+    ).catch(() => {});
   });
 
   byId("refresh").addEventListener("click", async () => {
-    state.overview = null;
-    await renderActiveView();
+    await runWithFeedback(
+      { title: "Refreshing current view", steps: ["Clear cached overview", "Reload view"], button: byId("refresh") },
+      async () => {
+        state.overview = null;
+        await renderActiveView();
+      },
+    ).catch(() => {});
   });
 
   byId("clear-json").addEventListener("click", () => setJson({}));
@@ -1009,17 +1848,99 @@ function bindEvents() {
     if (!(target instanceof HTMLElement)) return;
     const sessionId = target.dataset.openSession;
     if (sessionId) {
-      activateNav("session");
-      await openSession(sessionId);
+      await runWithFeedback(
+        { title: "Opening session", steps: ["Load session", "Build summary", "Render events"], button: target },
+        async () => {
+          activateNav("session");
+          await openSession(sessionId);
+        },
+      ).catch(() => {});
+      return;
+    }
+    if (target.id === "load-warnings") {
+      const input = target.closest("form")?.querySelector('input[name="session"]');
+      const session = input instanceof HTMLInputElement ? input.value : state.selectedSession;
+      if (session) {
+        await runWithFeedback(
+          { title: "Loading warnings", steps: ["Read session", "Collect warnings", "Show JSON"], button: target },
+          () => fetchJson(`/api/client/warnings?session=${encodeURIComponent(session)}`),
+        ).catch(() => {});
+      }
+      return;
+    }
+    if (target.id === "session-export-preview") {
+      const input = target.closest("form")?.querySelector('input[name="session"]');
+      const session = input instanceof HTMLInputElement ? input.value : state.selectedSession;
+      state.exportControls = {
+        session: session || "",
+        profile: "session",
+        privacyMode: "warn",
+      };
+      state.exportPreview = null;
+      state.exportResult = null;
+      activateNav("export");
+      renderExport();
+      return;
+    }
+    if (target.id === "preview-export") {
+      await runWithFeedback(
+        { ...progressForAction("client_export_preview"), button: target, success: uiText.exportPreviewReady },
+        () => generateExportPreview(),
+      ).catch(() => {});
+      return;
+    }
+    if (target.id === "open-latest-session") {
+      await runWithFeedback(
+        { title: "Opening latest session", steps: ["Find latest", "Load session", "Render details"], button: target },
+        () => openLatestSession(),
+      ).catch(() => {});
+      return;
+    }
+    if (target.id === "basic-skill-preview") {
+      await runWithFeedback(
+        { ...progressForAction("client_export_preview"), button: target, success: uiText.exportPreviewReady },
+        () => prepareBasicSkillExport(),
+      ).catch(() => {});
       return;
     }
     if (target.dataset.action) {
+      if (target.getAttribute("aria-disabled") === "true") {
+        const reason = target.dataset.disabledReason || uiText.exportLocked;
+        setStatus(reason, false);
+        setActivity(reason, [uiText.exportStepChoose, uiText.exportStepPreview, uiText.exportStepWrite], 1, false);
+        return;
+      }
       const action = target.dataset.action;
-      const confirmAction = requiresConfirm(action) ? window.confirm(action + " requires confirmation. Continue?") : false;
-      await postAction(action, paramsForAction(action), confirmAction).catch((error) => {
-        setStatus(error.message, false);
-      });
+      const confirmAction = requiresConfirm(action) ? window.confirm(actionLabel(action) + uiText.confirmPromptSuffix) : false;
+      if (requiresConfirm(action) && !confirmAction) {
+        setStatus(uiText.actionCancelled, true);
+        return;
+      }
+      const payload = await runWithFeedback(
+        { ...progressForAction(action), button: target },
+        () => postAction(action, paramsForAction(action), confirmAction),
+      ).catch(() => null);
+      if (payload && ["export_session", "export_target_markdown", "export_target_obsidian", "export_target_skill"].includes(action)) {
+        state.exportResult = {
+          action,
+          controls: { ...selectedExportControls() },
+          payload,
+        };
+        renderExport();
+        setStatus(uiText.exportWritten, true);
+      }
     }
+  });
+
+  byId("content").addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLSelectElement)) return;
+    if (!["export-session", "export-profile", "privacy-mode"].includes(target.id)) return;
+    syncExportControls();
+    state.exportPreview = null;
+    state.exportResult = null;
+    renderExport();
+    setStatus(uiText.exportPreviewStale, true);
   });
 
   byId("content").addEventListener("submit", async (event) => {
@@ -1028,23 +1949,65 @@ function bindEvents() {
     if (!(form instanceof HTMLFormElement)) return;
     const data = new FormData(form);
     if (form.id === "archive-filter") {
-      const params = new URLSearchParams();
-      for (const [key, value] of data.entries()) {
-        if (value) params.set(key, value);
-      }
-      const payload = await loadOverview(params.toString());
-      state.overview = payload;
-      await renderArchive();
+      await runWithFeedback(
+        {
+          title: "Applying archive filters",
+          steps: ["Build filters", "Load matching sessions", "Render table"],
+          button: event.submitter instanceof HTMLButtonElement ? event.submitter : null,
+        },
+        async () => {
+          const params = new URLSearchParams();
+          for (const [key, value] of data.entries()) {
+            if (value) params.set(key, value);
+          }
+          const payload = await loadOverview(params.toString());
+          state.overview = payload;
+          await renderArchive();
+        },
+      ).catch(() => {});
+    }
+    if (form.id === "basic-search") {
+      await runWithFeedback(
+        {
+          title: "Searching old records",
+          steps: ["Send query", "Find matching sessions", "Show cards"],
+          button: event.submitter instanceof HTMLButtonElement ? event.submitter : null,
+        },
+        () => runRetrieve(data.get("q") || byId("query").value || "pytest", "hybrid", 10),
+      ).catch(() => {});
     }
     if (form.id === "view-search") {
-      await runRetrieve(data.get("q") || "pytest", data.get("mode") || "hybrid", data.get("limit") || 20);
+      await runWithFeedback(
+        {
+          title: "Running retrieval",
+          steps: ["Send query", "Rank evidence", "Render results"],
+          button: event.submitter instanceof HTMLButtonElement ? event.submitter : null,
+        },
+        () => runRetrieve(data.get("q") || "pytest", data.get("mode") || "hybrid", data.get("limit") || 20),
+      ).catch(() => {});
     }
     if (form.id === "session-lookup") {
-      await openSession(data.get("session"));
+      await runWithFeedback(
+        {
+          title: "Opening session",
+          steps: ["Load session", "Build summary", "Render events"],
+          button: event.submitter instanceof HTMLButtonElement ? event.submitter : null,
+        },
+        () => openSession(data.get("session")),
+      ).catch(() => {});
     }
     if (form.id === "privacy-form") {
       const session = data.get("session");
-      if (session) await fetchJson(`/api/client/warnings?session=${encodeURIComponent(session)}`);
+      if (session) {
+        await runWithFeedback(
+          {
+            title: "Loading privacy warnings",
+            steps: ["Read session", "Collect findings", "Show JSON"],
+            button: event.submitter instanceof HTMLButtonElement ? event.submitter : null,
+          },
+          () => fetchJson(`/api/client/warnings?session=${encodeURIComponent(session)}`),
+        ).catch(() => {});
+      }
     }
   });
 }
@@ -1054,13 +2017,23 @@ async function boot() {
   startHeartbeat();
   const health = await fetchJson("/api/health");
   state.health = health;
-  setStatus(`${health.status} on ${health.server.host}:${health.server.port}`, true);
-  byId("db-path").textContent = health.paths && health.paths.db_path ? health.paths.db_path : "default database";
-  await renderArchive();
+  setStatus(`${statusLabel(health.status)}${uiText.statusConnector}${health.server.host}:${health.server.port}`, true);
+  byId("db-path").textContent = pathLabel("Index DB", health.paths && health.paths.db_path);
+  byId("export-path").textContent = pathLabel("Export folder", health.paths && health.paths.default_export_dir);
+  const overview = await loadOverview();
+  state.overview = overview;
+  if (state.uiMode === "basic") {
+    state.activeView = "home";
+    await renderHome();
+  } else {
+    state.activeView = "archive";
+    activateNav("archive");
+    await renderArchive();
+  }
 }
 
 boot().catch((error) => {
-  setStatus("error", false);
+  setStatus(uiText.bootError, false);
   setJson({ ok: false, error: String(error) });
 });
 
@@ -1083,6 +2056,9 @@ INDEX_HTML_ZH = (
     .replace("<title>ThreadVault Personal UI</title>", "<title>ThreadVault 个人界面</title>")
     .replace("<span>Personal Web UI</span>", "<span>个人 Web 控制台</span>")
     .replace('aria-label="Primary"', 'aria-label="主导航"')
+    .replace('aria-label="Interface mode"', 'aria-label="界面模式"')
+    .replace(">Basic Mode</button>", ">普通模式</button>")
+    .replace(">Pro Mode</button>", ">专业模式</button>")
     .replace('>Archive</button>', '>归档</button>')
     .replace('>Search</button>', '>搜索</button>')
     .replace('>Session</button>', '>会话</button>')
@@ -1091,21 +2067,110 @@ INDEX_HTML_ZH = (
     .replace('>Maintenance</button>', '>维护</button>')
     .replace('>Backup / Restore</button>', '>备份 / 恢复</button>')
     .replace('>Config</button>', '>配置</button>')
+    .replace('>Schemas</button>', '>结构定义</button>')
     .replace('>Governance</button>', '>治理</button>')
     .replace('placeholder="Search archive"', 'placeholder="搜索归档"')
     .replace('aria-label="Search mode"', 'aria-label="搜索模式"')
+    .replace('>Hybrid</option>', '>混合</option>')
+    .replace('>Retrieval</option>', '>检索</option>')
+    .replace('>Agent</option>', '>Agent</option>')
     .replace('>Refresh</button>', '>刷新</button>')
     .replace("<h1>Archive</h1>", "<h1>归档</h1>")
     .replace("<p>Loading local archive overview.</p>", "<p>正在加载本地归档概览。</p>")
     .replace('aria-label="Raw JSON output"', 'aria-label="原始 JSON 输出"')
     .replace("<h2>JSON Output</h2>", "<h2>JSON 输出</h2>")
     .replace(">Clear</button>", ">清空</button>")
-    .replace('/assets/app.js?v=20260701-scroll2', '/assets/app.zh.js?v=20260701-scroll2')
+    .replace('/assets/app.js?v=20260702-paths', '/assets/app.zh.js?v=20260702-paths')
 )
 
 
 APP_JS_ZH = (
     APP_JS.replace('"Archive"', '"归档"')
+    .replace('"Request failed"', '"请求失败"')
+    .replace('"requires confirm=true."', '"需要确认参数。"')
+    .replace('"apply requires confirm=true."', '"实际执行需要确认。"')
+    .replace('" requires confirmation. Continue?"', '" 需要确认。继续？"')
+    .replace('" on "', '" 于 "')
+    .replace('"ok"', '"正常"')
+    .replace('"error"', '"错误"')
+    .replace('"Working"', '"正在执行"')
+    .replace('"Done"', '"完成"')
+    .replace('"Failed"', '"失败"')
+    .replace('"Running..."', '"运行中..."')
+    .replace('"Opening"', '"正在打开"')
+    .replace('"Switching to"', '"正在切换到"')
+    .replace("Index DB", "索引库")
+    .replace("Export folder", "导出目录")
+    .replace("Generating export preview", "正在生成导出预览")
+    .replace("Writing session export", "正在写入会话导出")
+    .replace("Writing Markdown export", "正在写入 Markdown 导出")
+    .replace("Writing Obsidian export", "正在写入 Obsidian 导出")
+    .replace("Writing Skill export", "正在写入技能包导出")
+    .replace("Read session", "读取会话")
+    .replace("Scan privacy", "扫描隐私")
+    .replace("Plan files", "规划文件")
+    .replace("Check preview", "检查预览")
+    .replace("Write files", "写入文件")
+    .replace("Write file", "写入文件")
+    .replace("Write vault", "写入知识库")
+    .replace("Write skill files", "写入技能包文件")
+    .replace("Report path", "报告路径")
+    .replace("Send request", "发送请求")
+    .replace("Run action", "执行操作")
+    .replace("Show result", "显示结果")
+    .replace("Save mode", "保存模式")
+    .replace("Render view", "渲染视图")
+    .replace("Searching archive", "正在搜索归档")
+    .replace("Searching old records", "正在搜索旧记录")
+    .replace("Send query", "发送查询")
+    .replace("Rank matches", "排序匹配")
+    .replace("Find matching sessions", "查找匹配会话")
+    .replace("Show cards", "显示卡片")
+    .replace("Render results", "渲染结果")
+    .replace("Refreshing current view", "正在刷新当前视图")
+    .replace("Clear cached overview", "清空缓存概览")
+    .replace("Reload view", "重新加载视图")
+    .replace("Opening session", "正在打开会话")
+    .replace("Opening latest session", "正在打开最近会话")
+    .replace("Load session", "加载会话")
+    .replace("Build summary", "生成摘要")
+    .replace("Render events", "渲染事件")
+    .replace("Loading warnings", "正在加载警告")
+    .replace("Loading privacy warnings", "正在加载隐私警告")
+    .replace("Collect warnings", "收集警告")
+    .replace("Collect findings", "收集发现")
+    .replace("Show JSON", "显示 JSON")
+    .replace("Find latest", "查找最近会话")
+    .replace("Render details", "渲染详情")
+    .replace("Applying archive filters", "正在应用归档筛选")
+    .replace("Build filters", "构建筛选条件")
+    .replace("Load matching sessions", "加载匹配会话")
+    .replace("Render table", "渲染表格")
+    .replace("Running retrieval", "正在运行检索")
+    .replace("Rank evidence", "排序证据")
+    .replace("Switch view", "切换视图")
+    .replace("Load content", "加载内容")
+    .replace("1. Choose session and format", "1. 选择会话和格式")
+    .replace("2. Generate preview", "2. 生成预览")
+    .replace("3. Write files", "3. 写入文件")
+    .replace(
+        "Next step: generate a preview. Write buttons explain why they are locked if clicked.",
+        "下一步：先生成预览。若写入按钮还被锁定，点击后会说明原因。",
+    )
+    .replace(
+        "Next step: review the preview, then click the enabled write button.",
+        "下一步：检查预览，然后点击已解锁的写入按钮。",
+    )
+    .replace("Export complete. The output path is shown below.", "导出完成。输出路径显示在下方。")
+    .replace("Locked until the preview matches this write action.", "预览匹配该写入操作后才会解锁。")
+    .replace('reindex: "Reindex"', 'reindex: "重建索引"')
+    .replace('vacuum: "Vacuum"', 'vacuum: "数据库清理"')
+    .replace('restore_apply: "Restore apply"', 'restore_apply: "执行恢复"')
+    .replace('schema_write: "Schema write"', 'schema_write: "写入结构定义"')
+    .replace('schemas_write: "Schemas write"', 'schemas_write: "写入结构定义"')
+    .replace('backup_history_prune: "Backup history prune"', 'backup_history_prune: "清理备份历史"')
+    .replace('restore_history_prune: "Restore history prune"', 'restore_history_prune: "清理恢复历史"')
+    .replace('audit_history_prune: "Audit history prune"', 'audit_history_prune: "清理审计历史"')
     .replace(
         '"Browse local Codex sessions, filter by project/cwd, and open session detail."',
         '"浏览本地 Codex 会话，按项目或 cwd 筛选，并打开会话详情。"',
@@ -1113,7 +2178,7 @@ APP_JS_ZH = (
     .replace('"Search"', '"搜索"')
     .replace(
         '"Run standard search, retrieval query, hybrid retrieval, and agent retrieve flows."',
-        '"运行标准搜索、检索查询、混合检索和 agent retrieve 流程。"',
+        '"运行标准搜索、检索查询、混合检索和智能体检索流程。"',
     )
     .replace('"Session"', '"会话"')
     .replace(
@@ -1121,22 +2186,62 @@ APP_JS_ZH = (
         '"查看摘要、事件预览、证据事件 ID、警告和导出入口。"',
     )
     .replace('"Export"', '"导出"')
-    .replace('"Preview export targets before write actions are enabled in the action registry."', '"在执行写入前预览导出目标。"')
+    .replace(
+        '"Preview export targets before write actions are enabled in the action registry."',
+        '"在执行写入前预览导出目标。"',
+    )
     .replace('"Privacy"', '"隐私"')
     .replace(
         '"Inspect privacy scan and parser warning surfaces without bypassing existing rules."',
         '"查看隐私扫描和解析警告，不绕过现有规则。"',
     )
     .replace('"Maintenance"', '"维护"')
-    .replace('"Review stats, doctor, self-test, reindex, and vacuum controls."', '"查看统计、doctor、自检、重建索引和 vacuum 控制。"')
+    .replace(
+        '"Review stats, doctor, self-test, reindex, and vacuum controls."',
+        '"查看统计、诊断、自检、重建索引和数据库清理控制。"',
+    )
     .replace('"Backup / Restore"', '"备份 / 恢复"')
-    .replace('"Prepare backup, verify, history, restore plan, and restore controls."', '"准备备份、验证、历史、恢复计划和恢复控制。"')
+    .replace(
+        '"Prepare backup, verify, history, restore plan, and restore controls."',
+        '"准备备份、验证、历史、恢复计划和恢复控制。"',
+    )
     .replace('"Config"', '"配置"')
-    .replace('"Expose config init, show, and doctor workflows for Phase 04 action wiring."', '"提供配置初始化、查看和 doctor 工作流。"')
-    .replace('"List, show, validate, and write JSON schema contracts."', '"列出、查看、验证和写入 JSON schema 合同。"')
+    .replace(
+        '"Expose config init, show, and doctor workflows for Phase 04 action wiring."',
+        '"提供配置初始化、查看和诊断工作流。"',
+    )
+    .replace('"Schemas"', '"结构定义"')
+    .replace(
+        '"List, show, validate, and write JSON schema contracts."',
+        '"列出、查看、验证和写入 JSON 结构定义合同。"',
+    )
     .replace('"Governance"', '"治理"')
-    .replace('"Show personal defaults and advanced v3 governance diagnostics."', '"显示个人默认值和高级 v3 治理诊断。"')
+    .replace(
+        '"Show personal defaults and advanced v3 governance diagnostics."',
+        '"显示个人默认值和高级 v3 治理诊断。"',
+    )
     .replace("Starting...", "启动中...")
+    .replace("Start with what you need", "从你要做的事开始")
+    .replace(
+        "ThreadVault keeps the advanced controls available, but Basic Mode focuses on the three daily moves.",
+        "ThreadVault 保留专业控制台，但普通模式只聚焦三个日常动作。",
+    )
+    .replace("Search old records", "搜索旧记录")
+    .replace(
+        "Find previous Codex work by keyword, error text, project name, or decision.",
+        "按关键词、报错、项目名或决策查找以前的 Codex 工作。",
+    )
+    .replace('placeholder="Search old records"', 'placeholder="搜索旧记录"')
+    .replace(">Search</button>", ">搜索</button>")
+    .replace("Open latest session", "打开最近会话")
+    .replace("Open latest", "打开最近")
+    .replace("Export for Codex reuse", "导出给 Codex 继续用")
+    .replace(
+        "Generate a Codex Skill preview from the current or latest session, then write it after review.",
+        "从当前或最近会话生成 Codex 技能包预览，确认后再写入文件。",
+    )
+    .replace("Prepare Skill export", "准备技能包导出")
+    .replace("No matching old records yet.", "暂时没有匹配的旧记录。")
     .replace("default database", "默认数据库")
     .replace("Archive Filters", "归档筛选")
     .replace('placeholder="Query"', 'placeholder="查询"')
@@ -1152,19 +2257,19 @@ APP_JS_ZH = (
     .replace("Standard search", "标准搜索")
     .replace("Retrieval query", "检索查询")
     .replace("Hybrid retrieval", "混合检索")
-    .replace("Agent retrieve", "Agent 检索")
+    .replace("Agent retrieve", "智能体检索")
     .replace('placeholder="Search query"', 'placeholder="搜索查询"')
     .replace(">Run</button>", ">运行</button>")
     .replace(
         "Standard archive search remains available through existing CLI; this web route uses agent retrieval.",
-        "标准归档搜索仍可通过现有 CLI 使用；当前 Web 路由使用 agent 检索。",
+        "标准归档搜索仍可通过命令行使用；当前 Web 路由使用智能体检索。",
     )
     .replace("Summary chunks", "摘要块")
     .replace("Vector status", "向量状态")
     .replace("Vector query", "向量查询")
     .replace("Select stable summary/evidence chunks for a session or project.", "为会话或项目选择稳定的摘要/证据块。")
     .replace("Read-only vector index and config status.", "只读查看向量索引和配置状态。")
-    .replace("Query the local vector adapter when configured.", "在已配置时查询本地向量 adapter。")
+    .replace("Query the local vector adapter when configured.", "在已配置时查询本地向量适配器。")
     .replace("<th>Source</th>", "<th>来源</th>")
     .replace("<th>Score</th>", "<th>分数</th>")
     .replace("<th>Evidence Event IDs</th>", "<th>证据事件 ID</th>")
@@ -1176,26 +2281,166 @@ APP_JS_ZH = (
     .replace(">Export Preview</button>", ">导出预览</button>")
     .replace("Summary", "摘要")
     .replace("No summary loaded.", "尚未加载摘要。")
+    .replace(
+        "This summary starts with raw environment context, so the main UI folded it into a short note. "
+        "Inspect the JSON panel for the original text.",
+        "该摘要以原始环境上下文开头，主界面已折叠为简短说明；原文可在右侧 JSON 面板查看。",
+    )
     .replace("Evidence Event IDs", "证据事件 ID")
     .replace("Event Preview", "事件预览")
+    .replace("Event ID", "事件 ID")
+    .replace("<th>Type</th>", "<th>类型</th>")
+    .replace("<th>Created</th>", "<th>创建时间</th>")
+    .replace("Open a session to view events.", "打开会话后查看事件。")
+    .replace("Markdown", "Markdown")
+    .replace("Obsidian", "Obsidian")
+    .replace("Skill", "技能包")
+    .replace("Session export", "会话导出")
+    .replace("Privacy warn", "隐私警告")
+    .replace("Privacy redact", "隐私脱敏")
+    .replace("Privacy fail", "隐私失败")
+    .replace("Preview Required", "需要预览")
+    .replace("Generate Preview", "生成预览")
+    .replace("Generate a matching preview before writing files.", "写入文件前请先生成匹配的预览。")
+    .replace("Export workflow", "导出流程")
+    .replace("Preview ready", "预览已生成")
+    .replace("Export preview reset after input change.", "导出预览已因输入变更而失效。")
+    .replace("Export written", "导出已写入")
+    .replace("Action cancelled.", "操作已取消。")
+    .replace("No imported sessions are available yet.", "还没有可用的已导入会话。")
+    .replace(
+        "Open or search a session first, then generate a Codex Skill export preview.",
+        "请先打开或搜索一个会话，然后生成 Codex 技能包导出预览。",
+    )
+    .replace(
+        "Open or search a session first, then generate a Codex 技能包 export preview.",
+        "请先打开或搜索一个会话，然后生成 Codex 技能包导出预览。",
+    )
+    .replace("Warn only", "仅警告")
+    .replace("Redact automatically", "自动脱敏")
+    .replace("Block on high risk", "发现高风险则阻止")
+    .replace(
+        "Phase 03 exposes the workflow. Phase 04 will wire export actions after preview is available.",
+        "当前提供预览工作流；预览可用后再接入导出写入操作。",
+    )
+    .replace(
+        "Changing session, profile, or privacy mode invalidates the current preview.",
+        "会话、导出类型或隐私模式变化后，当前预览会立即失效。",
+    )
+    .replace("Privacy findings", "隐私发现")
+    .replace("High risk", "高风险")
+    .replace("Session ${escapeHtml(latest.controls.session || \"-\")}", "会话 ${escapeHtml(latest.controls.session || \"-\")}")
+    .replace("Blocked", "已阻止")
+    .replace("Allowed", "允许")
+    .replace("No output path reported in this response.", "本次响应未报告输出路径。")
+    .replace("Write Actions", "写入操作")
+    .replace("Export session", "导出会话")
+    .replace("Export markdown", "导出 Markdown")
+    .replace("Export obsidian", "导出 Obsidian")
+    .replace("Export skill", "导出技能包")
     .replace("Export Session", "导出会话")
     .replace("Export target markdown", "导出 Markdown 目标")
     .replace("Export target obsidian", "导出 Obsidian 目标")
-    .replace("Export target skill", "导出 Skill 目标")
+    .replace("Export target skill", "导出技能包目标")
     .replace("Export actions require reviewing preview output first.", "导出写入操作需要先查看预览结果。")
     .replace("Privacy Scan", "隐私扫描")
+    .replace("Load Warnings", "加载警告")
+    .replace("Warnings Summary", "警告汇总")
+    .replace(
+        "Privacy scan and allowlist behavior reuse existing ThreadVault privacy rules.",
+        "隐私扫描和白名单行为复用现有 ThreadVault 隐私规则。",
+    )
     .replace("Parser Warnings", "解析警告")
+    .replace("Stats", "统计")
+    .replace("Doctor", "诊断")
+    .replace("Self-test", "自检")
+    .replace("Reindex", "重建索引")
+    .replace("Read-only database statistics.", "只读查看数据库统计。")
+    .replace("Read-only health diagnostics.", "只读查看健康诊断。")
+    .replace("Read-only local self-test.", "只读运行本地自检。")
+    .replace("Vacuum", "数据库清理")
+    .replace("Backup verify", "备份验证")
+    .replace("Backup history latest", "最新备份")
+    .replace("Backup history verify latest", "验证最新备份")
+    .replace("Backup history prune", "清理备份历史")
+    .replace("Backup history", "备份历史")
+    .replace('placeholderButton("Backup", "backup"', 'placeholderButton("备份", "backup"')
+    .replace("Restore history latest", "最新恢复")
+    .replace("Restore history prune", "清理恢复历史")
+    .replace("Restore history", "恢复历史")
+    .replace("Restore apply", "执行恢复")
+    .replace("Restore plan", "恢复计划")
+    .replace("Read-only backup verification.", "只读执行备份验证。")
+    .replace("Read-only history list.", "只读查看历史列表。")
+    .replace("Restore must start with a plan.", "恢复必须先从计划开始。")
+    .replace("Read-only restore history.", "只读查看恢复历史。")
+    .replace("Dry-run by default; apply requires confirmation.", "默认模拟运行；实际执行需要确认。")
+    .replace("Config init", "初始化配置")
+    .replace("Config show", "查看配置")
+    .replace("Config doctor", "配置诊断")
+    .replace("Writes local config only after Phase 04 action wiring.", "仅在操作接入后写入本地配置。")
+    .replace("Read-only config inspection.", "只读查看配置。")
+    .replace("Read-only config diagnostics.", "只读查看配置诊断。")
+    .replace("Schemas list", "结构定义列表")
+    .replace("Schemas show", "查看结构定义")
+    .replace("Validate JSON", "验证 JSON")
+    .replace("Schema write", "写入结构定义")
+    .replace("Capabilities", "能力清单")
+    .replace("Robot docs guide", "机器人文档指南")
+    .replace("Robot docs schemas", "机器人结构定义文档")
+    .replace("Read-only schema registry listing.", "只读查看结构定义注册表。")
+    .replace("Read-only schema detail.", "只读查看结构定义详情。")
+    .replace("Validates pasted JSON against a selected schema.", "按选定结构定义验证粘贴的 JSON。")
+    .replace("Read-only public capability discovery.", "只读查看公开能力清单。")
+    .replace("Read-only agent usage guide.", "只读查看智能体使用指南。")
+    .replace("Read-only schema guide.", "只读查看结构定义指南。")
+    .replace('placeholder="Paste JSON payload for validation"', 'placeholder="粘贴要验证的 JSON 内容"')
+    .replace("Personal Defaults", "个人默认值")
+    .replace("local-first", "本地优先")
+    .replace("privacy-first", "隐私优先")
+    .replace("no cloud sync", "无云同步")
+    .replace("no team enforcement by default", "默认无团队强制策略")
+    .replace("Advanced Diagnostics", "高级诊断")
+    .replace("Governance status", "治理状态")
+    .replace("v3 gap audit", "v3 差距审计")
+    .replace("v3 acceptance smoke", "v3 验收冒烟")
+    .replace("Governance preflight", "治理预检")
+    .replace("Instrumentation diagnostics", "埋点诊断")
+    .replace("External model preflight", "外部模型预检")
+    .replace("Read-only personal governance status.", "只读查看个人治理状态。")
+    .replace("Read-only accepted v3 completion audit.", "只读查看已验收的 v3 完成度审计。")
+    .replace("Read-only v3 acceptance smoke.", "只读运行 v3 验收冒烟。")
+    .replace("Read-only permission preflight diagnostics.", "只读查看权限预检诊断。")
+    .replace("Read-only instrumentation diagnostics.", "只读查看埋点诊断。")
+    .replace("Read-only diagnostic; external model calls remain disabled by default.", "只读诊断；外部模型调用默认保持禁用。")
+    .replace("status === \"正常\"", "status === \"ok\"")
+    .replace("Warnings Summary", "警告汇总")
+    .replace("Warnings 摘要", "警告汇总")
+    .replace(">Warnings</button>", ">警告</button>")
+    .replace("Export Preview", "导出预览")
+    .replace("Read-only v3 验收冒烟.", "只读运行 v3 验收冒烟。")
     .replace("Preview must be accepted before writing a session export.", "写入会话导出前必须先接受预览。")
     .replace("Preview must be generated before writing files.", "写入文件前必须先生成预览。")
-    .replace("Requires confirm=true before Phase 04 execution.", "执行前需要 confirm=true。")
+    .replace("Preview must match the session export selection before writing.", "预览必须匹配会话导出选择后才能写入。")
+    .replace("Preview must match Markdown before writing files.", "预览必须匹配 Markdown 后才能写入文件。")
+    .replace("Preview must match Obsidian before writing files.", "预览必须匹配 Obsidian 后才能写入文件。")
+    .replace("Preview must match Skill before writing files.", "预览必须匹配技能包后才能写入文件。")
+    .replace("Preview must match 技能包 before writing files.", "预览必须匹配技能包后才能写入文件。")
+    .replace("Requires confirm=true before Phase 04 execution.", "执行前需要确认参数。")
     .replace("Backup may execute directly but must display its target path.", "备份可直接执行，但必须显示目标路径。")
-    .replace("Requires confirm=true and a restore plan.", "需要 confirm=true 和恢复计划。")
-    .replace("Requires confirm=true before writing artifacts.", "写入产物前需要 confirm=true。")
+    .replace("Requires confirm=true and a restore plan.", "需要确认参数和恢复计划。")
+    .replace("Requires confirm=true before writing artifacts.", "写入产物前需要确认参数。")
+    .replace("clean摘要", "cleanSummary")
+    .replace("renderExport摘要", "renderExportSummary")
+    .replace("exportPrivacy摘要", "exportPrivacySummary")
+    .replace("prepareBasic技能包Export", "prepareBasicSkillExport")
+    .replace("basic技能包Prompt", "basicSkillPrompt")
 )
 
 
 def build_health_payload(config: PersonalUIServerConfig) -> dict[str, Any]:
     app_config = load_app_config(config.config_path)
+    db_path = config.db_path or default_db_path(config.config_path)
     return {
         "contract_version": PERSONAL_UI_HEALTH_CONTRACT_VERSION,
         "ok": True,
@@ -1217,7 +2462,8 @@ def build_health_payload(config: PersonalUIServerConfig) -> dict[str, Any]:
             "react_vite_node_required": False,
         },
         "paths": {
-            "db_path": str(config.db_path) if config.db_path else None,
+            "db_path": str(db_path),
+            "default_export_dir": str(Path(PERSONAL_UI_EXPORT_DIR).resolve()),
             "config_path": str(app_config.source_path) if app_config.source_path else None,
         },
     }
@@ -1480,7 +2726,7 @@ def _execute_action(store: ArchiveStore, action: str, params: dict[str, Any], co
     if action == "warnings_summary":
         return {"summary": store.warning_summary()}
     if action == "export_session":
-        return store.export_session(
+        path, findings = store.export_session(
             session_id=_required_str(params, "session"),
             out_dir=_path(params.get("out")) or _default_work_dir("threadvault-session-export"),
             fmt=_str(params.get("format"), "md"),
@@ -1488,6 +2734,7 @@ def _execute_action(store: ArchiveStore, action: str, params: dict[str, Any], co
             privacy_mode=_privacy_mode(params.get("privacy_mode")),
             privacy_config_path=_path(params.get("privacy_config")),
         )
+        return {"path": str(path), "privacy": _privacy_summary_from_findings(findings)}
     if action in {"export_target_markdown", "export_target_obsidian", "export_target_skill"}:
         profile = action.removeprefix("export_target_")
         return store.export_target(
@@ -1535,11 +2782,14 @@ def _execute_action(store: ArchiveStore, action: str, params: dict[str, Any], co
             apply=_truthy(params.get("apply")),
         )
     if action == "restore_plan":
-        return store.restore_plan(backup=_required_path(params, "backup"), target_db=_path(params.get("target_db")) or default_db_path())
+        return store.restore_plan(
+            backup=_required_path(params, "backup"),
+            target_db=_path(params.get("target_db")) or default_db_path(config.config_path),
+        )
     if action == "restore_apply":
         return store.restore(
             backup=_required_path(params, "backup"),
-            target_db=_path(params.get("target_db")) or default_db_path(),
+            target_db=_path(params.get("target_db")) or default_db_path(config.config_path),
             apply=True,
             overwrite=_truthy(params.get("overwrite")),
             pre_restore_backup_dir=_path(params.get("pre_restore_backup_dir")),
@@ -1919,9 +3169,9 @@ def run_personal_ui_smoke(
         schemas = robot_schemas()
         schema_path = Path("docs/schemas/personal_ui_smoke.schema.json")
         required_docs = [
-            Path("docs/v4/README.md"),
-            Path("docs/v4/phases/phase-05-v4-acceptance-smoke/plan.md"),
-            Path("docs/v4/phases/phase-05-v4-acceptance-smoke/acceptance.md"),
+            Path("docs/progress/archive/legacy-v4/README.md"),
+            Path("docs/progress/archive/legacy-v4/phases/phase-05-v4-acceptance-smoke/plan.md"),
+            Path("docs/progress/archive/legacy-v4/phases/phase-05-v4-acceptance-smoke/acceptance.md"),
         ]
         ok = (
             "ui smoke" in caps["json_outputs"]
@@ -2045,6 +3295,30 @@ def _response(status: HTTPStatus, schema: str, payload: dict[str, Any]) -> dict[
 
 def _error(code: str, message: str, **extra: Any) -> dict[str, Any]:
     return {"ok": False, "error": code, "message": message, **extra}
+
+
+def _privacy_summary_from_findings(findings: list[Any]) -> dict[str, Any]:
+    effective = [finding for finding in findings if not bool(getattr(finding, "allowlisted", False))]
+    high_risk = [
+        finding
+        for finding in effective
+        if str(getattr(finding, "severity", "")).lower() in {"high", "critical"}
+    ]
+    by_severity: dict[str, int] = {}
+    by_kind: dict[str, int] = {}
+    for finding in effective:
+        severity = str(getattr(finding, "severity", "unknown"))
+        kind = str(getattr(finding, "kind", "unknown"))
+        by_severity[severity] = by_severity.get(severity, 0) + 1
+        by_kind[kind] = by_kind.get(kind, 0) + 1
+    return {
+        "findings_count": len(findings),
+        "effective_findings_count": len(effective),
+        "high_risk_findings_count": len(high_risk),
+        "blocked": bool(high_risk),
+        "by_severity": by_severity,
+        "by_kind": by_kind,
+    }
 
 
 def _check_ok(checks: list[dict[str, Any]], code: str) -> bool:

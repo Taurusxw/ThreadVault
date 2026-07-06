@@ -99,8 +99,8 @@ def test_audit_history_schema_files_and_cli_contract(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
 
     for path in [
-        Path("docs/v0/phases/phase-09-audit-history-workflow/plan.md"),
-        Path("docs/v0/phases/phase-09-audit-history-workflow/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-09-audit-history-workflow/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-09-audit-history-workflow/external-review.md"),
         Path("docs/schemas/audit_history_list.schema.json"),
         Path("docs/schemas/audit_history_latest.schema.json"),
     ]:

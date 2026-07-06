@@ -119,9 +119,9 @@ def test_central_policy_readiness_discovery_schema_and_docs() -> None:
     assert Path("docs/schemas/governance_central_policy_readiness.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-23-centralized-policy-store-readiness/plan.md"),
-        Path("docs/v3/phases/phase-23-centralized-policy-store-readiness/design-notes.md"),
-        Path("docs/v3/phases/phase-23-centralized-policy-store-readiness/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-23-centralized-policy-store-readiness/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-23-centralized-policy-store-readiness/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-23-centralized-policy-store-readiness/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

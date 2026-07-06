@@ -143,21 +143,21 @@ def test_v2_acceptance_discovery_contracts_and_docs() -> None:
         assert (Path("docs/schemas") / f"{schema_name}.schema.json").exists()
 
     for path in [
-        Path("docs/v2/phases/phase-01-retrieval-module-fts-wrapper/plan.md"),
-        Path("docs/v2/phases/phase-01-retrieval-module-fts-wrapper/acceptance.md"),
-        Path("docs/v2/phases/phase-02-retrieval-json-contracts-diagnostics/plan.md"),
-        Path("docs/v2/phases/phase-02-retrieval-json-contracts-diagnostics/acceptance.md"),
-        Path("docs/v2/phases/phase-03-summary-evidence-chunks/plan.md"),
-        Path("docs/v2/phases/phase-03-summary-evidence-chunks/acceptance.md"),
-        Path("docs/v2/phases/phase-04-local-vector-adapter/plan.md"),
-        Path("docs/v2/phases/phase-04-local-vector-adapter/acceptance.md"),
-        Path("docs/v2/phases/phase-05-hybrid-ranking-explanations/plan.md"),
-        Path("docs/v2/phases/phase-05-hybrid-ranking-explanations/acceptance.md"),
-        Path("docs/v2/phases/phase-06-agent-facing-retrieval-interface/plan.md"),
-        Path("docs/v2/phases/phase-06-agent-facing-retrieval-interface/acceptance.md"),
-        Path("docs/v2/phases/phase-07-v2-acceptance-smoke/plan.md"),
-        Path("docs/v2/README.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-01-retrieval-module-fts-wrapper/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-01-retrieval-module-fts-wrapper/acceptance.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-02-retrieval-json-contracts-diagnostics/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-02-retrieval-json-contracts-diagnostics/acceptance.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-03-summary-evidence-chunks/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-03-summary-evidence-chunks/acceptance.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-04-local-vector-adapter/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-04-local-vector-adapter/acceptance.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-05-hybrid-ranking-explanations/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-05-hybrid-ranking-explanations/acceptance.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-06-agent-facing-retrieval-interface/plan.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-06-agent-facing-retrieval-interface/acceptance.md"),
+        Path("docs/progress/archive/legacy-v2/phases/phase-07-v2-acceptance-smoke/plan.md"),
+        Path("docs/progress/archive/legacy-v2/README.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

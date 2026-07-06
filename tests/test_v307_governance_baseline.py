@@ -108,9 +108,9 @@ def test_governance_discovery_schema_and_docs() -> None:
     assert manifest["schemas"]["governance"] == "governance_status"
 
     for path in [
-        Path("docs/v3/phases/phase-07-governance-baseline/plan.md"),
-        Path("docs/v3/phases/phase-07-governance-baseline/design-notes.md"),
-        Path("docs/v3/phases/phase-07-governance-baseline/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-07-governance-baseline/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-07-governance-baseline/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-07-governance-baseline/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

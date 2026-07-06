@@ -238,9 +238,9 @@ def test_central_backup_policy_discovery_schema_and_docs() -> None:
     assert Path("docs/schemas/governance_central_backup_policy.schema.json").exists()
 
     for path in [
-        Path("docs/v3/phases/phase-31-centralized-backup-restore-policy-runtime/plan.md"),
-        Path("docs/v3/phases/phase-31-centralized-backup-restore-policy-runtime/design-notes.md"),
-        Path("docs/v3/phases/phase-31-centralized-backup-restore-policy-runtime/acceptance.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-31-centralized-backup-restore-policy-runtime/plan.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-31-centralized-backup-restore-policy-runtime/design-notes.md"),
+        Path("docs/progress/archive/legacy-v3/phases/phase-31-centralized-backup-restore-policy-runtime/acceptance.md"),
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()

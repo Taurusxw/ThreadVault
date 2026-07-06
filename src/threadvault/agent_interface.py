@@ -46,7 +46,7 @@ def agent_manifest(config: AppConfig) -> dict[str, Any]:
             "vector_optional": True,
             "local_vector_enabled": config.vector_enabled,
             "local_debug_available": True,
-            "mcp_runtime_included": False,
+            "mcp_runtime_included": True,
         },
         "schemas": {
             "manifest": "agent_interface_manifest",
@@ -58,6 +58,8 @@ def agent_manifest(config: AppConfig) -> dict[str, Any]:
             "threadvault agent retrieve QUERY --json",
             "threadvault agent retrieve QUERY --mode fts --json",
             "threadvault agent retrieve QUERY --mode hybrid --json",
+            "threadvault mcp manifest --json",
+            "threadvault mcp serve",
             "threadvault validate-json --schema agent_retrieval --input payload.json --json",
         ],
         "privacy": {

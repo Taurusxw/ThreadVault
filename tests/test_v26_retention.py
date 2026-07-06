@@ -65,7 +65,7 @@ def test_resolve_retention_keep_preserves_config_validation_errors(tmp_path: Pat
 
 def test_v26_docs_exist() -> None:
     for path in [
-        Path("docs/v0/phases/phase-26-retention-resolution-helper/plan.md"),
-        Path("docs/v0/phases/phase-26-retention-resolution-helper/external-review.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-26-retention-resolution-helper/plan.md"),
+        Path("docs/progress/archive/legacy-v0/phases/phase-26-retention-resolution-helper/external-review.md"),
     ]:
         assert path.exists(), f"missing {path}"

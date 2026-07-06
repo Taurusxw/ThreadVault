@@ -131,8 +131,8 @@ def test_capabilities_and_schema_registry_include_ingestion_queue() -> None:
 
 def test_v101_docs_exist() -> None:
     for path in [
-        Path("docs/v1/README.md"),
-        Path("docs/v1/phases/phase-01-ingestion-automation-queue/plan.md"),
-        Path("docs/development-progress.md"),
+        Path("docs/progress/archive/legacy-v1/README.md"),
+        Path("docs/progress/archive/legacy-v1/phases/phase-01-ingestion-automation-queue/plan.md"),
+        Path("docs/progress/archive/legacy-development-progress.md"),
     ]:
         assert path.exists(), f"missing {path}"
