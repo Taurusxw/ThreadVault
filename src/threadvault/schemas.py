@@ -6,7 +6,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-CONTRACT_VERSION = "0.6"
+CONTRACT_VERSION = "1.0"
 SCHEMA_DRAFT = "https://json-schema.org/draft/2020-12/schema"
 KEEP_SOURCE_SCHEMA = {"type": "string", "enum": ["cli", "config"]}
 
@@ -70,6 +70,7 @@ def contract_schemas() -> dict[str, dict[str, Any]]:
                 "privacy_modes": {"type": "array", "items": {"type": "string"}},
                 "retrieval_modes": {"type": "array", "items": {"type": "string"}},
                 "search_fields": {"type": "array", "items": {"type": "string"}},
+                "interface_policy": {"type": "object"},
                 "feature_flags": {"type": "object"},
             },
             required=[
@@ -84,143 +85,8 @@ def contract_schemas() -> dict[str, dict[str, Any]]:
                 "privacy_modes",
                 "retrieval_modes",
                 "search_fields",
+                "interface_policy",
                 "feature_flags",
-            ],
-        ),
-        "personal_ui_health": object_schema(
-            {
-                "contract_version": {"type": "string"},
-                "ok": {"type": "boolean"},
-                "status": {"type": "string"},
-                "server": {"type": "object"},
-                "defaults": {"type": "object"},
-                "paths": {"type": "object"},
-            },
-            required=["contract_version", "ok", "status", "server", "defaults", "paths"],
-        ),
-        "personal_ui_action": object_schema(
-            {
-                "contract_version": {"type": "string"},
-                "ok": {"type": "boolean"},
-                "action": {"type": ["string", "null"]},
-                "status": {"type": "string"},
-                "confirm": {"type": "boolean"},
-                "message": {"type": ["string", "null"]},
-                "result": {},
-                "safety": {"type": "object"},
-                "available_actions": {"type": "array"},
-            },
-            required=["contract_version", "ok", "action", "status", "confirm", "safety"],
-        ),
-        "personal_ui_smoke": object_schema(
-            {
-                "contract_version": {"type": "string"},
-                "status": {"type": "string"},
-                "ok": {"type": "boolean"},
-                "server": {
-                    "type": "object",
-                    "additionalProperties": True,
-                    "required": [
-                        "default_host",
-                        "configured_host",
-                        "configured_port",
-                        "public_network_default",
-                        "serve_command",
-                        "smoke_command",
-                    ],
-                    "properties": {
-                        "default_host": {"type": "string"},
-                        "configured_host": {"type": "string"},
-                        "configured_port": {"type": "integer"},
-                        "public_network_default": {"type": "boolean"},
-                        "serve_command": {"type": "string"},
-                        "smoke_command": {"type": "string"},
-                    },
-                },
-                "checks": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": True,
-                        "required": ["code", "category", "ok", "required", "message", "evidence"],
-                        "properties": {
-                            "code": {"type": "string"},
-                            "category": {"type": "string"},
-                            "ok": {"type": "boolean"},
-                            "required": {"type": "boolean"},
-                            "message": {"type": "string"},
-                            "evidence": {"type": "object", "additionalProperties": True},
-                        },
-                    },
-                },
-                "summary": {
-                    "type": "object",
-                    "additionalProperties": True,
-                    "required": [
-                        "required_check_count",
-                        "passed_check_count",
-                        "failed_check_count",
-                        "failed_required_check_count",
-                        "criteria_count",
-                        "criteria_satisfied_count",
-                    ],
-                    "properties": {
-                        "required_check_count": {"type": "integer"},
-                        "passed_check_count": {"type": "integer"},
-                        "failed_check_count": {"type": "integer"},
-                        "failed_required_check_count": {"type": "integer"},
-                        "criteria_count": {"type": "integer"},
-                        "criteria_satisfied_count": {"type": "integer"},
-                    },
-                },
-                "criteria": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": True,
-                        "required": ["code", "ok"],
-                        "properties": {
-                            "code": {"type": "string"},
-                            "ok": {"type": "boolean"},
-                        },
-                    },
-                },
-                "boundaries": {
-                    "type": "object",
-                    "additionalProperties": True,
-                    "required": [
-                        "local_first",
-                        "privacy_first",
-                        "cloud_sync_default",
-                        "team_mode_default",
-                        "login_default",
-                        "public_server_default",
-                        "external_model_calls_default",
-                        "react_vite_node_required",
-                    ],
-                    "properties": {
-                        "local_first": {"type": "boolean"},
-                        "privacy_first": {"type": "boolean"},
-                        "cloud_sync_default": {"type": "boolean"},
-                        "team_mode_default": {"type": "boolean"},
-                        "login_default": {"type": "boolean"},
-                        "public_server_default": {"type": "boolean"},
-                        "external_model_calls_default": {"type": "boolean"},
-                        "react_vite_node_required": {"type": "boolean"},
-                    },
-                },
-                "diagnostics": {"type": "object"},
-            },
-            required=[
-                "contract_version",
-                "status",
-                "ok",
-                "server",
-                "checks",
-                "summary",
-                "criteria",
-                "boundaries",
-                "diagnostics",
             ],
         ),
         "stats": object_schema(

@@ -7,7 +7,8 @@ This document records the current local development workflow for ThreadVault.
 - Python 3.11 or newer is supported.
 - The current Windows development command examples use Python 3.12 through the `py` launcher.
 - The project is installed in editable mode for local development.
-- The personal Web UI is served by Python stdlib HTTP code in `personal_ui.py`; there is no required Node/Vite/React build pipeline.
+- The primary local UI is the Python stdlib Tkinter desktop app in `desktop_app.py`.
+- The former personal Web UI CLI entrypoints, runtime module, active schemas, and tests are retired from the 1.0.0 package; v4 records remain under `docs/progress/archive/legacy-v4/`.
 
 ## Install
 
@@ -33,16 +34,17 @@ py -3.12 -m ruff check .
 py -3.12 -m pytest
 ```
 
-Focused checks for personal UI work:
+Focused checks for native desktop work:
 
 ```powershell
-py -3.12 -m pytest tests/test_v402_local_ui_server.py tests/test_v403_personal_ui_workbench.py tests/test_v404_ui_action_coverage.py tests/test_v405_v4_acceptance_smoke.py tests/test_v406_ui_chinese_localization.py -q
+py -3.12 -m pytest tests/test_v407_desktop_app.py -q
+threadvault desktop smoke --json
 ```
 
 Focused checks for documentation-only changes:
 
 ```powershell
-py -3.12 -m pytest tests/test_v401_personal_ui_readiness.py tests/test_v403_personal_ui_workbench.py -q
+py -3.12 -m pytest tests/test_v401_personal_ui_readiness.py -q
 ```
 
 Useful smoke checks:
@@ -51,53 +53,40 @@ Useful smoke checks:
 threadvault capabilities --json
 threadvault robot-docs schemas --json
 threadvault mcp manifest --json
-threadvault ui smoke --json
+threadvault desktop smoke --json
 ```
 
-## Local Personal UI
+## Local Desktop UI
 
-Start the Chinese personal UI locally with the launcher:
+Start the primary native desktop UI with the launcher:
 
 ```powershell
-.\启动ThreadVault中文界面.cmd
+.\启动ThreadVault桌面版.cmd
 ```
 
 Or start it through the CLI:
 
 ```powershell
-threadvault ui serve --lang zh --host 127.0.0.1 --port 8766 --open
+threadvault desktop launch
 ```
 
-Health check:
+Non-window smoke check:
 
 ```powershell
-Invoke-WebRequest -Uri http://127.0.0.1:8766/api/health -UseBasicParsing
+threadvault desktop smoke --json
 ```
 
-Expected paths:
+## Retired Web UI
 
-- `paths.db_path`: the archive database, usually `<repo-root>\data\threadvault.db` in this checkout.
-- `paths.default_export_dir`: the UI default export folder, currently resolved from `threadvault-ui-output`.
-
-Archive DB override order is `--db`, `THREADVAULT_DB`, `[storage].archive_db`, then the project-local `data/threadvault.db`.
-
-## JavaScript Asset Checks
-
-The UI JavaScript is embedded in Python strings and served as static assets. When changing UI JS or Chinese localization:
-
-1. Serve or extract both English and Chinese JS assets.
-2. Run:
+The browser UI is no longer an active local interface. The old Chinese launcher redirects to the desktop launcher and must not start `ui serve`:
 
 ```powershell
-node --check <served-app.js>
-node --check <served-app.zh.js>
+.\启动ThreadVault中文界面.cmd
 ```
 
-3. Run the localization tests:
+`threadvault ui serve` and `threadvault ui smoke` should stay absent from `threadvault --help`, capabilities, and robot recommended commands.
 
-```powershell
-py -3.12 -m pytest tests/test_v406_ui_chinese_localization.py -q
-```
+The retired Web UI runtime module and active `personal_ui_*` JSON schemas are intentionally absent from the 1.0.0 package.
 
 ## Browser QA
 

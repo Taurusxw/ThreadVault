@@ -5,10 +5,10 @@ This directory is the Markdown source of truth for ThreadVault planning, usage, 
 ## Current Guides
 
 - `DOC_INDEX.md` - standard documentation index and reading paths.
-- `DEVELOPMENT.md` - local development, testing, browser QA, and documentation workflow.
+- `DEVELOPMENT.md` - local development, testing, native desktop, release, and documentation workflow.
 - `RULES.md` - code, documentation, UI, privacy, and validation guardrails.
 - `ARCHITECTURE.md` - module ownership and runtime architecture.
-- `API.md` - local personal UI API, MCP stdio interface, route, and action safety summary.
+- `API.md` - JSON contracts, MCP stdio interface, capability discovery, and retired interface metadata.
 - `DATABASE.md` - SQLite archive storage, table map, and path boundaries.
 - `MCP_INTEGRATION.md` - MCP setup guide for Codex, OpenCode, ZCode, Obsidian, and AI self-configuration.
 - `KNOWLEDGE_GRAPH.md` - entity relationship map and safety boundary model.
@@ -28,7 +28,7 @@ For usage:
 1. `README.md`
 2. `THREADVAULT_USAGE_MANUAL.md`
 3. `MCP_INTEGRATION.md` if connecting Codex, OpenCode, ZCode, or Obsidian workflows.
-4. `API.md` if using or debugging the local UI.
+4. `API.md` if using JSON contracts, MCP, or retired interface metadata.
 
 For implementation:
 
@@ -53,7 +53,8 @@ For path confusion:
 - `progress/archive/legacy-v2/` - archived v2 retrieval and interfaces records.
 - `progress/archive/legacy-v3/` - archived v3 richer clients and team governance records.
 - `progress/archive/legacy-v4/` - archived v4 Personal Web UI records.
-- `progress/releases/v0.34.0/` - current v0.34.0 release notes and acceptance.
+- `progress/releases/v0.34.0/` - v0.34.0 release notes and acceptance.
+- `progress/releases/v1.0.0/` - v1.0.0 release notes and acceptance.
 - `archive/` - related research appendices that are not part of the active ThreadVault product plan.
 - `roadmap/v3-clients-and-team-governance.md` - historical v3 richer clients and team governance roadmap.
 
@@ -68,5 +69,6 @@ The historical roadmap split ThreadVault development into:
 - v2: retrieval, vector, hybrid, and agent interfaces.
 - v3: richer clients and governance surfaces.
 - v4: personal local Web UI.
+- v1.0.0: native desktop primary interface with active Web UI runtime, schemas, and tests removed.
 
 The current standard documents describe the integrated present state. The roadmap and archived records remain useful historical context, but they may describe goals that have since been implemented.

@@ -1,25 +1,18 @@
 @echo off
 setlocal EnableExtensions
-title ThreadVault Web UI Retired
+title ThreadVault Desktop Launcher
 
 cd /d "%~dp0"
 set "PYTHONPATH=%CD%\src"
 
 echo.
 echo ========================================
-echo   ThreadVault Web UI 已退休
+echo   ThreadVault Desktop Launcher
 echo ========================================
 echo.
-echo ThreadVault 1.0.0 方向只保留本地原生桌面界面。
-echo 这个旧网页启动器不会再启动浏览器或本地 Web UI 服务。
+echo This starts the native Tkinter desktop app.
+echo No browser, web server, Electron, React, or Tauri is required.
 echo.
-echo 正在转到桌面版启动器...
-echo.
-
-if exist "启动ThreadVault桌面版.cmd" (
-  call "启动ThreadVault桌面版.cmd"
-  exit /b %ERRORLEVEL%
-)
 
 where py >nul 2>nul
 if errorlevel 1 (
@@ -37,9 +30,23 @@ if errorlevel 1 (
   goto failed
 )
 
+echo Running desktop smoke check...
+py -3.12 -c "import sys; sys.path.insert(0, 'src'); from threadvault.cli import app; app()" desktop smoke --json >nul
+if errorlevel 1 (
+  echo [ERROR] Desktop smoke check failed.
+  echo Run this command for details:
+  echo py -3.12 -c "import sys; sys.path.insert(0, 'src'); from threadvault.cli import app; app()" desktop smoke --json
+  goto failed
+)
+
+echo Starting native desktop app...
 py -3.12 -c "import sys; sys.path.insert(0, 'src'); from threadvault.cli import app; app()" desktop launch
 if errorlevel 1 goto failed
 
+:done
+echo.
+echo ThreadVault desktop has exited. Press any key to close this window.
+pause >nul
 exit /b 0
 
 :failed

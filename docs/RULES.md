@@ -7,7 +7,10 @@ This document records ThreadVault project rules that supplement the global Codex
 - Keep the existing Python package layout under `src/threadvault`.
 - Prefer small changes that reuse `ArchiveStore`, CLI helpers, schema contracts, and governance helpers.
 - Do not duplicate parser, database, export, retrieval, or privacy logic in UI/client code.
-- Do not introduce a frontend framework or build pipeline for the personal UI unless explicitly requested.
+- Treat the native Tkinter desktop app as the primary 1.0.0 local interface.
+- Keep browser Web UI commands retired; do not reintroduce `threadvault ui serve`, browser launchers, or browser-first workflows unless explicitly requested.
+- Keep `threadvault.personal_ui` and active `personal_ui_*` schemas out of the 1.0.0 runtime; use `docs/progress/archive/legacy-v4/` for historical evidence.
+- Do not introduce a frontend framework or build pipeline.
 - Preserve local-first and privacy-first defaults.
 - Keep confirmation and preview gates enforced by backend safety rules; frontend UI should make the same gates clear to users.
 - Use existing JSON contracts and schema helpers for machine-facing payloads.
@@ -23,6 +26,8 @@ This document records ThreadVault project rules that supplement the global Codex
 
 ## UI Safety Rules
 
+- Native desktop UI work should go through `desktop_data.py` and existing store/client contracts instead of reading SQLite directly.
+- Retired Web UI history must not become the default daily entrypoint again.
 - Export writes must require a matching preview state before `preview_accepted` is sent.
 - Restore, vacuum, reindex, and schema write operations must require explicit confirmation.
 - Prune operations must stay dry-run by default and require confirmation/apply for destructive cleanup.
@@ -54,6 +59,6 @@ This document records ThreadVault project rules that supplement the global Codex
 
 - Run focused tests for the changed surface.
 - For UI changes, include rendered behavior validation when practical.
-- For JavaScript/localization changes, run `node --check` against served English and Chinese JS assets when practical.
+- For archived Web UI history, do not revive JavaScript/localization checks unless the user explicitly reopens that legacy line.
 - For schema contract changes, regenerate and validate schema artifacts.
 - Be honest about commands that were not run or checks that remain risky.

@@ -47,12 +47,16 @@ def test_skill_target_single_session_writes_candidate_layout(tmp_path: Path) -> 
     assert manifest["target_profile"] == "skill"
     assert {item["path"] for item in manifest["files"]} == {
         "SKILL.md",
+        "references/index.md",
         "references/sessions.md",
         "references/evidence.md",
+        "references/session-sess-current.md",
     }
     assert (out / "SKILL.md").exists()
+    assert (out / "references" / "index.md").exists()
     assert (out / "references" / "sessions.md").exists()
     assert (out / "references" / "evidence.md").exists()
+    assert (out / "references" / "session-sess-current.md").exists()
     assert json.loads((out / "threadvault-export-manifest.json").read_text(encoding="utf-8")) == manifest
 
 
@@ -82,14 +86,24 @@ def test_skill_target_skill_md_frontmatter_and_references(tmp_path: Path) -> Non
 
     assert result.exit_code == 0, result.output
     skill_md = (out / "SKILL.md").read_text(encoding="utf-8")
+    index = (out / "references" / "index.md").read_text(encoding="utf-8")
     sessions = (out / "references" / "sessions.md").read_text(encoding="utf-8")
     evidence = (out / "references" / "evidence.md").read_text(encoding="utf-8")
+    session_detail = (out / "references" / "session-sess-current.md").read_text(encoding="utf-8")
     assert "name: project-memory" in skill_md
     assert 'description: "Use when ThreadVault fixture context is needed."' in skill_md
-    assert "- `references/sessions.md`: summary-level memory." in skill_md
+    assert "Read `references/index.md` first" in skill_md
+    assert "- `references/session-*.md`: per-session detail" in skill_md
+    assert "lightweight Skill candidate" in index
+    assert "references/session-sess-current.md" in index
     assert "Run pytest and fix parser.py failure" in sessions
+    assert "- Detail: `references/session-sess-current.md`" in sessions
     assert "### Evidence Event IDs" in sessions
-    assert "Run pytest and fix parser.py failure" in evidence
+    assert "# ThreadVault Evidence Index" in evidence
+    assert "- Snippet:" in evidence
+    assert "```text" not in evidence
+    assert "Run pytest and fix parser.py failure" in session_detail
+    assert "## Evidence Snippets" in session_detail
 
 
 def test_skill_target_multiple_sessions_are_deduplicated(tmp_path: Path) -> None:
@@ -122,6 +136,8 @@ def test_skill_target_multiple_sessions_are_deduplicated(tmp_path: Path) -> None
     sessions = (out / "references" / "sessions.md").read_text(encoding="utf-8")
     assert sessions.count("- Session: `sess-current`") == 1
     assert sessions.count("- Session: `sess-fork`") == 1
+    assert (out / "references" / "session-sess-current.md").exists()
+    assert (out / "references" / "session-sess-fork.md").exists()
 
 
 def test_skill_target_project_export_uses_project_sessions(tmp_path: Path) -> None:
@@ -151,6 +167,7 @@ def test_skill_target_project_export_uses_project_sessions(tmp_path: Path) -> No
     manifest = json.loads(result.output)
     assert manifest["selection"]["project"] == project
     assert "sess-current" in manifest["selection"]["selected_session_ids"]
+    assert any(item["kind"] == "skill_session_reference" for item in manifest["files"])
     sessions = (out / "references" / "sessions.md").read_text(encoding="utf-8")
     assert f"- Project: `{project}`" in sessions
     assert "sess-current" in sessions
@@ -198,12 +215,44 @@ def test_skill_target_privacy_fail_skips_high_risk_session_content(tmp_path: Pat
     assert result.exit_code == 0, result.output
     manifest = json.loads(result.output)
     assert (out / "SKILL.md").exists()
+    assert (out / "references" / "index.md").exists()
     assert (out / "references" / "sessions.md").exists()
     assert (out / "references" / "evidence.md").exists()
+    assert not (out / "references" / "session-sess-privacy.md").exists()
     assert manifest["skipped"][0]["reason"] == "high_risk_privacy_findings"
     assert manifest["privacy"]["effective_findings_count"] > 0
     assert "api_key=supersecrettoken123" not in (out / "references" / "sessions.md").read_text(encoding="utf-8")
     assert "api_key=supersecrettoken123" not in (out / "references" / "evidence.md").read_text(encoding="utf-8")
+
+
+def test_skill_target_preview_reports_lightweight_reference_layout(tmp_path: Path) -> None:
+    runner = CliRunner()
+    db = import_fixture(tmp_path)
+    out = tmp_path / "skill-preview"
+
+    result = runner.invoke(
+        app,
+        [
+            "client",
+            "export-preview",
+            "--db",
+            str(db),
+            "--session",
+            "sess-current",
+            "--out",
+            str(out),
+            "--profile",
+            "skill",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    paths = {item["path"] for item in payload["planned_files"]}
+    assert "references/index.md" in paths
+    assert "references/session-sess-current.md" in paths
+    assert not out.exists()
 
 
 def test_skill_target_capabilities_and_docs_exist() -> None:

@@ -14,6 +14,7 @@
     "privacy_modes",
     "retrieval_modes",
     "search_fields",
+    "interface_policy",
     "feature_flags"
   ],
   "properties": {
@@ -70,6 +71,9 @@
       "items": {
         "type": "string"
       }
+    },
+    "interface_policy": {
+      "type": "object"
     },
     "feature_flags": {
       "type": "object"

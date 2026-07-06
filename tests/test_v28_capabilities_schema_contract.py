@@ -18,7 +18,9 @@ REQUIRED_CAPABILITIES_FIELDS = [
     "export_formats",
     "export_profiles",
     "privacy_modes",
+    "retrieval_modes",
     "search_fields",
+    "interface_policy",
     "feature_flags",
 ]
 
@@ -43,13 +45,14 @@ def test_real_capabilities_output_validates_against_schema() -> None:
     assert payload["json_outputs"]
     assert payload["export_profiles"] == ["full", "brief", "agent", "review"]
     assert payload["privacy_modes"] == ["warn", "redact", "fail"]
+    assert payload["interface_policy"]["primary_local_interface"] == "native_desktop"
     assert payload["search_fields"] == ["minimal", "standard", "full"]
 
 
 def test_capabilities_schema_rejects_missing_json_outputs() -> None:
     payload = {
         "name": "threadvault",
-        "contract_version": "0.6",
+        "contract_version": "1.0",
         "schema_version": 2,
         "stability_policy": "append-only",
         "commands": [],

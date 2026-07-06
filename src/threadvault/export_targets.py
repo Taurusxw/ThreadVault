@@ -16,6 +16,7 @@ from .summarizer import build_summary
 MANIFEST_VERSION = "1"
 MANIFEST_NAME = "threadvault-export-manifest.json"
 OBSIDIAN_TEXT_LIMIT = 4000
+SKILL_EVIDENCE_SNIPPET_LIMIT = 700
 
 
 @dataclass(frozen=True)
@@ -285,20 +286,38 @@ def _preview_skill_target(
     skill_name = _normalize_skill_name(request.skill_name or _default_skill_name(request.project, session_bundles))
     skill_description = request.skill_description or _default_skill_description(skill_name, request.project)
     skill_text = _skill_markdown(skill_name, skill_description)
+    index_text = _skill_index_reference(request, session_bundles, selection.skipped)
     sessions_text = _skill_sessions_reference(request, session_bundles, selection.skipped)
     evidence_text = _skill_evidence_reference(session_bundles)
     skill_findings = scan_sensitive_text(skill_text, allowlist=config.allowlist)
+    index_findings = scan_sensitive_text(index_text, allowlist=config.allowlist)
     sessions_findings = scan_sensitive_text(sessions_text, allowlist=config.allowlist)
     evidence_findings = scan_sensitive_text(evidence_text, allowlist=config.allowlist)
     all_findings.extend(skill_findings)
+    all_findings.extend(index_findings)
     all_findings.extend(sessions_findings)
     all_findings.extend(evidence_findings)
     evidence_ids = sorted(set(all_evidence_ids))
-    return [
+    files = [
         _planned_file("skill_file", None, "SKILL.md", len(skill_findings), evidence_ids),
+        _planned_file("skill_reference", None, "references/index.md", len(index_findings), evidence_ids),
         _planned_file("skill_reference", None, "references/sessions.md", len(sessions_findings), evidence_ids),
         _planned_file("skill_reference", None, "references/evidence.md", len(evidence_findings), evidence_ids),
-    ], all_findings, evidence_ids
+    ]
+    for bundle in session_bundles:
+        session_text = _skill_session_reference(bundle)
+        session_findings = scan_sensitive_text(session_text, allowlist=config.allowlist)
+        all_findings.extend(session_findings)
+        files.append(
+            _planned_file(
+                "skill_session_reference",
+                bundle["session"]["session_id"],
+                _skill_session_reference_relpath(bundle["session"]["session_id"]),
+                len(session_findings),
+                list(bundle["summary"].evidence_event_ids),
+            )
+        )
+    return files, all_findings, evidence_ids
 
 
 def _planned_file(kind: str, session_id: str | None, path: str, findings_count: int, evidence_event_ids: list[int]) -> dict[str, Any]:
@@ -556,18 +575,22 @@ def _export_skill_target(
     skill_name = _normalize_skill_name(request.skill_name or _default_skill_name(request.project, session_bundles))
     skill_description = request.skill_description or _default_skill_description(skill_name, request.project)
     skill_path = root / "SKILL.md"
+    index_path = references_dir / "index.md"
     sessions_path = references_dir / "sessions.md"
     evidence_path = references_dir / "evidence.md"
 
     skill_text = _skill_markdown(skill_name, skill_description)
+    index_text = _skill_index_reference(request, session_bundles, skipped)
     sessions_text = _skill_sessions_reference(request, session_bundles, skipped)
     evidence_text = _skill_evidence_reference(session_bundles)
 
     _, skill_findings = _write_privacy_checked_text(skill_path, skill_text, privacy_mode=request.privacy_mode, config=config)
+    _, index_findings = _write_privacy_checked_text(index_path, index_text, privacy_mode=request.privacy_mode, config=config)
     _, sessions_findings = _write_privacy_checked_text(sessions_path, sessions_text, privacy_mode=request.privacy_mode, config=config)
     _, evidence_findings = _write_privacy_checked_text(evidence_path, evidence_text, privacy_mode=request.privacy_mode, config=config)
 
     all_findings.extend(skill_findings)
+    all_findings.extend(index_findings)
     all_findings.extend(sessions_findings)
     all_findings.extend(evidence_findings)
     evidence_ids = sorted(set(all_evidence_ids))
@@ -578,6 +601,14 @@ def _export_skill_target(
             "path": _relative_path(skill_path, root),
             "format": "md",
             "privacy_findings_count": len(skill_findings),
+            "evidence_event_ids": evidence_ids,
+        },
+        {
+            "kind": "skill_reference",
+            "session_id": None,
+            "path": _relative_path(index_path, root),
+            "format": "md",
+            "privacy_findings_count": len(index_findings),
             "evidence_event_ids": evidence_ids,
         },
         {
@@ -597,6 +628,24 @@ def _export_skill_target(
             "evidence_event_ids": evidence_ids,
         },
     ]
+    for bundle in session_bundles:
+        session_path = root / _skill_session_reference_relpath(bundle["session"]["session_id"])
+        session_text = _skill_session_reference(bundle)
+        _, session_findings = _write_privacy_checked_text(
+            session_path,
+            session_text,
+            privacy_mode=request.privacy_mode,
+            config=config,
+        )
+        all_findings.extend(session_findings)
+        files.append({
+            "kind": "skill_session_reference",
+            "session_id": bundle["session"]["session_id"],
+            "path": _relative_path(session_path, root),
+            "format": "md",
+            "privacy_findings_count": len(session_findings),
+            "evidence_event_ids": list(bundle["summary"].evidence_event_ids),
+        })
     return files, all_findings, evidence_ids
 
 
@@ -781,21 +830,64 @@ def _skill_markdown(skill_name: str, skill_description: str) -> str:
         "",
         f"# {skill_name.replace('-', ' ').title()}",
         "",
-        "Use this Skill as a local ThreadVault memory packet. The reference files were generated from selected local Codex sessions.",
+        "Use this Skill as a lightweight local ThreadVault memory packet. It contains summaries and evidence indexes, "
+        "not full raw transcripts.",
         "",
         "## Workflow",
         "",
-        "1. Read `references/sessions.md` for the session summaries.",
-        "2. Read `references/evidence.md` when a claim needs event-backed support.",
-        "3. Preserve ThreadVault evidence event IDs when using details from the references.",
-        "4. Ask the user before exposing private paths, secrets, or raw local context outside the local workspace.",
+        "1. Read `references/index.md` first to understand the packet scope.",
+        "2. Read `references/sessions.md` to choose the relevant session summary.",
+        "3. Read only the matching `references/session-*.md` file when more detail is needed.",
+        "4. Use `references/evidence.md` as an evidence index; preserve ThreadVault event IDs in derived claims.",
+        "5. Ask before exposing private paths, secrets, or local context outside the local workspace.",
         "",
         "## References",
         "",
-        "- `references/sessions.md`: summary-level memory.",
-        "- `references/evidence.md`: selected evidence events linked from summaries.",
+        "- `references/index.md`: packet map and reading order.",
+        "- `references/sessions.md`: compact summary table.",
+        "- `references/session-*.md`: per-session detail, loaded only when relevant.",
+        "- `references/evidence.md`: selected evidence event index with short snippets.",
         "",
     ])
+
+
+def _skill_index_reference(request: ExportTargetRequest, bundles: list[dict[str, Any]], skipped: list[dict[str, Any]]) -> str:
+    lines = [
+        "# ThreadVault Skill Packet Index",
+        "",
+        f"- Generated: `{_utc_now()}`",
+        "- Target profile: `skill`",
+        "- Packet shape: lightweight Skill candidate, not a raw transcript export.",
+    ]
+    if request.project:
+        lines.append(f"- Project: `{request.project}`")
+    lines.extend([
+        f"- Exported sessions: {len(bundles)}",
+        f"- Skipped items: {len(skipped)}",
+        "",
+        "## Reading Order",
+        "",
+        "1. Start with `references/sessions.md`.",
+        "2. Open a listed `references/session-*.md` only when its topic is relevant.",
+        "3. Use `references/evidence.md` to map claims back to ThreadVault event IDs.",
+        "",
+        "## Sessions",
+        "",
+    ])
+    if not bundles:
+        lines.append("- None exported.")
+    for bundle in bundles:
+        session = bundle["session"]
+        summary = bundle["summary"]
+        relpath = _skill_session_reference_relpath(session["session_id"])
+        lines.append(f"- `{summary.session_id}`: `{relpath}` - {summary.topic}")
+    if skipped:
+        lines.extend(["", "## Skipped", ""])
+        for item in skipped:
+            reason = item.get("reason", "unknown")
+            label = item.get("session_id") or item.get("project") or item.get("kind")
+            lines.append(f"- `{label}`: {reason}")
+    return "\n".join(lines) + "\n"
 
 
 def _skill_sessions_reference(request: ExportTargetRequest, bundles: list[dict[str, Any]], skipped: list[dict[str, Any]]) -> str:
@@ -822,9 +914,10 @@ def _skill_sessions_reference(request: ExportTargetRequest, bundles: list[dict[s
             f"- Session: `{summary.session_id}`",
             f"- Project: `{session['cwd'] or ''}`",
             f"- Updated: `{session['updated_at'] or ''}`",
+            f"- Detail: `{_skill_session_reference_relpath(session['session_id'])}`",
         ])
         if summary.user_goal:
-            lines.extend(["", "### User Goal", "", summary.user_goal])
+            lines.extend(["", "### User Goal", "", _trim_text(summary.user_goal, SKILL_EVIDENCE_SNIPPET_LIMIT)])
         lines.extend(["", "### Key Steps", ""])
         lines.extend(_summary_items(summary.key_steps, "text"))
         lines.extend(["", "### Key Commands", ""])
@@ -849,9 +942,10 @@ def _skill_sessions_reference(request: ExportTargetRequest, bundles: list[dict[s
 
 def _skill_evidence_reference(bundles: list[dict[str, Any]]) -> str:
     lines = [
-        "# ThreadVault Evidence References",
+        "# ThreadVault Evidence Index",
         "",
         f"- Generated: `{_utc_now()}`",
+        "- This index uses short snippets only. Use ThreadVault itself when full raw event text is required.",
         "",
     ]
     if not bundles:
@@ -880,7 +974,41 @@ def _skill_evidence_reference(bundles: list[dict[str, Any]]) -> str:
             if event["file_path"]:
                 lines.append(f"- File: `{event['file_path']}`")
             if event["text_content"]:
-                lines.extend(["", _code_block(_trim_text(event["text_content"], OBSIDIAN_TEXT_LIMIT)), ""])
+                lines.append(f"- Snippet: {_inline_text(_trim_text(event['text_content'], SKILL_EVIDENCE_SNIPPET_LIMIT))}")
+    return "\n".join(lines) + "\n"
+
+
+def _skill_session_reference(bundle: dict[str, Any]) -> str:
+    session = bundle["session"]
+    summary = bundle["summary"]
+    evidence_events = bundle["evidence_events"]
+    lines = [
+        f"# {summary.topic}",
+        "",
+        f"- Session: `{summary.session_id}`",
+        f"- Project: `{session['cwd'] or ''}`",
+        f"- Updated: `{session['updated_at'] or ''}`",
+        f"- Evidence events: {', '.join(str(event_id) for event_id in summary.evidence_event_ids) or 'None'}",
+    ]
+    if summary.user_goal:
+        lines.extend(["", "## User Goal", "", _trim_text(summary.user_goal, SKILL_EVIDENCE_SNIPPET_LIMIT)])
+    lines.extend(["", "## Key Steps", ""])
+    lines.extend(_summary_items(summary.key_steps, "text"))
+    lines.extend(["", "## Key Commands", ""])
+    lines.extend(_summary_items(summary.key_commands, "command"))
+    lines.extend(["", "## Files", ""])
+    lines.extend(_summary_items(summary.files, "path"))
+    lines.extend(["", "## Problems", ""])
+    lines.extend(_summary_items(summary.problems, "text"))
+    lines.extend(["", "## Next Steps", ""])
+    lines.extend([f"- {item}" for item in summary.next_steps] or ["- Review the exported evidence before sharing."])
+    lines.extend(["", "## Evidence Snippets", ""])
+    if not evidence_events:
+        lines.append("- No evidence events were selected.")
+    for event in evidence_events:
+        label = f"Event {event['event_id']}"
+        event_type = f"{event['top_type']}" + (f"/{event['sub_type']}" if event["sub_type"] else "")
+        lines.append(f"- `{label}` `{event_type}`: {_inline_text(_trim_text(event['text_content'] or '', SKILL_EVIDENCE_SNIPPET_LIMIT))}")
     return "\n".join(lines) + "\n"
 
 
@@ -899,6 +1027,24 @@ def _skill_evidence_section(session: sqlite3.Row, events: list[sqlite3.Row]) -> 
     for event in events:
         lines.append(f"Event {event['event_id']}: {event['text_content'] or ''}")
     return "\n".join(lines)
+
+
+def _skill_session_reference_relpath(session_id: str) -> str:
+    return f"references/session-{_reference_stem(session_id)}.md"
+
+
+def _reference_stem(value: str) -> str:
+    chars = []
+    last_dash = False
+    for char in value.lower():
+        if char.isalnum() or char in {"_", "-"}:
+            chars.append(char)
+            last_dash = False
+        elif not last_dash:
+            chars.append("-")
+            last_dash = True
+    normalized = "".join(chars).strip("-")[:96].strip("-")
+    return normalized or "session"
 
 
 def _default_skill_name(project: str | None, bundles: list[dict[str, Any]]) -> str:
@@ -961,6 +1107,13 @@ def _wiki_link(path: Path, alias: str, root: Path) -> str:
 
 def _code_block(text: str) -> str:
     return "```text\n" + text.replace("```", "`\u200b``") + "\n```"
+
+
+def _inline_text(text: str) -> str:
+    compact = " ".join(text.split())
+    if not compact:
+        return "No text snippet."
+    return compact.replace("|", "\\|")
 
 
 def _trim_text(text: str, limit: int) -> str:

@@ -12,14 +12,16 @@ ThreadVault is a local-first, privacy-first archive and retrieval tool for local
 
 ## Technical Stack
 
-- Python CLI and stdlib local HTTP server.
+- Python CLI and stdlib Tkinter native desktop app.
 - SQLite storage with FTS-backed search.
-- Static HTML, CSS, and JavaScript for the personal Web UI.
+- Read-only MCP stdio integration for local agents.
+- Retired stdlib local HTTP server and static Web UI runtime code removed from the 1.0.0 active package; historical records live under `docs/progress/archive/legacy-v4`.
 - Pytest and ruff for validation.
 
 ## Project Rules
 
-- Keep the Web UI local-first and bound to `127.0.0.1` by default.
+- Treat the native desktop app as the primary local interface for the 1.0.0 line.
+- Do not reintroduce Web UI launch commands or browser-first workflows.
 - Do not introduce a separate frontend build pipeline unless explicitly requested.
 - Reuse `ArchiveStore` and existing ThreadVault CLI/runtime contracts.
 - Do not bypass privacy scanning, export preview gates, or confirmation gates.

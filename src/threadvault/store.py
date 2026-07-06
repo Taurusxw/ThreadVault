@@ -162,11 +162,14 @@ from .vector_adapter import (
     vector_index_status,
 )
 
-PERSONAL_UI_HEALTH_CONTRACT_VERSION = "personal_ui_health.v1"
-PERSONAL_UI_ACTION_CONTRACT_VERSION = "personal_ui_action.v1"
-PERSONAL_UI_SMOKE_CONTRACT_VERSION = "personal_ui_smoke.v1"
 PERSONAL_UI_SERVE_COMMAND = "threadvault ui serve --host 127.0.0.1 --port 8766 --open"
 PERSONAL_UI_SMOKE_COMMAND = "threadvault ui smoke --json"
+PRIMARY_LOCAL_INTERFACE = "native_desktop"
+PRIMARY_LOCAL_INTERFACE_COMMAND = "threadvault desktop launch"
+PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND = "threadvault desktop smoke --json"
+PERSONAL_WEB_UI_STATUS = "retired"
+MAJOR_RELEASE_TARGET = "1.0.0"
+PERSONAL_WEB_UI_ARCHIVE = "docs/progress/archive/legacy-v4/"
 
 
 class ArchiveStore:
@@ -1434,7 +1437,7 @@ def capabilities() -> dict[str, Any]:
         "contract_version": CONTRACT_VERSION,
         "schema_version": SCHEMA_VERSION,
         "stability_policy": (
-            "JSON output fields are append-only within the v0.x contract unless a command is explicitly marked experimental."
+            "JSON output fields are append-only within the 1.x contract unless a command is explicitly marked experimental."
         ),
         "commands": [
             "init",
@@ -1474,7 +1477,7 @@ def capabilities() -> dict[str, Any]:
             "vector",
             "agent",
             "client",
-            "ui",
+            "desktop",
             "mcp",
             "governance",
         ],
@@ -1542,7 +1545,7 @@ def capabilities() -> dict[str, Any]:
             "client session",
             "client export-preview",
             "client warnings",
-            "ui smoke",
+            "desktop smoke",
             "mcp manifest",
             "mcp serve",
             "governance status",
@@ -1578,6 +1581,19 @@ def capabilities() -> dict[str, Any]:
         "privacy_modes": ["warn", "redact", "fail"],
         "retrieval_modes": RETRIEVAL_MODES,
         "search_fields": ["minimal", "standard", "full"],
+        "interface_policy": {
+            "primary_local_interface": PRIMARY_LOCAL_INTERFACE,
+            "primary_command": PRIMARY_LOCAL_INTERFACE_COMMAND,
+            "primary_smoke_command": PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND,
+            "retired_interface": "personal_web_ui",
+            "retired_interface_status": PERSONAL_WEB_UI_STATUS,
+            "retired_commands": [PERSONAL_UI_SERVE_COMMAND, PERSONAL_UI_SMOKE_COMMAND],
+            "major_release_target": MAJOR_RELEASE_TARGET,
+            "retired_interface_archive": PERSONAL_WEB_UI_ARCHIVE,
+            "browser_required_for_primary": False,
+            "server_required_for_primary": False,
+            "frontend_build_pipeline_for_primary": False,
+        },
         "feature_flags": {
             "local_first": True,
             "sqlite_fts5": True,
@@ -1599,13 +1615,10 @@ def capabilities() -> dict[str, Any]:
             "client_export_preview": True,
             "client_export_preview_governance_instrumentation": True,
             "client_warnings": True,
-            "personal_web_ui": True,
-            "personal_ui_server": True,
-            "personal_ui_action_registry": True,
-            "personal_ui_acceptance_smoke": True,
-            "personal_ui_desktop_wrapper": False,
-            "personal_ui_team_mode": False,
-            "personal_ui_cloud_sync": False,
+            "native_desktop_app": True,
+            "native_desktop_primary": True,
+            "personal_web_ui": False,
+            "personal_web_ui_retired": True,
             "mcp_stdio_server": True,
             "mcp_read_only_tools": True,
             "mcp_export_preview": True,
@@ -1684,8 +1697,8 @@ def robot_guide() -> dict[str, Any]:
             "threadvault client warnings --session SESSION_ID --json",
             "threadvault mcp manifest --json",
             "threadvault mcp serve",
-            PERSONAL_UI_SERVE_COMMAND,
-            PERSONAL_UI_SMOKE_COMMAND,
+            PRIMARY_LOCAL_INTERFACE_COMMAND,
+            PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND,
             "threadvault governance status --json",
             AUDIT_APPEND_COMMAND,
             AUDIT_LIST_COMMAND,
@@ -1714,6 +1727,24 @@ def robot_guide() -> dict[str, Any]:
             EXPORT_PREVIEW_PREFLIGHT_COMMAND,
             EXTERNAL_MODEL_PREFLIGHT_COMMAND,
         ],
+        "legacy_fallback_commands": [],
+        "retired_commands": [
+            PERSONAL_UI_SERVE_COMMAND,
+            PERSONAL_UI_SMOKE_COMMAND,
+        ],
+        "interface_policy": {
+            "primary_local_interface": PRIMARY_LOCAL_INTERFACE,
+            "primary_command": PRIMARY_LOCAL_INTERFACE_COMMAND,
+            "primary_smoke_command": PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND,
+            "retired_interface": "personal_web_ui",
+            "retired_interface_status": PERSONAL_WEB_UI_STATUS,
+            "retired_commands": [PERSONAL_UI_SERVE_COMMAND, PERSONAL_UI_SMOKE_COMMAND],
+            "major_release_target": MAJOR_RELEASE_TARGET,
+            "retired_interface_archive": PERSONAL_WEB_UI_ARCHIVE,
+            "browser_required_for_primary": False,
+            "server_required_for_primary": False,
+            "frontend_build_pipeline_for_primary": False,
+        },
         "governance": {
             "module": "threadvault.governance",
             "status_contract_version": GOVERNANCE_STATUS_CONTRACT_VERSION,
@@ -1799,31 +1830,54 @@ def robot_guide() -> dict[str, Any]:
             "server_opt_in": True,
             "instrumented_commands": ["threadvault client export-preview"],
         },
-        "personal_ui": {
-            "module": "threadvault.personal_ui",
-            "serve_command": PERSONAL_UI_SERVE_COMMAND,
-            "health_contract_version": PERSONAL_UI_HEALTH_CONTRACT_VERSION,
-            "health_schema": "personal_ui_health",
-            "action_contract_version": PERSONAL_UI_ACTION_CONTRACT_VERSION,
-            "action_schema": "personal_ui_action",
-            "smoke_command": PERSONAL_UI_SMOKE_COMMAND,
-            "smoke_contract_version": PERSONAL_UI_SMOKE_CONTRACT_VERSION,
-            "smoke_schema": "personal_ui_smoke",
-            "action_registry": "POST /api/action",
-            "action_registry_status": "implemented",
-            "dangerous_actions_require_confirm": ["restore_apply", "vacuum", "reindex", "schema_write"],
-            "export_actions_require_preview": [
-                "export_session",
-                "export_target_markdown",
-                "export_target_obsidian",
-                "export_target_skill",
-            ],
-            "default_host": "127.0.0.1",
-            "default_port": 8766,
+        "retired_interfaces": {
+            "personal_web_ui": {
+                "status": PERSONAL_WEB_UI_STATUS,
+                "retired": True,
+                "primary_replacement": PRIMARY_LOCAL_INTERFACE,
+                "command_available": False,
+                "retired_commands": [PERSONAL_UI_SERVE_COMMAND, PERSONAL_UI_SMOKE_COMMAND],
+                "runtime_module_removed": True,
+                "schemas_removed": ["personal_ui_health", "personal_ui_action", "personal_ui_smoke"],
+                "archive": PERSONAL_WEB_UI_ARCHIVE,
+            },
+        },
+        "desktop_app": {
+            "module": "threadvault.desktop_app",
+            "data_module": "threadvault.desktop_data",
+            "status": "primary_local_interface",
+            "recommended_for_daily_use": True,
+            "launch_command": PRIMARY_LOCAL_INTERFACE_COMMAND,
+            "smoke_command": PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND,
+            "contract_version": "desktop_app.v1",
+            "smoke_contract_version": "desktop_smoke.v1",
+            "toolkit": "tkinter",
+            "major_release_target": MAJOR_RELEASE_TARGET,
             "server_required": False,
+            "browser_required": False,
+            "frontend_build_pipeline": False,
             "cloud_sync": False,
-            "team_mode": False,
-            "external_model_calls": False,
+            "background_worker_threads": True,
+            "store_interface": [
+                "client_overview",
+                "client_session",
+                "client_export_preview",
+                "client_warnings",
+                "stats",
+                "doctor",
+                "backup",
+                "verify_backup",
+                "restore_plan",
+                "restore",
+                "reindex",
+                "vacuum",
+                "schema_names",
+                "write_schema_files",
+                "robot_guide",
+                "robot_schemas",
+                "governance_status",
+                "governance_diagnostics",
+            ],
         },
         "agent_interface": {
             "module": "threadvault.agent_interface",
@@ -1922,6 +1976,7 @@ def robot_schemas() -> dict[str, Any]:
             "privacy_modes": "string[]",
             "retrieval_modes": "string[]",
             "search_fields": "string[]",
+            "interface_policy": "object",
             "feature_flags": "object",
         },
         "ingestion_enqueue": {
@@ -2055,36 +2110,6 @@ def robot_schemas() -> dict[str, Any]:
             "warnings": "object",
             "privacy": "object",
             "actions": "object",
-            "diagnostics": "object",
-        },
-        "personal_ui_health": {
-            "contract_version": "string",
-            "ok": "boolean",
-            "status": "string",
-            "server": "object",
-            "defaults": "object",
-            "paths": "object",
-        },
-        "personal_ui_action": {
-            "contract_version": "string",
-            "ok": "boolean",
-            "action": "string|null",
-            "status": "string",
-            "confirm": "boolean",
-            "message": "string|null",
-            "result": "object|null",
-            "safety": "object",
-            "available_actions": "string[]",
-        },
-        "personal_ui_smoke": {
-            "contract_version": "string",
-            "status": "string",
-            "ok": "boolean",
-            "server": "object",
-            "checks": "object[]",
-            "summary": "object",
-            "criteria": "object[]",
-            "boundaries": "object",
             "diagnostics": "object",
         },
         "governance_status": {

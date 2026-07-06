@@ -1,6 +1,6 @@
 # ThreadVault 使用说明书
 
-本文面向本机使用、脚本调用、UI 排查和后续维护。ThreadVault 是一个本地优先、隐私优先的 Codex 会话归档与复用工具：它把本机 Codex 的 `.jsonl` 会话记录导入 SQLite，建立全文搜索索引，并提供本地 Web UI、CLI、检索、摘要、导出、隐私扫描、诊断、备份、恢复和治理预检能力。
+本文面向本机使用、脚本调用、UI 排查和后续维护。ThreadVault 是一个本地优先、隐私优先的 Codex 会话归档与复用工具：它把本机 Codex 的 `.jsonl` 会话记录导入 SQLite，建立全文搜索索引，并提供原生桌面应用、CLI、检索、摘要、导出、隐私扫描、诊断、备份、恢复、MCP 和治理预检能力。浏览器 Web UI 启动入口已退休。
 
 ## 1. 先弄懂它有什么用
 
@@ -20,7 +20,8 @@ ThreadVault 解决的是这几类问题：
 
 - 本地 Codex 会话扫描和导入。
 - SQLite 归档数据库与 FTS5 全文搜索。
-- 本地个人 Web UI，含普通模式和专业模式。
+- 本地原生 Tkinter 桌面应用，作为 1.0.0 主界面。
+- 旧 Web UI runtime、活跃 schema 和测试已从 1.0.0 包中移除；历史证据保留在 `docs/progress/archive/legacy-v4/`。
 - 会话列表、会话详情、摘要、事件预览和 warning 查看。
 - v2 检索合同、hybrid retrieval、agent retrieval、summary chunks。
 - 可选本地 deterministic vector adapter，默认关闭。
@@ -43,15 +44,15 @@ ThreadVault 解决的是这几类问题：
 | 名称 | 默认或示例 | 用途 |
 |---|---|---|
 | 索引库 / Archive DB | `<repo-root>\data\threadvault.db` | 本地 SQLite 归档数据库，用于搜索、检索、UI、摘要、备份和恢复。可用 `--db`、`THREADVAULT_DB` 或 `[storage].archive_db` 覆盖。 |
-| 导出目录 / Export folder | `<repo-root>\threadvault-ui-output` | 写出 Markdown、Obsidian、Skill 等文件。 |
-| 备份目录 | `<repo-root>\threadvault-ui-backups` 或自定义目录 | 保存 SQLite 备份文件和 manifest。 |
+| 导出目录 / Export folder | `threadvault-desktop-export/` 或显式 `--out` 目录 | 写出 Markdown、Obsidian、Skill 等文件。 |
+| 备份目录 | `threadvault-desktop-backups/` 或自定义目录 | 保存 SQLite 备份文件和 manifest。 |
 | Codex home | `%USERPROFILE%\.codex` | 原始 Codex transcript 来源目录。 |
 | 配置文件 | `%APPDATA%\threadvault\threadvault.toml` | 隐私 allowlist、vector、历史保留、治理配置。 |
 
 常见误解：
 
 - `threadvault.db` 不是给人看的导出文件，它是索引库。
-- `threadvault-ui-output` 才是 UI 默认写出的 Markdown/Skill/Obsidian 文件夹。
+- `threadvault-desktop-export` 或你显式指定的 `--out` 目录才是 UI 默认写出的 Markdown/Skill/Obsidian 文件夹。
 - 备份 `.db` 可能包含私密会话内容，不要当普通报告分享。
 
 ## 4. 安装
@@ -76,46 +77,82 @@ threadvault --help
 
 注意：请使用 `threadvault ...`。当前项目没有 `threadvault.__main__`，所以 `py -3.12 -m threadvault --help` 不工作是正常的。
 
-## 5. 最快上手：普通 UI 模式
+## 5. 最快上手：本地界面
 
-启动中文界面：
+### 5.1 本地桌面应用
+
+启动 1.0.0 方向的最小原生窗口：
+
+```powershell
+.\启动ThreadVault桌面版.cmd
+```
+
+或直接运行命令：
+
+```powershell
+threadvault desktop launch
+```
+
+不打开窗口，只做桌面端 smoke 检查：
+
+```powershell
+threadvault desktop smoke --json
+```
+
+桌面应用使用 Python 标准库 Tkinter，不需要浏览器、Electron、React、Tauri 或前端构建流程。当前迁入的高频页面包括：
+
+| 页签 | 用途 |
+|---|---|
+| 浏览 | 搜索旧会话、打开摘要、查看搜索结果。 |
+| 导出 | 对当前会话生成 Markdown、Obsidian 或 Skill 导出预览；不直接写文件。 |
+| 安全 | 查看 parser warning 和 privacy scan 摘要；执行备份、备份验证、恢复预检和恢复到新目标库。 |
+| MCP | 查看 MCP manifest/serve 命令和只读工具。 |
+| 健康 | 运行数据库统计、doctor 诊断、重建搜索索引和数据库压缩。 |
+| 高级 | 原生查看 Schema、机器人文档、治理状态和治理诊断；确认后写出 Schema 文件。 |
+
+性能策略：窗口只负责显示和操作，归档读取、搜索、导出预览、隐私检查、备份、恢复预检、恢复执行、诊断和高级面板都通过后台线程调用现有接口，避免主窗口卡死。Tkinter 变量只在 UI 线程读取，后台线程只接收普通字符串/路径值。备份、重建索引、压缩数据库、恢复执行和 schema write 会先弹出本地确认框；桌面恢复执行只允许写到不存在的新目标库，拒绝覆盖已有数据库。
+
+### 5.2 旧 Web UI 启动器
+
+旧中文 Web UI 启动器不再启动浏览器或本地 Web 服务；它会转到桌面版启动器：
 
 ```powershell
 .\启动ThreadVault中文界面.cmd
 ```
 
-打开地址：
-
-```text
-http://127.0.0.1:8766/zh
-```
-
-普通模式只放三个日常动作：
+`threadvault ui serve` 和 `threadvault ui smoke` 已退休；请使用 `threadvault desktop launch` 和 `threadvault desktop smoke --json`。
 
 | 按钮 | 用途 | 结果 |
 |---|---|---|
-| 搜索旧记录 | 按关键词查历史 Codex 工作。 | 进入搜索/归档结果。 |
-| 打开最近会话 | 直接看最新会话详情。 | 显示摘要、事件预览、证据 ID。 |
-| 导出给 Codex 继续用 | 从当前或最新会话生成 Skill 导出预览。 | 先预览，再写入导出目录。 |
+| 找回旧工作 | 按关键词、报错、项目名或决策查历史 Codex 工作。 | 显示匹配会话卡片。 |
+| 打开上下文 | 直接看最新会话详情。 | 显示摘要、事件预览、证据 ID。 |
+| 交给 AI 复用 | 打开 MCP 设置，或从当前/最近会话生成 Skill 预览。 | MCP 走只读记忆；Skill 先预览，再写入导出目录。 |
 
 如果你只想“找到旧内容并继续用”，先用普通模式就够了。
 
 ## 6. 专业 UI 模式
 
-专业模式是完整工作台：
+专业模式是分层工作台：
 
 | 页面 | 用途 |
 |---|---|
 | 归档 | 浏览会话列表，按项目/cwd 过滤。 |
 | 搜索 | 标准搜索、retrieval query、hybrid retrieval、agent retrieve。 |
 | 会话 | 查看单个会话的摘要、事件预览、证据 ID、warning 和导出入口。 |
+| 联动 | 查看 MCP 命令、只读边界、Codex/ZCode/OpenCode/Obsidian 联动说明和能力检查。 |
 | 导出 | 选择 session/profile/privacy，先生成预览，再写文件。 |
-| 隐私 | 运行 privacy scan 和 warning 检查。 |
-| 维护 | stats、doctor、self-test、reindex、vacuum 等。 |
-| 备份 / 恢复 | 备份、验证、恢复预检、恢复执行、历史记录。 |
-| 配置 | 查看和初始化 `threadvault.toml`。 |
-| 结构定义 | 查看、验证、写出 JSON Schema。 |
-| 治理 | 本地治理状态、预检、gap audit、外部模型预检等。 |
+| 数据安全 | 运行 privacy scan、warning 检查、备份、验证、恢复预检、恢复执行和历史记录。 |
+| 健康诊断 | 查看 stats、doctor、self-test、reindex、vacuum、配置查看和配置诊断。 |
+| 高级 | 查看/验证/写出 JSON Schema、机器人文档、本地治理状态、预检、gap audit 和外部模型预检。 |
+
+联动页中的 MCP 命令可以直接复制：
+
+```powershell
+threadvault mcp manifest --json
+threadvault mcp serve
+```
+
+MCP 联动保持只读；真正写 Markdown、Obsidian 或 Skill 文件仍从“导出”页走预览和写入确认。
 
 ### 6.1 UI 反馈怎么看
 
@@ -342,6 +379,16 @@ Codex Skill candidate：
 ```powershell
 threadvault export-target skill --session SESSION_ID --out <repo-root>\skill-candidate --skill-name project-memory --json
 ```
+
+Skill candidate 是轻量 Codex Skill 包，不是完整 transcript 转储。它默认写出：
+
+- `SKILL.md`
+- `references/index.md`
+- `references/sessions.md`
+- `references/evidence.md`
+- `references/session-SESSION_ID.md`
+
+读取顺序是先看 `references/index.md` 和 `references/sessions.md`，需要某个会话细节时再打开对应 `references/session-*.md`。`references/evidence.md` 只保留短证据片段和事件 ID；需要完整原文时，用 Markdown/Obsidian 导出或回到 ThreadVault 检索。
 
 按项目目录导出：
 
@@ -607,7 +654,6 @@ threadvault schemas show retrieval_query --json
 threadvault validate-json --schema retrieval_query --input retrieval-output.json --json
 threadvault validate-json --schema agent_retrieval --input agent-retrieval.json --json
 threadvault validate-json --schema mcp_manifest --input mcp-manifest.json --json
-threadvault validate-json --schema personal_ui_action --input action-output.json --json
 ```
 
 写出 schema 文件：
@@ -678,14 +724,14 @@ threadvault backup-history list --dir <repo-root>\backups --json
 --db PATH > THREADVAULT_DB > threadvault.toml 的 [storage].archive_db > data/threadvault.db
 ```
 
-这个数据库是长期索引库，不是导出文件。导出文件默认在项目下的 `threadvault-ui-output` 或你指定的 `--out` 目录。
+这个数据库是长期索引库，不是导出文件。导出文件默认在项目下的 `threadvault-desktop-export` 或你指定的 `--out` 目录。
 
 ### 17.2 为什么都完成了还像在加载
 
-完成态应该显示绿色对勾，不应继续转圈。如果仍然转圈，刷新页面并确认服务加载的是最新代码；也可以运行：
+桌面端长任务应通过状态栏反馈完成或失败。如果界面状态异常，可以运行：
 
 ```powershell
-threadvault ui smoke --json
+threadvault desktop smoke --json
 ```
 
 ### 17.3 `threadvault` 不是可识别命令
@@ -715,7 +761,7 @@ threadvault warnings --summary --json
 ```powershell
 threadvault doctor --json
 threadvault self-test --json
-threadvault ui smoke --json
+threadvault desktop smoke --json
 ```
 
 ### 17.7 如何重新建立搜索索引
@@ -743,7 +789,7 @@ threadvault restore --backup BACKUP.db --target-db RESTORED.db --apply --json
 - `README.md`：项目概览和快速上手。
 - `CONTEXT.md`：统一术语。
 - `docs/ARCHITECTURE.md`：架构和模块边界。
-- `docs/API.md`：本地 UI API。
+- `docs/API.md`：JSON 合同、MCP 和已退休接口元数据。
 - `docs/DATABASE.md`：数据库和路径说明。
 - `docs/KNOWLEDGE_GRAPH.md`：实体关系和安全边界。
 - `docs/DOC_INDEX.md`：文档索引。
@@ -756,7 +802,7 @@ threadvault restore --backup BACKUP.db --target-db RESTORED.db --apply --json
 threadvault --help
 threadvault capabilities --json
 threadvault self-test --json
-threadvault ui smoke --json
+threadvault desktop smoke --json
 py -3.12 -m pytest
 py -3.12 -m ruff check .
 ```

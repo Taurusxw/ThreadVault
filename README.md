@@ -1,10 +1,10 @@
 # ThreadVault
 
-ThreadVault is a local-first, privacy-first archive, retrieval, export, governance, and personal Web UI tool for local Codex sessions.
+ThreadVault is a local-first, privacy-first archive, retrieval, export, governance, and native desktop tool for local Codex sessions.
 
-It discovers Codex transcript JSONL files from local `sessions` and `archived_sessions` directories, normalizes current and legacy event shapes into SQLite, indexes searchable text with SQLite FTS5, and exposes the archive through CLI commands, JSON contracts, agent-facing retrieval, export targets, governance diagnostics, and a local browser UI.
+It discovers Codex transcript JSONL files from local `sessions` and `archived_sessions` directories, normalizes current and legacy event shapes into SQLite, indexes searchable text with SQLite FTS5, and exposes the archive through CLI commands, JSON contracts, agent-facing retrieval, export targets, governance diagnostics, MCP, and a minimal native desktop app.
 
-Current package version: `0.34.0`.
+Current package version: `1.0.0`.
 
 ## What It Is For
 
@@ -33,7 +33,9 @@ The stable baseline now includes:
 - JSON output contracts, packaged JSON Schemas, and validation helpers.
 - Corpus audit reports, audit history, backup/restore workflows, restore history, and retention helpers.
 - Optional local governance readiness, policy, audit, identity actor, preflight, and instrumentation surfaces.
-- A local personal Web UI served from the Python package without a frontend build pipeline.
+- A primary minimal native Tkinter desktop app that uses background loading and does not require a browser.
+- Native-first discovery metadata: capabilities and robot docs now advertise `native_desktop` as the primary local interface and the browser UI as retired.
+- Retired personal Web UI runtime, active schemas, and Web UI tests have been removed from the active 1.0.0 package; v4 evidence remains in `docs/progress/archive/legacy-v4/`.
 - A read-only MCP stdio server for Codex, ZCode, OpenCode, and other MCP-capable local agents.
 
 Still intentionally not default:
@@ -48,10 +50,28 @@ Still intentionally not default:
 
 ThreadVault uses semantic package versions for active development. Substantive optimization or development changes should advance the package version, update `README.md`, and add a dated `docs/CHANGELOG.md` entry.
 
+The 1.0.0 release line uses the native desktop app as the primary local interface and keeps the retired browser Web UI only as archived v4 historical evidence.
+
 Current and historical version line:
 
 | Version | Focus |
 |---|---|
+| `1.0.0` | Native desktop primary release; removed active personal Web UI runtime, schemas, and tests. |
+| `0.49.0` | Retired active Web UI CLI commands and redirected the old browser launcher to the desktop app. |
+| `0.48.0` | Native-first capability and robot-doc alignment for the 1.0.0 migration. |
+| `0.47.0` | Desktop-first launcher guidance with the Web UI launcher marked as legacy fallback. |
+| `0.46.0` | Native desktop Windows launcher script. |
+| `0.45.0` | Non-window native desktop smoke command for automated verification. |
+| `0.44.0` | Native desktop Tk thread-safety hardening from runtime QA. |
+| `0.43.0` | Native desktop governance diagnostics aggregation. |
+| `0.42.0` | Native desktop schema write with explicit confirmation. |
+| `0.41.0` | Native desktop restore apply for verified backups to new non-overwrite targets. |
+| `0.40.0` | Native desktop advanced read-only panels for schemas, robot docs, and governance status. |
+| `0.39.0` | Native desktop data-safety and maintenance actions with confirmation gates. |
+| `0.38.0` | Minimal native Tkinter desktop app over existing client/export/safety contracts. |
+| `0.37.0` | Compact desktop-tool visual density for the personal UI. |
+| `0.36.0` | Personal UI information architecture refresh with MCP/AI integrations surfaced as a first-class workflow. |
+| `0.35.0` | Lightweight Codex Skill candidate exports with progressive references and evidence indexes. |
 | `0.34.0` | MCP stdio server for cross-agent retrieval, session detail, diagnostics, and export preview. |
 | `0.33.0` | Clean knowledge index that keeps raw archive data but indexes high-value content by default. |
 | `0.32.0` | Project-local archive DB default and custom archive DB path support. |
@@ -69,8 +89,8 @@ ThreadVault uses different paths for different jobs. Keeping these separate avoi
 | Path | Default / Example | Purpose |
 |---|---|---|
 | Archive database | `<repo-root>\data\threadvault.db` in this project checkout | The local SQLite index/store used for search, retrieval, summaries, UI, backup, and restore. Override with `--db`, `THREADVAULT_DB`, or `[storage].archive_db`. |
-| Export directory | `<repo-root>\threadvault-ui-output` in the local UI launcher flow | User-facing Markdown, Obsidian, or Skill files written after preview/review. |
-| Backup directory | Usually `threadvault-ui-backups/` or a user-provided folder | Local SQLite backup copies and manifests. |
+| Export directory | `threadvault-desktop-export/` in the desktop flow | User-facing Markdown, Obsidian, or Skill files written after preview/review. |
+| Backup directory | Usually `threadvault-desktop-backups/` or a user-provided folder | Local SQLite backup copies and manifests. |
 | Config file | `%APPDATA%\threadvault\threadvault.toml` on Windows | Privacy allowlist, vector settings, history retention, and optional governance config. |
 | Codex home | `%USERPROFILE%\.codex` unless `CODEX_HOME` or `--codex-home` is used | Source transcript files under `sessions` and `archived_sessions`. |
 
@@ -95,24 +115,33 @@ Use the console script `threadvault ...`; the package does not expose `py -m thr
 
 ## Fast Start: Local UI
 
-The easiest way to use ThreadVault is the Chinese local UI launcher in this repository:
+For the smallest native UI, launch the desktop app:
+
+```powershell
+.\启动ThreadVault桌面版.cmd
+```
+
+Or run the CLI directly:
+
+```powershell
+threadvault desktop launch
+```
+
+The desktop app uses Python stdlib Tkinter, opens without a browser, and keeps archive/search/export-preview/safety/maintenance/advanced checks on background worker threads so the window stays responsive. Backup, reindex, vacuum, restore apply, and schema write actions use native confirmation prompts before writing locally; desktop restore apply only writes to a new target database and refuses overwrite.
+
+Run a non-window desktop smoke check:
+
+```powershell
+threadvault desktop smoke --json
+```
+
+The older local Web UI launcher no longer starts a browser or local Web server. It redirects to the desktop launcher:
 
 ```powershell
 .\启动ThreadVault中文界面.cmd
 ```
 
-Default URL:
-
-```text
-http://127.0.0.1:8766/zh
-```
-
-The UI has two modes:
-
-- **普通模式**: three daily actions: search old records, open the latest session, export for Codex reuse.
-- **专业模式**: full workbench for archive, search, sessions, export, privacy, maintenance, backup/restore, config, schemas, and governance.
-
-The top status bar shows both the archive database path and the export directory path. These are intentionally separate.
+`threadvault ui serve` and `threadvault ui smoke` are retired from the active CLI.
 
 ## Fast Start: CLI
 
@@ -168,6 +197,8 @@ Generate a Codex Skill candidate:
 ```powershell
 threadvault export-target skill --session SESSION_ID --out <repo-root>\threadvault-ui-output --json
 ```
+
+Skill candidate exports are intentionally lightweight: `SKILL.md` routes Codex through `references/index.md`, compact session summaries, per-session reference files, and an evidence index with short snippets. Use Markdown or Obsidian targets when you want larger raw-readable transcript exports.
 
 Run diagnostics:
 
@@ -296,7 +327,7 @@ Detailed planning, usage, contracts, and historical development records live und
 - `docs/README.md` - documentation map.
 - `docs/DOC_INDEX.md` - standard documentation index.
 - `docs/ARCHITECTURE.md` - module and UI architecture overview.
-- `docs/API.md` - local personal UI API summary.
+- `docs/API.md` - JSON contracts, MCP, and retired interface metadata.
 - `docs/DATABASE.md` - SQLite storage overview.
 - `docs/MCP_INTEGRATION.md` - MCP setup guide for Codex, OpenCode, ZCode, Obsidian, and AI self-configuration.
 - `docs/KNOWLEDGE_GRAPH.md` - project entity and relationship map.
@@ -321,7 +352,7 @@ Useful smoke checks:
 threadvault --help
 threadvault capabilities --json
 threadvault robot-docs schemas --json
-threadvault ui smoke --json
+threadvault desktop smoke --json
 ```
 
 Before starting new feature work, read `AGENTS.md`, `CONTEXT.md`, the active standard docs, and the relevant archived legacy record under `docs/progress/archive/`.

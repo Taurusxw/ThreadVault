@@ -1,13 +1,14 @@
 # Architecture
 
-ThreadVault is a local-first archive, retrieval, export, governance, and personal UI system for Codex sessions. The architecture keeps raw transcript handling, search/retrieval, export generation, and UI interaction behind reusable Python modules so the CLI, local Web UI, and agent-facing contracts do not duplicate business logic.
+ThreadVault is a local-first archive, retrieval, export, governance, native desktop, and agent-integration system for Codex sessions. The architecture keeps raw transcript handling, search/retrieval, export generation, and UI interaction behind reusable Python modules so the CLI, native desktop app, and agent-facing contracts do not duplicate business logic.
 
 ## Design Principles
 
 - Keep raw Codex transcript data local by default.
 - Keep SQLite as the personal archive database.
 - Put durable archive behavior behind `ArchiveStore`.
-- Keep the personal Web UI static and stdlib-served unless explicitly changed.
+- Treat the native Tkinter desktop app as the primary 1.0.0 local interface.
+- Keep Web UI commands retired; `threadvault.personal_ui` and active `personal_ui_*` schemas are removed from the 1.0.0 runtime.
 - Reuse JSON schema contracts for CLI, UI, and agent payloads.
 - Separate read-only preview from write actions.
 - Keep privacy scan, confirmation, and governance gates visible at the API and UI layers.
@@ -25,12 +26,12 @@ ThreadVault is a local-first archive, retrieval, export, governance, and persona
 | Summary/vector | `summarizer.py`, `summary_pipeline.py`, `vector_adapter.py` | Evidence-backed summaries, summary/evidence chunks, optional local deterministic vectors. |
 | Client interface | `client_interface.py`, `client_runtime.py` | Client manifest, overview, session detail, export preview, warnings, local TUI runtime. |
 | MCP interface | `mcp.py`, `mcp_contracts.py` | MCP stdio server, tool manifests, JSON-RPC request handling, read-only cross-agent integration surface. |
+| Desktop app | `desktop_app.py`, `desktop_data.py` | Primary minimal Tkinter native window and desktop-facing data interface over existing client/export/safety contracts. |
 | Export | `export_targets.py`, `exporter.py` | Single-session export, batch target preview/write, Markdown/Obsidian/Skill layouts, manifests. |
 | Privacy | `privacy.py` | Sensitive content scanning, effective findings, redaction/fail decisions. |
 | Backup/restore | `backup_manifest.py`, `backup_history.py`, `restore_plan.py`, `restore.py`, `restore_history.py` | Local backup verification, history, restore preflight, restore apply. |
 | Audit | `audit.py` | Corpus audit reports, audit history, diff, prune. |
 | Governance | `governance.py`, `shared_server.py` | Local governance status, preflight, policy readiness/runtime, audit records, optional read-only server surfaces. |
-| Personal UI | `personal_ui.py` | Local HTTP server, static HTML/CSS/JS assets, route handling, action registry, Chinese localization. |
 | Schemas | `schemas.py`, `docs/schemas/` | JSON contract registry and schema artifact generation. |
 
 ## Runtime Data Flow
@@ -43,15 +44,15 @@ flowchart TD
   DB --> Store["ArchiveStore"]
 
   Store --> CLI["CLI Commands"]
-  Store --> API["Local UI API"]
   Store --> Client["Client Interface"]
+  Store --> Desktop["Native Desktop App"]
   Store --> MCP["MCP Stdio Server"]
   Store --> Retrieval["Retrieval / Agent Interface"]
   Store --> Export["Export Targets"]
   Store --> Ops["Backup / Restore / Audit"]
   Store --> Gov["Governance"]
 
-  API --> Browser["Personal Web UI"]
+  Desktop --> Human["Local User"]
   MCP --> Agents["Codex / ZCode / OpenCode"]
   Export --> Files["Export Directory"]
   Ops --> LocalArtifacts["Backups / History / Audit Files"]
@@ -72,39 +73,38 @@ The database is useful because search/retrieval can query it. The export directo
 
 The archive database keeps raw event text and payloads, but the default FTS surface indexes `indexed_text`, a cleaned knowledge field derived from raw events. This preserves auditability while reducing low-value search noise such as empty events, token counts, screenshots/base64 blobs, and oversized tool outputs.
 
-## Personal UI Architecture
+## Retired Personal UI Archive
 
-The personal UI is a local browser app served by `personal_ui.py`.
+The former browser Web UI is not an active CLI/browser entrypoint in 1.0.0. Its runtime module, active schemas, and Web UI tests were removed from the package; historical route, static asset, localization, action registry, and acceptance records remain under `docs/progress/archive/legacy-v4/`.
+
+## Native Desktop App Architecture
+
+The native desktop app is the primary compact Tkinter shell launched with `threadvault desktop launch` or the Windows launcher `启动ThreadVault桌面版.cmd`.
+It also exposes `threadvault desktop smoke --json` for non-window runtime verification.
 
 ```text
-Browser
-  -> GET / or /zh
-  -> static HTML/CSS/JS embedded in personal_ui.py
-  -> GET read routes for health, overview, session, warnings, retrieval
-  -> POST /api/action for registered actions
-  -> ArchiveStore and existing ThreadVault modules
+Tkinter window
+  -> desktop_app event handlers
+  -> background worker thread
+  -> desktop_data DesktopDataGateway
+  -> ArchiveStore client_overview / client_session / client_export_preview / client_warnings / backup / restore_plan / restore / reindex / vacuum / schemas / robot docs / governance status
 ```
 
-Key UI rules:
+Key desktop rules:
 
-- The server binds to `127.0.0.1` by default.
-- Basic mode starts with three daily actions: search old records, open latest session, export for Codex reuse.
-- Pro mode exposes the full workbench.
-- Export write buttons stay locked until a matching preview exists.
-- Running, completed, and failed states are rendered explicitly in the activity panel.
-- The main UI translates and summarizes for humans; the JSON panel preserves raw payloads for debugging.
-
-## API Route Families
-
-| Route Family | Implementation | Purpose |
-|---|---|---|
-| `/`, `/zh`, static assets | `build_personal_ui_server` | Serve English or Chinese static UI. |
-| `GET /api/health` | `build_health_payload` | Server status and important local paths. |
-| `GET /api/client/overview` | `store.client_overview` | Session list and optional search overview. |
-| `GET /api/client/session` | `store.client_session` | Session summary, previews, events, evidence. |
-| `GET /api/client/warnings` | `store.client_warnings` | Parser warning and privacy scan context. |
-| `GET /api/retrieve` | `store.agent_retrieve` | Agent-facing retrieval for UI search. |
-| `POST /api/action` | `ACTION_REGISTRY`, `_execute_action` | Registered read/write actions with safety metadata. |
+- No Electron, React, Tauri, WebView, or frontend build pipeline is required.
+- The window is intentionally compact: browse, export preview, safety, MCP, health, and advanced command reference live in ordered tabs.
+- Long archive/search/export/safety operations run off the Tk main thread.
+- Tkinter state is read on the UI thread before dispatch; background workers receive plain values and post results back to the UI thread.
+- The desktop smoke command verifies Tkinter availability, desktop gateway loading, and no-browser/no-server boundaries without opening a window.
+- Export remains preview-first; the desktop app does not bypass privacy scan, preview, or explicit write gates.
+- Backup, reindex, and vacuum use native confirmation prompts before writing locally.
+- Desktop restore apply is limited to verified backups restored into new non-overwrite target databases.
+- Schema, robot docs, and governance status are available as read-only native advanced panels.
+- Schema writes use a native confirmation prompt and explicit output directory.
+- Governance diagnostics aggregate status, readiness, gap, and v3 completion checks into a read-only native panel.
+- Overwrite restore and governance/audit writes remain command-based until they have full native confirmation and target-path gates.
+- Capability discovery exposes `interface_policy.primary_local_interface = native_desktop`, `personal_web_ui` as `retired`, and `retired_interface_archive = docs/progress/archive/legacy-v4/`.
 
 ## MCP Interface Architecture
 
@@ -208,7 +208,7 @@ Rules:
 
 - `CONTEXT.md` defines canonical terms.
 - `docs/KNOWLEDGE_GRAPH.md` maps entities, relationships, flows, and safety boundaries.
-- `docs/API.md` documents local UI routes and action semantics.
+- `docs/API.md` documents JSON contracts, MCP, capability discovery, and legacy Web UI routes/action semantics.
 - `docs/DATABASE.md` documents the SQLite storage model.
 - `docs/progress/rounds/` records active work.
 - `docs/progress/archive/legacy-v*` preserves historical version-phase evidence.

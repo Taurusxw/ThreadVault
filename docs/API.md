@@ -1,47 +1,29 @@
 # API
 
-This document summarizes the local personal UI API surfaces and the JSON-facing contracts that the UI depends on. It is a practical guide for debugging the local browser UI and for adding new UI actions without bypassing existing ThreadVault modules.
+This document summarizes ThreadVault's JSON-facing contracts, MCP surface, and retired interface metadata. It is a practical guide for debugging machine-facing payloads and for keeping UI actions behind existing ThreadVault modules.
 
 It also records the MCP stdio surface used by Codex, ZCode, OpenCode, and other MCP-capable local agents. The MCP surface reuses `ArchiveStore`, `agent_interface`, and `client_interface`; it does not parse Codex transcripts or query SQLite tables directly.
 
-## Local Server
+## Interface Discovery
 
-Default local URL:
+`threadvault capabilities --json` and `threadvault robot-docs guide --json` expose the active interface policy:
 
-```text
-http://127.0.0.1:8766
-```
+| Field | Meaning |
+|---|---|
+| `interface_policy.primary_local_interface` | `native_desktop`; the 1.0.0 local UI line. |
+| `interface_policy.primary_command` | `threadvault desktop launch`. |
+| `interface_policy.primary_smoke_command` | `threadvault desktop smoke --json`. |
+| `interface_policy.retired_interface_status` | `retired` for the browser Web UI. |
+| `interface_policy.retired_interface_archive` | `docs/progress/archive/legacy-v4/`; historical v4 Web UI evidence. |
+| `retired_commands` | Former Web UI commands retained as metadata only; they are not active CLI commands. |
 
-Chinese UI route:
+The primary local interface does not require a browser, server, WebView, Electron, React, Tauri, or a frontend build pipeline.
 
-```text
-/zh
-```
+## Retired Browser Web UI
 
-The default launcher and `threadvault ui serve` keep the server on loopback. The server is a local stdlib HTTP server, not a hosted cloud service.
+`threadvault ui serve` and `threadvault ui smoke` are retired from the active CLI, and the `threadvault.personal_ui` runtime module plus active `personal_ui_*` schemas are removed from the 1.0.0 package.
 
-## Health Route
-
-| Route | Purpose | Important Fields |
-|---|---|---|
-| `GET /api/health` | Returns server status, command metadata, feature flags, and local paths. | `server`, `paths.db_path`, `paths.default_export_dir`, `actions.available_actions` |
-
-The UI top bar uses this route to show:
-
-- **索引库 / Index DB**: the SQLite archive database.
-- **导出目录 / Export folder**: the default folder for generated export files.
-
-These paths are intentionally different.
-The index DB path is resolved from `--db`, `THREADVAULT_DB`, `[storage].archive_db`, or the project-local `data/threadvault.db` default.
-
-## Read Routes
-
-| Route | Purpose | Store Method / Module | Writes? |
-|---|---|---|---|
-| `GET /api/client/overview` | Returns local session overview and optional search metadata. | `ArchiveStore.client_overview` | No |
-| `GET /api/client/session` | Returns session detail, summary, event previews, and evidence IDs. | `ArchiveStore.client_session` | No |
-| `GET /api/client/warnings` | Returns warning detail and privacy summary for a session. | `ArchiveStore.client_warnings` | No |
-| `GET /api/retrieve` | Runs agent-facing retrieval for UI search. | `ArchiveStore.agent_retrieve` | No |
+Historical route, static asset, localization, action registry, and acceptance evidence remains under `docs/progress/archive/legacy-v4/`. Do not use the v4 archive as a live API contract for new work.
 
 ## MCP Stdio Interface
 
@@ -98,58 +80,6 @@ Common query parameters:
 | `event_limit` | session | Number of event previews to return. |
 | `max_chars` | session | Max text length per event preview. |
 
-## Action Route
-
-| Route | Purpose |
-|---|---|
-| `POST /api/action` | Runs a registered personal UI action with safety metadata and structured results. |
-
-Request shape:
-
-```json
-{
-  "action": "client_export_preview",
-  "params": {
-    "session": "SESSION_ID",
-    "profile": "skill",
-    "privacy_mode": "warn",
-    "out": "<repo-root>\\threadvault-ui-output"
-  }
-}
-```
-
-Response shape:
-
-```json
-{
-  "schema": "personal_ui_action",
-  "payload": {
-    "ok": true,
-    "action": "client_export_preview",
-    "result": {},
-    "safety": {},
-    "error": null
-  }
-}
-```
-
-Exact payloads are validated by `personal_ui_action.schema.json`.
-
-## Action Safety Rules
-
-The action registry in `personal_ui.py` marks actions with safety metadata.
-
-| Safety Flag | Meaning | Examples |
-|---|---|---|
-| `preview_required` | A write action requires a matching preview state. | `export_session`, `export_target_markdown`, `export_target_obsidian`, `export_target_skill` |
-| `confirm_required` | Backend requires explicit `confirm=true`. | `restore_apply`, `reindex`, `vacuum`, schema writes |
-| `dangerous_action` | UI should visually distinguish and gate the action. | restore apply, vacuum, prune actions |
-| `dry_run_default` | Action should plan/list by default instead of applying destructive changes. | prune/history/restore planning flows |
-
-Important rules:
-
-- Export writes require preview acceptance.
-- Restore, vacuum, reindex, and schema write operations require confirmation.
 - Backup can write directly but must show the target path/result.
 - Prune apply operations must stay dry-run unless explicitly confirmed/applied.
 
@@ -191,24 +121,16 @@ If session, profile, privacy mode, or output path changes, the frontend invalida
 
 ## Debugging Checklist
 
-Use these commands when the UI seems stale or confusing:
+Use these commands when the primary desktop UI or contract discovery seems stale or confusing:
 
 ```powershell
-Invoke-WebRequest -Uri http://127.0.0.1:8766/api/health -UseBasicParsing
-threadvault ui smoke --json
+threadvault desktop smoke --json
 threadvault capabilities --json
 threadvault robot-docs schemas --json
-```
-
-When testing Chinese UI JavaScript assets, extract or serve the page and run:
-
-```powershell
-node --check <served-app.js>
-node --check <served-app.zh.js>
 ```
 
 For behavior changes, run focused tests:
 
 ```powershell
-py -3.12 -m pytest tests/test_v402_local_ui_server.py tests/test_v403_personal_ui_workbench.py tests/test_v404_ui_action_coverage.py tests/test_v406_ui_chinese_localization.py -q
+py -3.12 -m pytest tests/test_v28_capabilities_schema_contract.py tests/test_v407_desktop_app.py -q
 ```

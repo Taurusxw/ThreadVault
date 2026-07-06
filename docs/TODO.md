@@ -4,8 +4,6 @@
 
 | Priority | Item | Notes |
 |---|---|---|
-| Medium | Stabilize browser QA around JavaScript confirmation dialogs | Browser plugin automation can be interrupted by native confirm dialogs; independent Chrome/Playwright may be better for full visual QA. |
-| Medium | Replace broad Chinese `.replace(...)` localization | Current additive Chinese asset generation is tested but fragile because broad replacements can mutate identifiers. Prefer a structured translation table. |
 | Medium | Add safe "open export directory" UX | Users need a clearer bridge from "导出已写入" to the actual folder. Design as local-only and avoid unsafe arbitrary path opening. |
 | Low | Expand visual QA checklist into standard release artifact | Keep under `docs/progress/releases/` only when preparing a release. |
 
@@ -22,4 +20,6 @@
 - Full knowledge graph expansion.
 - Standard documentation completeness pass.
 - Legacy documentation migration to `docs/progress/archive/` after user confirmation.
+- Retired active Web UI runtime, schemas, and tests for the 1.0.0 native desktop release.
+- Prepared the v1.0.0 release documentation and acceptance gate.
 - Generated output policy: `.gitignore` excludes `threadvault-ui-output/`, `threadvault-ui-backups/`, `exports/`, `backups/`, `data/`, local database files, and `.env` files.

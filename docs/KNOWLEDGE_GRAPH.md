@@ -8,7 +8,7 @@ This is not a claim that ThreadVault stores a graph database. The runtime archiv
 
 - Use this document when deciding where a new workflow belongs.
 - Use `docs/DATABASE.md` for physical SQLite storage details.
-- Use `docs/API.md` for the local personal UI HTTP surface.
+- Use `docs/API.md` for JSON-facing contracts, MCP, and retired interface metadata.
 - Use `docs/schemas/` and `threadvault schemas` commands for exact JSON contracts.
 - Use `CONTEXT.md` for the canonical vocabulary.
 
@@ -31,7 +31,7 @@ flowchart LR
   Hybrid --> Agent
 
   Store --> Client["Client Interface"]
-  Client --> UI["Personal Web UI"]
+  Client --> Desktop["Native Desktop UI"]
   Store --> MCP["MCP Stdio Interface"]
   MCP --> ExternalAgents["Codex / ZCode / OpenCode"]
   Store --> ExportPreview["Export Preview"]
@@ -44,7 +44,6 @@ flowchart LR
 
   Store --> Backup["Backup / Restore"]
   Store --> Governance["Governance / Audit / Policy"]
-  Governance --> UI
   Governance --> Client
 ```
 
@@ -60,7 +59,7 @@ flowchart LR
 | Export | Export Selection, Export Preview, Export Target, Export Manifest, Output File | `export_targets.py`, `exporter.py` | Write actions must follow preview acceptance and privacy handling. |
 | Safety | Privacy Finding, Governance Preflight, Permission Check, Audit Record, Policy Document | `privacy.py`, `governance.py`, `app_config.py` | Safety controls wrap reads, exports, raw access, external model calls, backup/restore, and future shared use. |
 | Operations | Backup, Backup Manifest, Restore Plan, Restore History, Audit History | `backup_manifest.py`, `backup_history.py`, `restore_plan.py`, `restore.py`, `restore_history.py`, `audit.py` | Local operational artifacts may contain private archive data and should be treated as private. |
-| Interface | CLI Command, Local HTTP Route, UI Action, MCP Tool, JSON Schema | `cli.py`, `personal_ui.py`, `mcp.py`, `schemas.py` | UI and agents should reuse existing store/client contracts instead of duplicating parser or database logic. |
+| Interface | CLI Command, Native Desktop View, MCP Tool, JSON Schema | `cli.py`, `desktop_app.py`, `desktop_data.py`, `mcp.py`, `schemas.py` | Active UI and agents should reuse existing store/client contracts instead of duplicating parser or database logic. |
 
 ## Core Entity Catalog
 
@@ -86,10 +85,10 @@ flowchart LR
 | Retrieval Result | Ranked match with session/event references and snippet. | Retrieval module | CLI, UI, agent interface | Response payload |
 | Hybrid Result | Ranked match with explanation across FTS, vector, recency, project, and path signals. | Hybrid retrieval | Agent interface, UI | Response payload |
 | Agent Retrieval Payload | Agent-oriented retrieval response that hides raw local details unless debug is enabled. | Agent interface | Agents, UI `/api/retrieve` | JSON contract |
-| Client Overview | UI/client summary of recent sessions and optional search results. | Client interface | Personal UI, future clients | JSON contract |
-| Client Session Detail | UI/client payload for one session with summary, event previews, and evidence IDs. | Client interface | Personal UI, future clients | JSON contract |
-| Client Export Preview | Client-facing export plan with files, privacy summary, and write readiness. | Client interface / export targets | Personal UI, export write gate | JSON contract |
-| Client Warnings | Warning-focused session detail plus privacy scan summary. | Client interface | Personal UI | JSON contract |
+| Client Overview | UI/client summary of recent sessions and optional search results. | Client interface | Native desktop, future clients | JSON contract |
+| Client Session Detail | UI/client payload for one session with summary, event previews, and evidence IDs. | Client interface | Native desktop, future clients | JSON contract |
+| Client Export Preview | Client-facing export plan with files, privacy summary, and write readiness. | Client interface / export targets | Native desktop, export write gate | JSON contract |
+| Client Warnings | Warning-focused session detail plus privacy scan summary. | Client interface | Native desktop | JSON contract |
 | Export Selection | Session/project/range-style choice of archive material. | Export target request | Preview and export writers | Request payload |
 | Export Preview | Read-only plan for files that would be written. | Export targets / client interface | UI gate, users, governance | JSON contract |
 | Export Target | Concrete output profile: Markdown, Obsidian, or Codex Skill. | Export target module | Export writers | Filesystem output |
@@ -104,7 +103,7 @@ flowchart LR
 | Audit Record | Governance/operation event in a local or central audit log. | Governance module | Audit list, readiness checks | JSONL file |
 | Identity Actor | Local static actor configuration for governance checks. | App config | Governance identity binding | Config payload |
 | Policy Document | Local central policy or backup policy document. | User/configured governance input | Governance readiness/runtime | Local filesystem |
-| Personal UI Action | Registered local UI command routed through `/api/action`. | `personal_ui.py` | Browser UI | Runtime registry |
+| Native Desktop App | Primary local Tkinter shell over desktop data gateway. | `desktop_app.py`, `desktop_data.py` | Local user | Runtime UI |
 | MCP Tool | Read-only stdio tool exposed to MCP-capable local agents. | `mcp.py` | Codex, ZCode, OpenCode, other MCP clients | Runtime manifest / JSON-RPC |
 | JSON Schema | Packaged contract used to validate command/API payloads. | `schemas.py` | CLI, tests, agents, docs | `docs/schemas/` |
 
@@ -142,6 +141,8 @@ flowchart LR
 | Governance Preflight | evaluates | Command / Operation | `governance_*_preflight` contracts |
 | Permission Check | evaluates | Actor / Operation / Resource | `governance_permission_check` |
 | Audit Record | records | Governance-sensitive Operation | `governance_audit_*` contracts |
+| Native Desktop App | routes through | Desktop Data Gateway | `desktop_data.py`, `threadvault desktop launch` |
+| Desktop Data Gateway | routes to | ArchiveStore Method | `DesktopDataGateway` |
 | Personal UI Action | routes to | ArchiveStore Method | `ACTION_REGISTRY`, `/api/action` |
 | MCP Tool | routes to | ArchiveStore Method | `mcp.py`, `threadvault mcp serve` |
 | MCP Tool | returns | Agent Retrieval / Client Session / Client Export Preview Payload | `structuredContent` |
@@ -257,23 +258,26 @@ Important boundaries:
   - `fail`: block high-risk findings.
 - Export output belongs in the configured/export directory, not inside the archive database.
 
-### 5. Personal UI
+### 5. Native Desktop UI
 
 ```text
-Browser at 127.0.0.1
-  -> static HTML/CSS/JS from personal_ui.py
-  -> GET /api/health and read routes
-  -> POST /api/action for registered actions
-  -> ArchiveStore methods
-  -> JSON payloads and local filesystem outputs
+Tkinter window
+  -> desktop_app handlers
+  -> desktop_data DesktopDataGateway
+  -> ArchiveStore/client/export/safety/governance methods
+  -> text/list views and local filesystem outputs
 ```
 
 Important boundaries:
 
-- The UI is local-first and bound to `127.0.0.1` by default.
-- The UI does not parse raw Codex transcripts itself.
-- The UI reuses `ArchiveStore`, client interfaces, retrieval, export, backup/restore, schema, and governance contracts.
-- Basic mode is an entry path for common tasks; pro mode exposes the broader workbench.
+- The native desktop UI is the primary 1.0.0 local interface.
+- The desktop UI does not start a browser, local HTTP server, WebView, Electron, React, Tauri, or frontend build pipeline.
+- Long operations run through background worker threads; Tk state is read on the UI thread before dispatch.
+- Write-like actions still use preview, privacy, confirmation, and target-path gates.
+
+### 5.1 Retired Personal UI Archive
+
+The former browser UI runtime is removed from the 1.0.0 active package. `threadvault ui serve` and `threadvault ui smoke` remain retired metadata only, and v4 historical evidence lives under `docs/progress/archive/legacy-v4/`.
 
 ### 6. Backup, Restore, And History
 
@@ -314,14 +318,15 @@ Important boundaries:
 | Surface | Entry | Reads | Writes | Safety Notes |
 |---|---|---|---|---|
 | CLI | `threadvault ...` | Archive DB, config, local files | Archive DB, export files, backups, audit/history files | Command flags and JSON contracts define exact behavior. |
-| Personal UI read routes | `GET /api/health`, `/api/client/*`, `/api/retrieve` | Archive DB, config | No archive writes expected | Used for browsing, search, session detail, warnings, and health. |
-| Personal UI actions | `POST /api/action` | Archive DB, config | May write exports, backups, schemas, restore targets, maintenance operations | Registry marks confirmation, preview, and disabled/dangerous gates. |
+| Native desktop UI | `threadvault desktop launch` | Archive DB, config | May write exports, backups, schemas, restore targets, maintenance operations | Primary local interface; routes through `DesktopDataGateway` and native confirmations. |
+| Retired Personal UI read routes | `GET /api/health`, `/api/client/*`, `/api/retrieve` | Archive DB, config | No archive writes expected | Historical browser surface pending archival/removal. |
+| Retired Personal UI actions | `POST /api/action` | Archive DB, config | May write exports, backups, schemas, restore targets, maintenance operations | Registry marks confirmation, preview, and disabled/dangerous gates. |
 | Agent interface | `threadvault agent retrieve ... --json` | Retrieval/hybrid/vector status | No writes | Designed for stable machine use and evidence references. |
 | Client interface | `threadvault client ... --json` | Store, retrieval, governance status | Export preview is read-only; export writes use export target commands/actions | Designed for UI and future clients. |
 | Schema interface | `threadvault schemas ...` | Packaged schema registry | Optional schema artifact writes | Validates JSON contracts. |
 | Governance interface | `threadvault governance ...` | Config, policy files, audit stores | Optional audit/policy/audit-store writes | Separates readiness/preflight from enforcement. |
 
-## Personal UI Action Families
+## Retired Personal UI Action Families
 
 | Family | Example Actions | Underlying Area | Write Risk |
 |---|---|---|---|

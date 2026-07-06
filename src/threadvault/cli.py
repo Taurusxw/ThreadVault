@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import sys
-import tempfile
 from pathlib import Path
 from typing import Annotated
 
@@ -27,7 +26,6 @@ from .codex_hooks import hook_continue_response, invalid_hook_payload_result
 from .config import default_db_path
 from .importer import sample_codex_home
 from .mcp import McpRuntimeConfig, mcp_manifest, serve_mcp
-from .personal_ui import PersonalUIServerConfig, run_personal_ui_smoke, serve_personal_ui
 from .privacy import has_high_risk
 from .retention import resolve_retention_keep
 from .schemas import get_schema, schema_names, validate_payload, write_schema_files
@@ -406,8 +404,8 @@ app.add_typer(agent_app, name="agent")
 client_app = typer.Typer(help="Client-facing manifest and integration utilities.")
 app.add_typer(client_app, name="client")
 
-ui_app = typer.Typer(help="Personal local Web UI utilities.")
-app.add_typer(ui_app, name="ui")
+desktop_app = typer.Typer(help="Minimal native desktop app utilities.")
+app.add_typer(desktop_app, name="desktop")
 
 mcp_app = typer.Typer(help="Model Context Protocol stdio server utilities.")
 app.add_typer(mcp_app, name="mcp")
@@ -946,80 +944,41 @@ def client_warnings_command(
     )
 
 
-@ui_app.command("serve")
-def ui_serve_command(
-    host: Annotated[str, typer.Option("--host", help="Bind host. Defaults to loopback for personal local use.")] = "127.0.0.1",
-    port: Annotated[int, typer.Option("--port", min=1, max=65535, help="Bind port.")] = 8766,
-    open_browser: Annotated[bool, typer.Option("--open", help="Open the local UI in the default browser.")] = False,
-    language: Annotated[str, typer.Option("--lang", help="UI language for --open: en or zh.")] = "en",
-    exit_on_close: Annotated[
-        bool | None,
-        typer.Option(
-            "--exit-on-close/--no-exit-on-close",
-            help="Exit the UI server after the opened browser page stops sending heartbeats. Defaults to --open.",
-        ),
-    ] = None,
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml config path.")] = None,
+@desktop_app.command("launch")
+def desktop_launch_command(
     db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
+    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml config path.")] = None,
+    language: Annotated[str, typer.Option("--lang", help="Desktop UI language: zh or en.")] = "zh",
+    limit: Annotated[int, typer.Option("--limit", min=1, max=200, help="Max sessions/results to load per refresh.")] = 20,
 ) -> None:
-    """Start the v4 personal localhost Web UI."""
+    """Launch the primary minimal native desktop app."""
     if language not in {"en", "zh"}:
         raise typer.BadParameter("--lang must be en or zh.")
-    effective_exit_on_close = open_browser if exit_on_close is None else exit_on_close
-    ui_config = PersonalUIServerConfig(
-        host=host,
-        port=port,
-        db_path=_db_option(db, config),
-        config_path=config,
-        language=language,
-        exit_on_close=effective_exit_on_close,
-    )
-    console.print(f"[green]ThreadVault Personal UI:[/green] {ui_config.url}")
-    if host != "127.0.0.1":
-        console.print("[yellow]Non-loopback binding is explicit; 127.0.0.1 remains the default.[/yellow]")
-    try:
-        serve_personal_ui(_store(db, config), ui_config, open_browser=open_browser)
-    except KeyboardInterrupt:
-        console.print("[yellow]Stopping Personal UI.[/yellow]")
+    from .desktop_app import launch_desktop_app
+    from .desktop_data import DesktopAppConfig
+
+    launch_desktop_app(DesktopAppConfig(db_path=_db_option(db, config), config_path=config, language=language, limit=limit))
 
 
-@ui_app.command("smoke")
-def ui_smoke_command(
+@desktop_app.command("smoke")
+def desktop_smoke_command(
     db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
     config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml config path.")] = None,
-    work_dir: Annotated[Path | None, typer.Option("--work-dir", help="Scratch directory for smoke-only artifacts.")] = None,
-    query: Annotated[str, typer.Option("--query", help="Query text expected to match fixture or local data.")] = "pytest",
-    session: Annotated[str, typer.Option("--session", help="Session id expected to exist in the smoke database.")] = "sess-current",
+    limit: Annotated[int, typer.Option("--limit", min=1, max=200, help="Max sessions/results to load.")] = 20,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
-    """Run the v4 Personal Web UI acceptance smoke."""
-    temp_dir: tempfile.TemporaryDirectory[str] | None = None
-    try:
-        if db is None and Path("tests/fixtures/codex_home").exists():
-            temp_dir = tempfile.TemporaryDirectory(prefix="threadvault-ui-smoke-")
-            db_path = Path(temp_dir.name) / "threadvault.db"
-            store = ArchiveStore(db_path)
-            store.import_codex(Path("tests/fixtures/codex_home"))
-            effective_work_dir = work_dir or Path(temp_dir.name) / "work"
-        else:
-            db_path = _db_option(db, config)
-            store = _store(db, config)
-            effective_work_dir = work_dir
-        ui_config = PersonalUIServerConfig(host="127.0.0.1", port=8766, db_path=db_path, config_path=config)
-        payload = run_personal_ui_smoke(store, ui_config, query=query, session_id=session, work_dir=effective_work_dir)
-    finally:
-        if temp_dir is not None:
-            temp_dir.cleanup()
+    """Run a non-window desktop app smoke check."""
+    from .desktop_data import DesktopAppConfig, run_desktop_smoke
+
+    payload = run_desktop_smoke(DesktopAppConfig(db_path=_db_option(db, config), config_path=config, limit=limit))
     if json_output:
         _print_json(payload)
-    else:
-        console.print(f"ThreadVault Personal UI smoke: {payload['status']}")
-        console.print(
-            f"required={payload['summary']['required_check_count']} "
-            f"failed={payload['summary']['failed_required_check_count']}"
-        )
-    if not payload["ok"]:
-        raise typer.Exit(code=1)
+        return
+    console.print(f"desktop_ok={payload['ok']} toolkit={payload['desktop']['toolkit']}")
+    console.print(
+        f"sessions={payload['snapshot']['session_count']} "
+        f"selected={escape(payload['snapshot']['selected_session_id'])}"
+    )
 
 
 @mcp_app.command("manifest")
