@@ -1,6 +1,6 @@
 # ThreadVault 使用说明书
 
-本文面向本机使用、脚本调用、UI 排查和后续维护。ThreadVault 是一个本地优先、隐私优先的 Codex 会话归档与复用工具：它把本机 Codex 的 `.jsonl` 会话记录导入 SQLite，建立全文搜索索引，并提供原生桌面应用、CLI、检索、摘要、导出、隐私扫描、诊断、备份、恢复、MCP 和治理预检能力。浏览器 Web UI 启动入口已退休。
+本文面向本机使用、脚本调用、UI 排查和后续维护。ThreadVault 是一个本地优先、隐私优先的 Codex 会话归档与复用工具：它把本机 Codex 的 `.jsonl` 会话记录导入 SQLite，建立全文搜索索引，并提供原生桌面应用、CLI、检索、摘要、导出、隐私扫描、诊断、备份、恢复、MCP 和治理预检能力。
 
 ## 1. 先弄懂它有什么用
 
@@ -21,7 +21,7 @@ ThreadVault 解决的是这几类问题：
 - 本地 Codex 会话扫描和导入。
 - SQLite 归档数据库与 FTS5 全文搜索。
 - 本地原生 Tkinter 桌面应用，作为 1.0.0 主界面。
-- 旧 Web UI runtime、活跃 schema 和测试已从 1.0.0 包中移除；历史证据保留在 `docs/progress/archive/legacy-v4/`。
+- 旧 Web UI runtime、启动器、活跃 schema、测试和活跃发现元数据已从当前包中移除；历史证据保留在 `docs/progress/archive/legacy-v4/`。
 - 会话列表、会话详情、摘要、事件预览和 warning 查看。
 - v2 检索合同、hybrid retrieval、agent retrieval、summary chunks。
 - 可选本地 deterministic vector adapter，默认关闭。
@@ -111,16 +111,6 @@ threadvault desktop smoke --json
 | 高级 | 原生查看 Schema、机器人文档、治理状态和治理诊断；确认后写出 Schema 文件。 |
 
 性能策略：窗口只负责显示和操作，归档读取、搜索、导出预览、隐私检查、备份、恢复预检、恢复执行、诊断和高级面板都通过后台线程调用现有接口，避免主窗口卡死。Tkinter 变量只在 UI 线程读取，后台线程只接收普通字符串/路径值。备份、重建索引、压缩数据库、恢复执行和 schema write 会先弹出本地确认框；桌面恢复执行只允许写到不存在的新目标库，拒绝覆盖已有数据库。
-
-### 5.2 旧 Web UI 启动器
-
-旧中文 Web UI 启动器不再启动浏览器或本地 Web 服务；它会转到桌面版启动器：
-
-```powershell
-.\启动ThreadVault中文界面.cmd
-```
-
-`threadvault ui serve` 和 `threadvault ui smoke` 已退休；请使用 `threadvault desktop launch` 和 `threadvault desktop smoke --json`。
 
 | 按钮 | 用途 | 结果 |
 |---|---|---|
@@ -673,7 +663,7 @@ threadvault --help
 threadvault init
 threadvault import --json
 threadvault stats --json
-.\启动ThreadVault中文界面.cmd
+.\启动ThreadVault桌面版.cmd
 ```
 
 ### 16.2 每天更新归档
@@ -789,7 +779,7 @@ threadvault restore --backup BACKUP.db --target-db RESTORED.db --apply --json
 - `README.md`：项目概览和快速上手。
 - `CONTEXT.md`：统一术语。
 - `docs/ARCHITECTURE.md`：架构和模块边界。
-- `docs/API.md`：JSON 合同、MCP 和已退休接口元数据。
+- `docs/API.md`：JSON 合同、MCP 和能力发现。
 - `docs/DATABASE.md`：数据库和路径说明。
 - `docs/KNOWLEDGE_GRAPH.md`：实体关系和安全边界。
 - `docs/DOC_INDEX.md`：文档索引。

@@ -1,6 +1,6 @@
 # API
 
-This document summarizes ThreadVault's JSON-facing contracts, MCP surface, and retired interface metadata. It is a practical guide for debugging machine-facing payloads and for keeping UI actions behind existing ThreadVault modules.
+This document summarizes ThreadVault's JSON-facing contracts, MCP surface, and capability discovery. It is a practical guide for debugging machine-facing payloads and for keeping UI actions behind existing ThreadVault modules.
 
 It also records the MCP stdio surface used by Codex, ZCode, OpenCode, and other MCP-capable local agents. The MCP surface reuses `ArchiveStore`, `agent_interface`, and `client_interface`; it does not parse Codex transcripts or query SQLite tables directly.
 
@@ -13,17 +13,8 @@ It also records the MCP stdio surface used by Codex, ZCode, OpenCode, and other 
 | `interface_policy.primary_local_interface` | `native_desktop`; the 1.0.0 local UI line. |
 | `interface_policy.primary_command` | `threadvault desktop launch`. |
 | `interface_policy.primary_smoke_command` | `threadvault desktop smoke --json`. |
-| `interface_policy.retired_interface_status` | `retired` for the browser Web UI. |
-| `interface_policy.retired_interface_archive` | `docs/progress/archive/legacy-v4/`; historical v4 Web UI evidence. |
-| `retired_commands` | Former Web UI commands retained as metadata only; they are not active CLI commands. |
 
 The primary local interface does not require a browser, server, WebView, Electron, React, Tauri, or a frontend build pipeline.
-
-## Retired Browser Web UI
-
-`threadvault ui serve` and `threadvault ui smoke` are retired from the active CLI, and the `threadvault.personal_ui` runtime module plus active `personal_ui_*` schemas are removed from the 1.0.0 package.
-
-Historical route, static asset, localization, action registry, and acceptance evidence remains under `docs/progress/archive/legacy-v4/`. Do not use the v4 archive as a live API contract for new work.
 
 ## MCP Stdio Interface
 

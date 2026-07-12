@@ -8,7 +8,7 @@ This directory is the Markdown source of truth for ThreadVault planning, usage, 
 - `DEVELOPMENT.md` - local development, testing, native desktop, release, and documentation workflow.
 - `RULES.md` - code, documentation, UI, privacy, and validation guardrails.
 - `ARCHITECTURE.md` - module ownership and runtime architecture.
-- `API.md` - JSON contracts, MCP stdio interface, capability discovery, and retired interface metadata.
+- `API.md` - JSON contracts, MCP stdio interface, and capability discovery.
 - `DATABASE.md` - SQLite archive storage, table map, and path boundaries.
 - `MCP_INTEGRATION.md` - MCP setup guide for Codex, OpenCode, ZCode, Obsidian, and AI self-configuration.
 - `KNOWLEDGE_GRAPH.md` - entity relationship map and safety boundary model.
@@ -28,7 +28,7 @@ For usage:
 1. `README.md`
 2. `THREADVAULT_USAGE_MANUAL.md`
 3. `MCP_INTEGRATION.md` if connecting Codex, OpenCode, ZCode, or Obsidian workflows.
-4. `API.md` if using JSON contracts, MCP, or retired interface metadata.
+4. `API.md` if using JSON contracts, MCP, or capability discovery.
 
 For implementation:
 
@@ -69,6 +69,6 @@ The historical roadmap split ThreadVault development into:
 - v2: retrieval, vector, hybrid, and agent interfaces.
 - v3: richer clients and governance surfaces.
 - v4: personal local Web UI.
-- v1.0.0: native desktop primary interface with active Web UI runtime, schemas, and tests removed.
+- v1.0.x: native desktop primary interface with active Web UI runtime, launcher, schemas, tests, and active discovery metadata removed.
 
 The current standard documents describe the integrated present state. The roadmap and archived records remain useful historical context, but they may describe goals that have since been implemented.

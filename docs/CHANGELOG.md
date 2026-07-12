@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-07-06 - 1.0.1 Web UI Residue Removal
+
+### Version
+
+- Bumped package version from `1.0.0` to `1.0.1`.
+
+### Changed
+
+- Removed the remaining old Chinese Web UI launcher from the active tree.
+- Removed the legacy Web UI readiness test from the active test suite.
+- Removed Web UI retired-interface metadata from capabilities and robot docs.
+- Updated current docs so native desktop discovery is the only active local UI path.
+
+### Validation
+
+- Focused validation is recorded in `docs/progress/rounds/2026-07-06-round-023-remove-web-ui-residue.md`.
+
 ## 2026-07-06 - 1.0.0 Native Desktop Release
 
 ### Version

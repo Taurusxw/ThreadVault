@@ -162,14 +162,10 @@ from .vector_adapter import (
     vector_index_status,
 )
 
-PERSONAL_UI_SERVE_COMMAND = "threadvault ui serve --host 127.0.0.1 --port 8766 --open"
-PERSONAL_UI_SMOKE_COMMAND = "threadvault ui smoke --json"
 PRIMARY_LOCAL_INTERFACE = "native_desktop"
 PRIMARY_LOCAL_INTERFACE_COMMAND = "threadvault desktop launch"
 PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND = "threadvault desktop smoke --json"
-PERSONAL_WEB_UI_STATUS = "retired"
 MAJOR_RELEASE_TARGET = "1.0.0"
-PERSONAL_WEB_UI_ARCHIVE = "docs/progress/archive/legacy-v4/"
 
 
 class ArchiveStore:
@@ -1585,11 +1581,7 @@ def capabilities() -> dict[str, Any]:
             "primary_local_interface": PRIMARY_LOCAL_INTERFACE,
             "primary_command": PRIMARY_LOCAL_INTERFACE_COMMAND,
             "primary_smoke_command": PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND,
-            "retired_interface": "personal_web_ui",
-            "retired_interface_status": PERSONAL_WEB_UI_STATUS,
-            "retired_commands": [PERSONAL_UI_SERVE_COMMAND, PERSONAL_UI_SMOKE_COMMAND],
             "major_release_target": MAJOR_RELEASE_TARGET,
-            "retired_interface_archive": PERSONAL_WEB_UI_ARCHIVE,
             "browser_required_for_primary": False,
             "server_required_for_primary": False,
             "frontend_build_pipeline_for_primary": False,
@@ -1617,8 +1609,6 @@ def capabilities() -> dict[str, Any]:
             "client_warnings": True,
             "native_desktop_app": True,
             "native_desktop_primary": True,
-            "personal_web_ui": False,
-            "personal_web_ui_retired": True,
             "mcp_stdio_server": True,
             "mcp_read_only_tools": True,
             "mcp_export_preview": True,
@@ -1727,20 +1717,11 @@ def robot_guide() -> dict[str, Any]:
             EXPORT_PREVIEW_PREFLIGHT_COMMAND,
             EXTERNAL_MODEL_PREFLIGHT_COMMAND,
         ],
-        "legacy_fallback_commands": [],
-        "retired_commands": [
-            PERSONAL_UI_SERVE_COMMAND,
-            PERSONAL_UI_SMOKE_COMMAND,
-        ],
         "interface_policy": {
             "primary_local_interface": PRIMARY_LOCAL_INTERFACE,
             "primary_command": PRIMARY_LOCAL_INTERFACE_COMMAND,
             "primary_smoke_command": PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND,
-            "retired_interface": "personal_web_ui",
-            "retired_interface_status": PERSONAL_WEB_UI_STATUS,
-            "retired_commands": [PERSONAL_UI_SERVE_COMMAND, PERSONAL_UI_SMOKE_COMMAND],
             "major_release_target": MAJOR_RELEASE_TARGET,
-            "retired_interface_archive": PERSONAL_WEB_UI_ARCHIVE,
             "browser_required_for_primary": False,
             "server_required_for_primary": False,
             "frontend_build_pipeline_for_primary": False,
@@ -1829,18 +1810,6 @@ def robot_guide() -> dict[str, Any]:
             "server_required": False,
             "server_opt_in": True,
             "instrumented_commands": ["threadvault client export-preview"],
-        },
-        "retired_interfaces": {
-            "personal_web_ui": {
-                "status": PERSONAL_WEB_UI_STATUS,
-                "retired": True,
-                "primary_replacement": PRIMARY_LOCAL_INTERFACE,
-                "command_available": False,
-                "retired_commands": [PERSONAL_UI_SERVE_COMMAND, PERSONAL_UI_SMOKE_COMMAND],
-                "runtime_module_removed": True,
-                "schemas_removed": ["personal_ui_health", "personal_ui_action", "personal_ui_smoke"],
-                "archive": PERSONAL_WEB_UI_ARCHIVE,
-            },
         },
         "desktop_app": {
             "module": "threadvault.desktop_app",

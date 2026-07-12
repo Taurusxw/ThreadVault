@@ -8,7 +8,7 @@ This is not a claim that ThreadVault stores a graph database. The runtime archiv
 
 - Use this document when deciding where a new workflow belongs.
 - Use `docs/DATABASE.md` for physical SQLite storage details.
-- Use `docs/API.md` for JSON-facing contracts, MCP, and retired interface metadata.
+- Use `docs/API.md` for JSON-facing contracts, MCP, and capability discovery.
 - Use `docs/schemas/` and `threadvault schemas` commands for exact JSON contracts.
 - Use `CONTEXT.md` for the canonical vocabulary.
 
@@ -143,7 +143,6 @@ flowchart LR
 | Audit Record | records | Governance-sensitive Operation | `governance_audit_*` contracts |
 | Native Desktop App | routes through | Desktop Data Gateway | `desktop_data.py`, `threadvault desktop launch` |
 | Desktop Data Gateway | routes to | ArchiveStore Method | `DesktopDataGateway` |
-| Personal UI Action | routes to | ArchiveStore Method | `ACTION_REGISTRY`, `/api/action` |
 | MCP Tool | routes to | ArchiveStore Method | `mcp.py`, `threadvault mcp serve` |
 | MCP Tool | returns | Agent Retrieval / Client Session / Client Export Preview Payload | `structuredContent` |
 | JSON Schema | validates | JSON Payload | `schemas.py`, `docs/schemas/` |
@@ -275,9 +274,9 @@ Important boundaries:
 - Long operations run through background worker threads; Tk state is read on the UI thread before dispatch.
 - Write-like actions still use preview, privacy, confirmation, and target-path gates.
 
-### 5.1 Retired Personal UI Archive
+### 5.1 Historical Personal UI Archive
 
-The former browser UI runtime is removed from the 1.0.0 active package. `threadvault ui serve` and `threadvault ui smoke` remain retired metadata only, and v4 historical evidence lives under `docs/progress/archive/legacy-v4/`.
+The former browser UI runtime, launcher, active tests, and active discovery metadata are removed from the active package. v4 historical evidence lives under `docs/progress/archive/legacy-v4/`.
 
 ### 6. Backup, Restore, And History
 
@@ -319,26 +318,10 @@ Important boundaries:
 |---|---|---|---|---|
 | CLI | `threadvault ...` | Archive DB, config, local files | Archive DB, export files, backups, audit/history files | Command flags and JSON contracts define exact behavior. |
 | Native desktop UI | `threadvault desktop launch` | Archive DB, config | May write exports, backups, schemas, restore targets, maintenance operations | Primary local interface; routes through `DesktopDataGateway` and native confirmations. |
-| Retired Personal UI read routes | `GET /api/health`, `/api/client/*`, `/api/retrieve` | Archive DB, config | No archive writes expected | Historical browser surface pending archival/removal. |
-| Retired Personal UI actions | `POST /api/action` | Archive DB, config | May write exports, backups, schemas, restore targets, maintenance operations | Registry marks confirmation, preview, and disabled/dangerous gates. |
 | Agent interface | `threadvault agent retrieve ... --json` | Retrieval/hybrid/vector status | No writes | Designed for stable machine use and evidence references. |
 | Client interface | `threadvault client ... --json` | Store, retrieval, governance status | Export preview is read-only; export writes use export target commands/actions | Designed for UI and future clients. |
 | Schema interface | `threadvault schemas ...` | Packaged schema registry | Optional schema artifact writes | Validates JSON contracts. |
 | Governance interface | `threadvault governance ...` | Config, policy files, audit stores | Optional audit/policy/audit-store writes | Separates readiness/preflight from enforcement. |
-
-## Retired Personal UI Action Families
-
-| Family | Example Actions | Underlying Area | Write Risk |
-|---|---|---|---|
-| Archive browsing | `sessions_list`, `client_overview`, `client_session` | Store/client interface | Read-only |
-| Search/retrieval | `search`, `retrieve`, `hybrid_retrieve`, `agent_retrieve` | Retrieval/agent interface | Read-only |
-| Summary/vector | `summarize`, `summary_chunks`, `vector_status`, `vector_index` | Summary pipeline/vector adapter | `vector_index` writes optional vector tables |
-| Privacy/warnings | `privacy_scan`, `warnings`, `client_warnings` | Privacy/parser warning surfaces | Read-only |
-| Export | `client_export_preview`, `export_session`, `export_target_markdown`, `export_target_obsidian`, `export_target_skill` | Export targets/exporter | Export writes require preview acceptance |
-| Backup/restore | `backup`, `backup_verify`, `restore_plan`, `restore_apply`, history actions | Backup/restore modules | Backup writes local files; restore apply changes target DB |
-| Maintenance | `doctor`, `stats`, `reindex`, `vacuum` | Database/store diagnostics | Reindex/vacuum mutate archive internals |
-| Schemas/docs | `schemas_list`, `schemas_show`, `validate_json`, `schemas_write`, `robot_docs_*` | Schema registry | Schema write creates/updates schema files |
-| Governance | `governance_status`, `governance_preflight`, gap/readiness/smoke actions | Governance module | Some governance store/audit actions write local records |
 
 ## Safety And Privacy Boundaries
 

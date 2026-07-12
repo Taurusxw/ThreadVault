@@ -19,7 +19,6 @@ from threadvault.store import capabilities, robot_guide
 
 FIXTURES = Path("tests/fixtures/codex_home")
 DESKTOP_LAUNCHER = Path("启动ThreadVault桌面版.cmd")
-WEB_UI_LAUNCHER = Path("启动ThreadVault中文界面.cmd")
 
 
 def import_fixture(tmp_path: Path) -> Path:
@@ -170,16 +169,17 @@ def test_desktop_cli_discovery_does_not_launch_window() -> None:
     assert "desktop smoke" in caps["json_outputs"]
     assert caps["interface_policy"]["primary_local_interface"] == "native_desktop"
     assert caps["interface_policy"]["primary_command"] == "threadvault desktop launch"
-    assert caps["interface_policy"]["retired_interface_status"] == "retired"
-    assert caps["interface_policy"]["retired_interface_archive"] == "docs/progress/archive/legacy-v4/"
+    assert "retired_interface_status" not in caps["interface_policy"]
+    assert "retired_interface_archive" not in caps["interface_policy"]
     assert caps["feature_flags"]["native_desktop_primary"] is True
-    assert caps["feature_flags"]["personal_web_ui"] is False
-    assert caps["feature_flags"]["personal_web_ui_retired"] is True
+    assert "personal_web_ui" not in caps["feature_flags"]
+    assert "personal_web_ui_retired" not in caps["feature_flags"]
 
     guide = robot_guide()
     assert guide["interface_policy"]["primary_local_interface"] == "native_desktop"
-    assert guide["retired_interfaces"]["personal_web_ui"]["runtime_module_removed"] is True
-    assert guide["retired_interfaces"]["personal_web_ui"]["archive"] == "docs/progress/archive/legacy-v4/"
+    assert "retired_interfaces" not in guide
+    assert "retired_commands" not in guide
+    assert "legacy_fallback_commands" not in guide
     assert guide["desktop_app"]["module"] == "threadvault.desktop_app"
     assert guide["desktop_app"]["status"] == "primary_local_interface"
     assert guide["desktop_app"]["recommended_for_daily_use"] is True
@@ -225,12 +225,9 @@ def test_desktop_background_workers_do_not_read_tk_variables() -> None:
 
 def test_desktop_windows_launcher_uses_native_app_not_web_ui() -> None:
     text = DESKTOP_LAUNCHER.read_text(encoding="utf-8")
-    web_text = WEB_UI_LAUNCHER.read_text(encoding="utf-8")
 
     assert "desktop smoke --json" in text
     assert "desktop launch" in text
     assert "ui serve" not in text
     assert "Start-Process" not in text
-    assert "Web UI 已退休" in web_text
-    assert "启动ThreadVault桌面版.cmd" in web_text
-    assert "ui serve" not in web_text
+    assert not Path("启动ThreadVault中文界面.cmd").exists()

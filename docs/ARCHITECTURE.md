@@ -7,8 +7,8 @@ ThreadVault is a local-first archive, retrieval, export, governance, native desk
 - Keep raw Codex transcript data local by default.
 - Keep SQLite as the personal archive database.
 - Put durable archive behavior behind `ArchiveStore`.
-- Treat the native Tkinter desktop app as the primary 1.0.0 local interface.
-- Keep Web UI commands retired; `threadvault.personal_ui` and active `personal_ui_*` schemas are removed from the 1.0.0 runtime.
+- Treat the native Tkinter desktop app as the primary 1.0.x local interface.
+- Keep the former Web UI runtime, launcher, active tests, active discovery metadata, and `personal_ui_*` schemas out of the runtime.
 - Reuse JSON schema contracts for CLI, UI, and agent payloads.
 - Separate read-only preview from write actions.
 - Keep privacy scan, confirmation, and governance gates visible at the API and UI layers.
@@ -73,9 +73,9 @@ The database is useful because search/retrieval can query it. The export directo
 
 The archive database keeps raw event text and payloads, but the default FTS surface indexes `indexed_text`, a cleaned knowledge field derived from raw events. This preserves auditability while reducing low-value search noise such as empty events, token counts, screenshots/base64 blobs, and oversized tool outputs.
 
-## Retired Personal UI Archive
+## Historical Personal UI Archive
 
-The former browser Web UI is not an active CLI/browser entrypoint in 1.0.0. Its runtime module, active schemas, and Web UI tests were removed from the package; historical route, static asset, localization, action registry, and acceptance records remain under `docs/progress/archive/legacy-v4/`.
+The former browser UI is not an active CLI/browser entrypoint. Its runtime module, launcher, active schemas, active discovery metadata, and Web UI tests were removed from the package; historical route, static asset, localization, action registry, and acceptance records remain under `docs/progress/archive/legacy-v4/`.
 
 ## Native Desktop App Architecture
 
@@ -104,7 +104,7 @@ Key desktop rules:
 - Schema writes use a native confirmation prompt and explicit output directory.
 - Governance diagnostics aggregate status, readiness, gap, and v3 completion checks into a read-only native panel.
 - Overwrite restore and governance/audit writes remain command-based until they have full native confirmation and target-path gates.
-- Capability discovery exposes `interface_policy.primary_local_interface = native_desktop`, `personal_web_ui` as `retired`, and `retired_interface_archive = docs/progress/archive/legacy-v4/`.
+- Capability discovery exposes `interface_policy.primary_local_interface = native_desktop` without Web UI fallback or retired-interface metadata.
 
 ## MCP Interface Architecture
 
@@ -208,7 +208,7 @@ Rules:
 
 - `CONTEXT.md` defines canonical terms.
 - `docs/KNOWLEDGE_GRAPH.md` maps entities, relationships, flows, and safety boundaries.
-- `docs/API.md` documents JSON contracts, MCP, capability discovery, and legacy Web UI routes/action semantics.
+- `docs/API.md` documents JSON contracts, MCP, and capability discovery.
 - `docs/DATABASE.md` documents the SQLite storage model.
 - `docs/progress/rounds/` records active work.
 - `docs/progress/archive/legacy-v*` preserves historical version-phase evidence.

@@ -4,7 +4,7 @@ ThreadVault is a local-first, privacy-first archive, retrieval, export, governan
 
 It discovers Codex transcript JSONL files from local `sessions` and `archived_sessions` directories, normalizes current and legacy event shapes into SQLite, indexes searchable text with SQLite FTS5, and exposes the archive through CLI commands, JSON contracts, agent-facing retrieval, export targets, governance diagnostics, MCP, and a minimal native desktop app.
 
-Current package version: `1.0.0`.
+Current package version: `1.0.1`.
 
 ## What It Is For
 
@@ -34,8 +34,8 @@ The stable baseline now includes:
 - Corpus audit reports, audit history, backup/restore workflows, restore history, and retention helpers.
 - Optional local governance readiness, policy, audit, identity actor, preflight, and instrumentation surfaces.
 - A primary minimal native Tkinter desktop app that uses background loading and does not require a browser.
-- Native-first discovery metadata: capabilities and robot docs now advertise `native_desktop` as the primary local interface and the browser UI as retired.
-- Retired personal Web UI runtime, active schemas, and Web UI tests have been removed from the active 1.0.0 package; v4 evidence remains in `docs/progress/archive/legacy-v4/`.
+- Native-first discovery metadata: capabilities and robot docs advertise `native_desktop` as the primary local interface.
+- The former personal Web UI runtime, launcher, active schemas, tests, and active discovery metadata have been removed from the active package; v4 evidence remains in `docs/progress/archive/legacy-v4/`.
 - A read-only MCP stdio server for Codex, ZCode, OpenCode, and other MCP-capable local agents.
 
 Still intentionally not default:
@@ -50,12 +50,13 @@ Still intentionally not default:
 
 ThreadVault uses semantic package versions for active development. Substantive optimization or development changes should advance the package version, update `README.md`, and add a dated `docs/CHANGELOG.md` entry.
 
-The 1.0.0 release line uses the native desktop app as the primary local interface and keeps the retired browser Web UI only as archived v4 historical evidence.
+The 1.0.x release line uses the native desktop app as the primary local interface and keeps the former browser UI only as archived v4 historical evidence.
 
 Current and historical version line:
 
 | Version | Focus |
 |---|---|
+| `1.0.1` | Removed the remaining active Web UI launcher, readiness test, and retired Web discovery metadata. |
 | `1.0.0` | Native desktop primary release; removed active personal Web UI runtime, schemas, and tests. |
 | `0.49.0` | Retired active Web UI CLI commands and redirected the old browser launcher to the desktop app. |
 | `0.48.0` | Native-first capability and robot-doc alignment for the 1.0.0 migration. |
@@ -134,14 +135,6 @@ Run a non-window desktop smoke check:
 ```powershell
 threadvault desktop smoke --json
 ```
-
-The older local Web UI launcher no longer starts a browser or local Web server. It redirects to the desktop launcher:
-
-```powershell
-.\启动ThreadVault中文界面.cmd
-```
-
-`threadvault ui serve` and `threadvault ui smoke` are retired from the active CLI.
 
 ## Fast Start: CLI
 
@@ -327,7 +320,7 @@ Detailed planning, usage, contracts, and historical development records live und
 - `docs/README.md` - documentation map.
 - `docs/DOC_INDEX.md` - standard documentation index.
 - `docs/ARCHITECTURE.md` - module and UI architecture overview.
-- `docs/API.md` - JSON contracts, MCP, and retired interface metadata.
+- `docs/API.md` - JSON contracts, MCP, and capability discovery.
 - `docs/DATABASE.md` - SQLite storage overview.
 - `docs/MCP_INTEGRATION.md` - MCP setup guide for Codex, OpenCode, ZCode, Obsidian, and AI self-configuration.
 - `docs/KNOWLEDGE_GRAPH.md` - project entity and relationship map.

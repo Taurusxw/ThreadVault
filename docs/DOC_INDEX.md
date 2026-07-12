@@ -53,8 +53,10 @@ This index lists the current ThreadVault documentation entrypoints and when to u
 | `docs/progress/rounds/2026-07-06-round-020-native-first-capability-alignment.md` | Native-first capability and robot-doc alignment round record. | Active |
 | `docs/progress/rounds/2026-07-06-round-021-web-ui-command-retirement.md` | Web UI CLI/launcher retirement round record. | Active |
 | `docs/progress/rounds/2026-07-06-round-022-v100-native-desktop-release.md` | v1.0.0 native desktop release round record. | Active |
+| `docs/progress/rounds/2026-07-06-round-023-remove-web-ui-residue.md` | Web UI residue removal round record. | Active |
 | `docs/progress/releases/v0.34.0/` | v0.34.0 release notes, acceptance, and artifact guidance. | Active |
 | `docs/progress/releases/v1.0.0/` | v1.0.0 release notes, acceptance, and artifact guidance. | Active |
+| `docs/progress/releases/v1.0.1/` | v1.0.1 Web UI residue cleanup release notes and acceptance. | Active |
 
 ## Existing Historical Records
 

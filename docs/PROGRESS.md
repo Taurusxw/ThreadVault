@@ -2,8 +2,8 @@
 
 ## Current Stage
 
-ThreadVault is at the 1.0.0 native desktop release stage. The native Tkinter app is the discoverable primary local interface, the browser Web UI CLI/launcher entrypoints remain retired, and the former Web UI runtime module, active schemas, and tests have been removed from the active package.
-The archive database default has been moved from the Windows AppData location to the project-local `data/threadvault.db`, with custom path support through `--db`, `THREADVAULT_DB`, and `[storage].archive_db`. The active package version is now `1.0.0`.
+ThreadVault is on the 1.0.x native desktop release line. The native Tkinter app is the discoverable primary local interface, and the former browser Web UI runtime, launcher, active schemas, active tests, and active discovery metadata have been removed from the package.
+The archive database default has been moved from the Windows AppData location to the project-local `data/threadvault.db`, with custom path support through `--db`, `THREADVAULT_DB`, and `[storage].archive_db`. The active package version is now `1.0.1`.
 
 The local knowledge base now keeps raw archive evidence intact while default search/retrieval uses a clean knowledge index over `events.indexed_text`. Low-value empty/machine events are skipped, binary/image blobs are metadata-only, and large tool outputs are truncated for indexing.
 
@@ -20,8 +20,7 @@ The native desktop Advanced tab now also has a read-only governance diagnostics 
 Native desktop runtime QA found and fixed a Tk thread-safety issue: Tk variables are now read on the UI thread before background worker dispatch, and initial refresh is scheduled after Tk startup. Follow-up hwnd screenshot QA captured the native window, confirmed the empty search state renders a clear prompt, and fixed Advanced-tab button overflow at `860x520`.
 The desktop CLI now has a non-window `threadvault desktop smoke --json` command for automated verification of Tkinter availability, desktop gateway loading, and no-browser/no-server boundaries.
 The repo now includes `启动ThreadVault桌面版.cmd`, a double-click native desktop launcher that runs desktop smoke before starting the Tkinter app and does not start a browser/Web UI server.
-The old `启动ThreadVault中文界面.cmd` launcher no longer starts a browser or local Web UI server; it redirects to the native desktop launcher.
-Capabilities and robot docs now expose `interface_policy.primary_local_interface = native_desktop`, keep `threadvault desktop launch` and `threadvault desktop smoke --json` in recommended commands, move former Web UI commands into `retired_commands`, point historical evidence to `docs/progress/archive/legacy-v4/`, and use base contract marker `1.0`.
+Capabilities and robot docs now expose `interface_policy.primary_local_interface = native_desktop`, keep `threadvault desktop launch` and `threadvault desktop smoke --json` in recommended commands, and no longer include Web UI fallback or retired-interface metadata.
 
 ## Recently Completed
 
@@ -60,26 +59,28 @@ Capabilities and robot docs now expose `interface_policy.primary_local_interface
 - Bumped package version from `0.47.0` to `0.48.0` and aligned capabilities, robot docs, project rules, and active docs around native desktop as the primary 1.0.0 local interface.
 - Bumped package version from `0.48.0` to `0.49.0` and retired active Web UI CLI commands plus the browser launcher path.
 - Bumped package version from `0.49.0` to `1.0.0`, removed the active personal Web UI runtime, schemas, and tests, and added v1.0.0 release records.
+- Bumped package version from `1.0.0` to `1.0.1`, removed the remaining old Web UI launcher/readiness test, and cleaned Web UI retired metadata out of active discovery.
 
 ## Current Validation
 
-Latest validation for the current `1.0.0` native desktop release:
+Latest validation for the current `1.0.1` native desktop release:
 
 ```powershell
-py -3.12 -m pytest tests\test_v28_capabilities_schema_contract.py tests\test_v401_personal_ui_readiness.py tests\test_v407_desktop_app.py tests\test_v105_codex_skill_target.py -q
-py -3.12 -m ruff check src\threadvault\store.py src\threadvault\schemas.py src\threadvault\cli.py src\threadvault\desktop_data.py src\threadvault\desktop_app.py tests\test_v28_capabilities_schema_contract.py tests\test_v401_personal_ui_readiness.py tests\test_v407_desktop_app.py tests\test_v105_codex_skill_target.py
+py -3.12 -m pytest tests\test_v28_capabilities_schema_contract.py tests\test_v407_desktop_app.py tests\test_v105_codex_skill_target.py -q
+py -3.12 -m ruff check src\threadvault\store.py src\threadvault\schemas.py src\threadvault\cli.py src\threadvault\desktop_data.py src\threadvault\desktop_app.py tests\test_v28_capabilities_schema_contract.py tests\test_v407_desktop_app.py tests\test_v105_codex_skill_target.py
 threadvault capabilities --json
 threadvault robot-docs guide --json
-py -3.12 -c "import importlib.metadata as m, threadvault; print(threadvault.__version__); print(m.version('threadvault'))"
+py -3.12 -c "import importlib.metadata as m, importlib.util, threadvault; print(threadvault.__version__); print(m.version('threadvault')); print(importlib.util.find_spec('threadvault.personal_ui'))"
 ```
 
-Current release result: full pytest passed with `400 passed in 58.78s`, full ruff passed, desktop smoke passed, CLI discovery reported `native_desktop` as primary, and version metadata reported `1.0.0`. Detailed acceptance is recorded in `docs/progress/releases/v1.0.0/ACCEPTANCE.md`.
+Current release result: focused pytest passed with `24 passed`, final full pytest passed with `396 passed in 67.12s`, focused and full ruff passed, desktop smoke returned `ok: true`, CLI discovery reported `native_desktop` without Web UI retired metadata, version metadata reported `1.0.1`, and `threadvault.personal_ui` import spec was `None`.
+Current v1.0.1 acceptance is recorded in `docs/progress/releases/v1.0.1/ACCEPTANCE.md`; previous v1.0.0 acceptance remains under its release directory.
 
 Previous focused validation for the `0.48.0` native-first capability alignment:
 
 - Expanded related capabilities/Web UI/desktop/Skill regression passed with `51 passed`.
 - Focused ruff passed.
-- CLI smoke confirmed capabilities report `native_desktop` / `legacy_fallback` and robot docs keep Web UI commands only under `legacy_fallback_commands`.
+- CLI smoke confirmed the then-current `native_desktop` primary interface and legacy fallback handling for the 0.48.0 migration.
 - Source and installed metadata both reported `0.48.0`.
 
 Previous focused validation for the `0.47.0` desktop-first launcher guidance change:
@@ -161,13 +162,7 @@ Real archive migration validation:
 - Clean index diagnostics: 35,618 searchable events, 21,062 skipped events, 4,603 truncated events, 12 metadata-only events.
 - Indexed characters reduced from 54,625,653 raw characters to 18,340,385 indexed characters.
 
-Additional documentation-focused validation:
-
-```powershell
-py -3.12 -m pytest tests\test_v401_personal_ui_readiness.py tests\test_v403_personal_ui_workbench.py -q
-```
-
-Recent result: `22 passed` when run with `tests\test_v406_ui_chinese_localization.py` included.
+Legacy Web UI documentation tests were removed from the active suite in `1.0.1`; historical validation evidence remains in archived progress and release records.
 
 Additional checks:
 
@@ -208,7 +203,12 @@ Additional checks:
 - `docs/progress/rounds/2026-07-06-round-018-desktop-first-launcher-guidance.md`
 - `docs/progress/rounds/2026-07-06-round-019-native-ui-major-release-gate.md`
 - `docs/progress/rounds/2026-07-06-round-020-native-first-capability-alignment.md`
+- `docs/progress/rounds/2026-07-06-round-021-web-ui-command-retirement.md`
+- `docs/progress/rounds/2026-07-06-round-022-v100-native-desktop-release.md`
+- `docs/progress/rounds/2026-07-06-round-023-remove-web-ui-residue.md`
 - `docs/progress/releases/v0.34.0/`
+- `docs/progress/releases/v1.0.0/`
+- `docs/progress/releases/v1.0.1/`
 
 ## Risks
 
@@ -216,7 +216,7 @@ Additional checks:
 - Historical roadmap files describe goals from before v1-v4 completion and may read like future tense.
 - Local generated output directories may contain private data and should be treated as local-only artifacts.
 - Historical Git commits may still contain a legacy DOCX planning artifact; current release prep removes it from the current tree but does not rewrite history.
-- The native desktop app does not yet cover every low-frequency historical Web UI action with native confirmation gates; overwrite restore and some governance/audit write operations remain command-based during migration.
+- Some low-frequency governance/audit write operations remain command-based until they get full native confirmation and target-path gates.
 - Native screenshot QA is now possible through the Tk hwnd path; broader manual workflow review is still required before declaring the Web UI fully replaceable.
 - Existing private archive data previously stored under AppData must be copied or intentionally migrated into `data/threadvault.db` before the new default shows the same archived sessions.
 - Clean-index classification thresholds are conservative and may need tuning after more real corpus review.
