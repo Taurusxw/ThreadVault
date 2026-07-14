@@ -9,8 +9,7 @@
     "entrypoints",
     "schemas",
     "defaults",
-    "integration_policy",
-    "governance"
+    "integration_policy"
   ],
   "properties": {
     "contract_version": {
@@ -52,7 +51,6 @@
           "name",
           "status",
           "server_required",
-          "opt_in",
           "recommended_entrypoints"
         ],
         "properties": {
@@ -63,9 +61,6 @@
             "type": "string"
           },
           "server_required": {
-            "type": "boolean"
-          },
-          "opt_in": {
             "type": "boolean"
           },
           "recommended_entrypoints": {
@@ -89,8 +84,6 @@
       "required": [
         "local_first",
         "server_required",
-        "server_available",
-        "server_opt_in",
         "cloud_sync",
         "external_model_calls",
         "raw_paths_in_default_output",
@@ -102,12 +95,6 @@
           "type": "boolean"
         },
         "server_required": {
-          "type": "boolean"
-        },
-        "server_available": {
-          "type": "boolean"
-        },
-        "server_opt_in": {
           "type": "boolean"
         },
         "cloud_sync": {
@@ -128,9 +115,6 @@
       }
     },
     "integration_policy": {
-      "type": "object"
-    },
-    "governance": {
       "type": "object"
     }
   }

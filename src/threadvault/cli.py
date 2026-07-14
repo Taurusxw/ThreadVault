@@ -23,13 +23,12 @@ from .audit import (
 from .backup_history import latest_backup_file, list_backup_files, prune_backup_history, verify_latest_backup
 from .client_runtime import render_client_tui
 from .codex_hooks import hook_continue_response, invalid_hook_payload_result
-from .config import default_db_path
+from .config import default_codex_home, default_db_path
 from .importer import sample_codex_home
 from .mcp import McpRuntimeConfig, mcp_manifest, serve_mcp
 from .privacy import has_high_risk
 from .retention import resolve_retention_keep
 from .schemas import get_schema, schema_names, validate_payload, write_schema_files
-from .shared_server import build_read_only_server
 from .store import ArchiveStore, capabilities, robot_guide, robot_schemas
 from .summarizer import summary_to_markdown
 
@@ -47,63 +46,6 @@ def _store(db: Path | None, config: Path | None = None) -> ArchiveStore:
 
 def _print_json(value) -> None:
     typer.echo(json.dumps(value, ensure_ascii=False, indent=2, default=str))
-
-
-def _maybe_governance_instrumentation(
-    db: Path | None,
-    *,
-    command: str,
-    role: str | None,
-    config: Path | None = None,
-    audit_log: Path | None = None,
-    actor: str | None = None,
-    target_type: str | None = None,
-    target_id: str | None = None,
-) -> dict | None:
-    if role is None:
-        return None
-    return _store(db).governance_business_command_instrumentation(
-        config_path=config,
-        command=command,
-        role=role,
-        audit_log=audit_log,
-        actor=actor,
-        target_type=target_type,
-        target_id=target_id,
-    )
-
-
-def _governance_blocked(instrumentation: dict | None) -> bool:
-    return bool(instrumentation and instrumentation["instrumentation"]["blocked"])
-
-
-def _emit_governance_blocked(command: str, instrumentation: dict, json_output: bool) -> None:
-    payload = {
-        "ok": False,
-        "error": "governance_preflight_blocked",
-        "command": command,
-        "governance_instrumentation": instrumentation,
-    }
-    if json_output:
-        _print_json(payload)
-    else:
-        console.print(f"[red]Blocked by governance preflight:[/red] {escape(command)}")
-    raise typer.Exit(code=2)
-
-
-def _mark_governance_executed(instrumentation: dict | None) -> None:
-    if instrumentation is None:
-        return
-    instrumentation["execution"]["business_command_executed"] = True
-    preflight = instrumentation.get("preflight")
-    if isinstance(preflight, dict) and isinstance(preflight.get("execution"), dict):
-        preflight["execution"]["business_command_executed"] = True
-
-
-def _attach_governance(payload: dict, instrumentation: dict | None) -> dict:
-    if instrumentation is not None:
-        payload["governance_instrumentation"] = instrumentation
-    return payload
 
 
 @app.callback()
@@ -233,16 +175,6 @@ def export_command(
     no_reasoning: Annotated[bool, typer.Option("--no-reasoning", help="Exclude reasoning events.")] = False,
     privacy_mode: Annotated[str, typer.Option("--privacy-mode", help="warn, redact, or fail.")] = "warn",
     privacy_config: Annotated[Path | None, typer.Option("--privacy-config", help="Optional threadvault.toml privacy config.")] = None,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Export a session or project index to Markdown."""
@@ -256,18 +188,6 @@ def export_command(
         raise typer.BadParameter("--privacy-mode must be warn, redact, or fail.")
     if project and format != "md":
         raise typer.BadParameter("Project export currently supports --format md only.")
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault export",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="session" if session else "project",
-        target_id=session or project,
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault export", governance, json_output)
     store = _store(db)
     try:
         if session:
@@ -292,8 +212,7 @@ def export_command(
             path, findings = store.export_project(project, out)
     except KeyError as exc:
         raise typer.BadParameter(f"Unknown session: {exc.args[0]}") from exc
-    _mark_governance_executed(governance)
-    payload = _attach_governance({"path": str(path), "privacy_findings": [finding.__dict__ for finding in findings]}, governance)
+    payload = {"path": str(path), "privacy_findings": [finding.__dict__ for finding in findings]}
     if privacy_mode == "fail" and has_high_risk(findings):
         if json_output:
             _print_json({**payload, "ok": False, "error": "high_risk_privacy_findings"})
@@ -410,39 +329,166 @@ app.add_typer(desktop_app, name="desktop")
 mcp_app = typer.Typer(help="Model Context Protocol stdio server utilities.")
 app.add_typer(mcp_app, name="mcp")
 
-governance_app = typer.Typer(help="Optional governance discovery utilities.")
-app.add_typer(governance_app, name="governance")
+storage_app = typer.Typer(help="Hot/cold archive lifecycle and backup utilities.")
+app.add_typer(storage_app, name="storage")
 
-governance_audit_app = typer.Typer(help="Local governance audit log utilities.")
-governance_app.add_typer(governance_audit_app, name="audit")
 
-governance_permission_app = typer.Typer(help="Governance permission preflight utilities.")
-governance_app.add_typer(governance_permission_app, name="permission")
+@storage_app.command("audit")
+def storage_audit_command(
+    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
+    cold_root: Annotated[Path | None, typer.Option("--cold-root", help="Cold blob directory.")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Measure hot database usage and cold-storage composition."""
+    payload = _store(db).storage_audit(cold_root)
+    if json_output:
+        _print_json(payload)
+    else:
+        console.print(f"[green]Database:[/green] {payload['db_path']}")
+        console.print(f"[green]Hot bytes:[/green] {payload['db_bytes']}")
+        console.print(f"[green]Cold blobs:[/green] {payload['cold']['blobs']}")
 
-governance_enforcement_app = typer.Typer(help="Governance enforcement planning utilities.")
-governance_app.add_typer(governance_enforcement_app, name="enforcement")
 
-governance_policy_app = typer.Typer(help="Governance policy readiness utilities.")
-governance_app.add_typer(governance_policy_app, name="policy")
+@storage_app.command("rebuild")
+def storage_rebuild_command(
+    target_db: Annotated[Path, typer.Option("--target-db", help="New compact SQLite database path.")],
+    db: Annotated[Path | None, typer.Option("--db", help="Source SQLite database path.")] = None,
+    cold_root: Annotated[Path | None, typer.Option("--cold-root", help="Cold blob directory for the rebuilt archive.")] = None,
+    apply: Annotated[bool, typer.Option("--apply", help="Execute the copy-on-write rebuild.")] = False,
+    batch_size: Annotated[int, typer.Option("--batch-size", min=1, max=10000)] = 1000,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Rebuild an archive with the current hot/cold storage policy."""
+    payload = _store(db).storage_rebuild(target_db, cold_root, apply=apply, batch_size=batch_size)
+    if json_output:
+        _print_json(payload)
+    else:
+        console.print(payload)
+    if not payload.get("ok"):
+        raise typer.Exit(code=2)
 
-governance_server_app = typer.Typer(help="Governance server readiness utilities.")
-governance_app.add_typer(governance_server_app, name="server")
 
-governance_v3_app = typer.Typer(help="v3 completion and acceptance audit utilities.")
-governance_app.add_typer(governance_v3_app, name="v3")
+@storage_app.command("verify")
+def storage_verify_command(
+    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
+    cold_root: Annotated[Path | None, typer.Option("--cold-root", help="Cold blob directory.")] = None,
+    deep: Annotated[bool, typer.Option("--deep", help="Decompress and hash every cold blob.")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Verify cold blob presence, size, and optionally content hashes."""
+    payload = _store(db).storage_verify(cold_root, deep=deep)
+    if json_output:
+        _print_json(payload)
+    else:
+        console.print(payload)
+    if not payload.get("ok"):
+        raise typer.Exit(code=2)
 
-governance_identity_app = typer.Typer(help="Governance identity and actor readiness utilities.")
-governance_app.add_typer(governance_identity_app, name="identity")
 
-governance_backup_app = typer.Typer(help="Governance backup and restore policy readiness utilities.")
-governance_app.add_typer(governance_backup_app, name="backup")
+@storage_app.command("event")
+def storage_event_command(
+    event_id: Annotated[int, typer.Option("--event-id", min=1, help="Event id to hydrate.")],
+    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
+    cold_root: Annotated[Path | None, typer.Option("--cold-root", help="Cold blob directory.")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Read one event with its original cold payload restored."""
+    try:
+        payload = _store(db).storage_event(event_id, cold_root)
+    except KeyError as exc:
+        raise typer.BadParameter(f"Unknown event: {exc.args[0]}") from exc
+    if json_output:
+        _print_json(payload)
+    else:
+        console.print(payload)
 
-governance_preflight_app = typer.Typer(help="Governance business preflight utilities.")
-governance_app.add_typer(governance_preflight_app, name="preflight")
 
-governance_instrumentation_app = typer.Typer(help="Governance business command instrumentation utilities.")
-governance_app.add_typer(governance_instrumentation_app, name="instrumentation")
+@storage_app.command("prune")
+def storage_prune_command(
+    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
+    cold_root: Annotated[Path | None, typer.Option("--cold-root", help="Cold blob directory.")] = None,
+    apply: Annotated[bool, typer.Option("--apply", help="Delete unreferenced cold blobs.")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Plan or apply garbage collection for unreferenced cold blobs."""
+    payload = _store(db).storage_prune(cold_root, apply=apply)
+    if json_output:
+        _print_json(payload)
+    else:
+        console.print(payload)
 
+
+@storage_app.command("backup")
+def storage_backup_command(
+    out: Annotated[Path, typer.Option("--out", "-o", help="Backup directory.")],
+    profile: Annotated[str, typer.Option("--profile", help="core, evidence, or forensic.")] = "core",
+    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
+    cold_root: Annotated[Path | None, typer.Option("--cold-root", help="Cold blob directory.")] = None,
+    codex_home: Annotated[Path | None, typer.Option("--codex-home", help="Codex home for forensic source JSONL.")] = None,
+    force: Annotated[bool, typer.Option("--force", help="Allow replacing a same-name backup.")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Create a Core, Evidence, or Forensic storage backup."""
+    if profile not in {"core", "evidence", "forensic"}:
+        raise typer.BadParameter("--profile must be core, evidence, or forensic.")
+    payload = _store(db).storage_backup(
+        out,
+        profile=profile,
+        cold_root=cold_root,
+        codex_home=codex_home,
+        force=force,
+    )
+    if json_output:
+        _print_json(payload)
+    else:
+        console.print(payload)
+    if not payload.get("ok"):
+        raise typer.Exit(code=2)
+
+
+@storage_app.command("verify-backup")
+def storage_backup_verify_command(
+    manifest: Annotated[Path, typer.Option("--manifest", help="Storage backup manifest path.")],
+    deep: Annotated[bool, typer.Option("--deep", help="Verify cold and forensic content hashes.")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Verify a storage-profile backup and its referenced content."""
+    payload = _store(None).storage_backup_verify(manifest, deep=deep)
+    if json_output:
+        _print_json(payload)
+    else:
+        console.print(payload)
+    if not payload.get("ok"):
+        raise typer.Exit(code=2)
+
+
+@storage_app.command("auto")
+def storage_auto_command(
+    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
+    out: Annotated[Path | None, typer.Option("--out", "-o", help="Smart backup root directory.")] = None,
+    cold_root: Annotated[Path | None, typer.Option("--cold-root", help="Cold blob directory.")] = None,
+    codex_home: Annotated[Path | None, typer.Option("--codex-home", help="Codex home for monthly forensic backups.")] = None,
+    apply: Annotated[bool, typer.Option("--apply", help="Create the due backup and apply bounded retention.")] = False,
+    forensic: Annotated[
+        bool,
+        typer.Option("--forensic/--no-forensic", help="Enable the monthly source-JSONL backup tier."),
+    ] = True,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Automatically choose, verify, and retain the appropriate backup tier."""
+    payload = _store(db).storage_auto_backup(
+        out_root=out,
+        cold_root=cold_root,
+        codex_home=codex_home,
+        apply=apply,
+        include_forensic=forensic,
+    )
+    if json_output:
+        _print_json(payload)
+    else:
+        console.print(payload)
+    if not payload.get("ok"):
+        raise typer.Exit(code=2)
 
 @robot_docs_app.command("guide")
 def robot_docs_guide_command(
@@ -481,16 +527,6 @@ def retrieval_query_command(
     tool: Annotated[str | None, typer.Option("--tool", help="Filter by tool name.")] = None,
     fields: Annotated[str, typer.Option("--fields", help="minimal, standard, or full.")] = "standard",
     mode: Annotated[str, typer.Option("--mode", help="Retrieval mode. Currently only fts.")] = "fts",
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Run the v2 retrieval query contract."""
@@ -498,18 +534,6 @@ def retrieval_query_command(
         raise typer.BadParameter("--fields must be minimal, standard, or full.")
     if mode not in {"fts"}:
         raise typer.BadParameter("--mode must be fts.")
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault retrieval query",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="query",
-        target_id=query,
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault retrieval query", governance, json_output)
     payload = _store(db).retrieve(
         query=query,
         limit=limit,
@@ -522,8 +546,6 @@ def retrieval_query_command(
         fields=fields,
         mode=mode,
     )
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return
@@ -579,31 +601,9 @@ def retrieval_hybrid_command(
     until: Annotated[str | None, typer.Option("--until", help="Filter events before this timestamp.")] = None,
     type_filter: Annotated[str | None, typer.Option("--type", help="Filter by top_type or sub_type.")] = None,
     tool: Annotated[str | None, typer.Option("--tool", help="Filter by tool name.")] = None,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Run hybrid FTS/vector retrieval with explanations."""
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault retrieval hybrid",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="query",
-        target_id=query,
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault retrieval hybrid", governance, json_output)
     payload = _store(db).hybrid_retrieve(
         query=query,
         config_path=config,
@@ -616,8 +616,6 @@ def retrieval_hybrid_command(
         top_type=type_filter,
         tool=tool,
     )
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return
@@ -767,31 +765,9 @@ def client_session_command(
     event_limit: Annotated[int, typer.Option("--event-limit", min=1, max=200)] = 20,
     max_chars: Annotated[int, typer.Option("--max-chars", min=50, max=5000)] = 500,
     local_debug: Annotated[bool, typer.Option("--local-debug", help="Include local debug metadata such as raw paths.")] = False,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Emit a safe local client session detail payload."""
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault client session",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="session",
-        target_id=session,
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault client session", governance, json_output)
     try:
         payload = _store(db).client_session(
             session_id=session,
@@ -801,8 +777,6 @@ def client_session_command(
         )
     except KeyError as exc:
         raise typer.BadParameter(f"Unknown session: {exc.args[0]}") from exc
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return
@@ -834,16 +808,6 @@ def client_export_preview_command(
         str | None,
         typer.Option("--skill-description", help="Skill description for skill profile previews."),
     ] = None,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Preview a client export without writing files."""
@@ -862,17 +826,10 @@ def client_export_preview_command(
         privacy_config_path=privacy_config,
         skill_name=skill_name,
         skill_description=skill_description,
-        governance_role=governance_role,
-        governance_config_path=governance_config,
-        governance_audit_log=governance_audit_log,
-        governance_actor=governance_actor,
     )
     if json_output:
         _print_json(payload)
         return
-    if payload["diagnostics"].get("governance_blocked"):
-        console.print("[red]Export preview blocked by governance preflight.[/red]")
-        raise typer.Exit(code=2)
     table = Table(title="ThreadVault Client Export Preview")
     table.add_column("Kind")
     table.add_column("Session")
@@ -893,31 +850,9 @@ def client_warnings_command(
     db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
     privacy_config: Annotated[Path | None, typer.Option("--privacy-config", help="Optional threadvault.toml privacy config.")] = None,
     local_debug: Annotated[bool, typer.Option("--local-debug", help="Include local debug metadata such as raw paths.")] = False,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Emit safe client warning and privacy detail for a session."""
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault client warnings",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="session",
-        target_id=session,
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault client warnings", governance, json_output)
     try:
         payload = _store(db).client_warnings(
             session_id=session,
@@ -926,8 +861,6 @@ def client_warnings_command(
         )
     except KeyError as exc:
         raise typer.BadParameter(f"Unknown session: {exc.args[0]}") from exc
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return
@@ -1008,848 +941,6 @@ def mcp_serve_command(
     serve_mcp(McpRuntimeConfig(db_path=_db_option(db, config), config_path=config))
 
 
-@governance_app.command("status")
-def governance_status_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Emit opt-in governance baseline status."""
-    payload = _store(db).governance_status(config_path=config)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Governance Status")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("enabled", str(payload["enabled"]))
-    table.add_row("mode", escape(payload["mode"]))
-    table.add_row("server_required", str(payload["defaults"]["server_required"]))
-    table.add_row("permissions_enforced", str(payload["defaults"]["permissions_enforced"]))
-    console.print(table)
-
-
-@governance_audit_app.command("append")
-def governance_audit_append_command(
-    log: Annotated[Path, typer.Option("--log", help="Local audit JSONL path.")],
-    operation: Annotated[str, typer.Option("--operation", help="Sensitive operation name.")],
-    actor: Annotated[str, typer.Option("--actor", help="Local actor identifier.")],
-    status: Annotated[str, typer.Option("--status", help="ok, denied, failed, or preview.")],
-    target_type: Annotated[str, typer.Option("--target-type", help="Target type, such as session or export.")],
-    target_id: Annotated[str, typer.Option("--target-id", help="Target identifier.")],
-    metadata: Annotated[list[str] | None, typer.Option("--metadata", help="Metadata key=value. Repeatable.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Append a local governance audit record."""
-    payload = _store(db).governance_audit_append(
-        log,
-        operation=operation,
-        actor=actor,
-        status=status,
-        target_type=target_type,
-        target_id=target_id,
-        metadata=_parse_metadata(metadata),
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    console.print(f"[green]Audit record appended:[/green] {payload['record']['record_id']}")
-
-
-@governance_audit_app.command("list")
-def governance_audit_list_command(
-    log: Annotated[Path, typer.Option("--log", help="Local audit JSONL path.")],
-    limit: Annotated[int, typer.Option("--limit", min=1, max=1000)] = 50,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """List local governance audit records."""
-    payload = _store(db).governance_audit_list(log, limit=limit)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Governance Audit")
-    table.add_column("Time")
-    table.add_column("Operation")
-    table.add_column("Actor")
-    table.add_column("Status")
-    table.add_column("Target")
-    for record in payload["records"]:
-        target = record.get("target", {})
-        table.add_row(
-            escape(record.get("timestamp") or ""),
-            escape(record.get("operation") or ""),
-            escape(record.get("actor") or ""),
-            escape(record.get("status") or ""),
-            escape(f"{target.get('type') or ''}:{target.get('id') or ''}"),
-        )
-    console.print(table)
-    console.print(f"records={payload['diagnostics']['record_count']} warnings={payload['diagnostics']['warning_count']}")
-
-
-@governance_audit_app.command("centralized-readiness")
-def governance_audit_centralized_readiness_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Report readiness for future centralized audit retention."""
-    payload = _store(db).governance_centralized_audit_readiness(config_path=config)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Centralized Audit Readiness")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("overall_status", escape(payload["readiness"]["overall_status"]))
-    table.add_row("blocking_count", str(payload["readiness"]["blocking_count"]))
-    table.add_row("local_audit_available", str(payload["local_audit"]["available"]))
-    table.add_row("centralized_audit_store", str(payload["centralized_audit"]["store_implemented"]))
-    table.add_row("server_opt_in", str(payload["governance"]["server_opt_in"]))
-    console.print(table)
-
-
-@governance_audit_app.command("centralized-store")
-def governance_audit_centralized_store_command(
-    action: Annotated[str, typer.Option("--action", help="append, list, or verify.")],
-    store: Annotated[Path | None, typer.Option("--store", help="Optional centralized audit JSONL store path.")] = None,
-    operation: Annotated[str | None, typer.Option("--operation", help="Sensitive operation name or list filter.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Actor identifier or list filter.")] = None,
-    status: Annotated[str | None, typer.Option("--status", help="Audit status for append.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for append.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for append.")] = None,
-    metadata: Annotated[list[str] | None, typer.Option("--metadata", help="Metadata key=value. Repeatable.")] = None,
-    limit: Annotated[int, typer.Option("--limit", min=1, max=1000)] = 50,
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Append, list, or verify the local centralized audit store."""
-    payload = _store(db).governance_centralized_audit_store(
-        config_path=config,
-        action=action,
-        store_path=store,
-        operation=operation,
-        actor=actor,
-        status=status,
-        target_type=target_type,
-        target_id=target_id,
-        metadata=_parse_metadata(metadata),
-        limit=limit,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Centralized Audit Store")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("action", escape(payload["request"]["action"]))
-    table.add_row("store_available", str(payload["store"]["available"]))
-    table.add_row("verification_ok", str(payload["verification"]["ok"]))
-    table.add_row("record_count", str(payload["verification"]["record_count"]))
-    table.add_row("returned_count", str(payload["query"]["returned_count"]))
-    table.add_row("server_required", str(payload["governance"]["server_required"]))
-    console.print(table)
-
-
-@governance_permission_app.command("check")
-def governance_permission_check_command(
-    operation: Annotated[str, typer.Option("--operation", help="Sensitive operation name.")],
-    role: Annotated[str, typer.Option("--role", help="Governance role name.")],
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    audit_log: Annotated[Path | None, typer.Option("--audit-log", help="Optional local audit JSONL path.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Actor for optional audit logging.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for optional audit logging.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for optional audit logging.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Preflight a governance permission decision."""
-    payload = _store(db).governance_permission_check(
-        config_path=config,
-        operation=operation,
-        role=role,
-        audit_log=audit_log,
-        actor=actor,
-        target_type=target_type,
-        target_id=target_id,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Governance Permission Check")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("operation", escape(operation))
-    table.add_row("role", escape(role))
-    table.add_row("allowed", str(payload["decision"]["allowed"]))
-    table.add_row("would_allow", str(payload["decision"]["would_allow"]))
-    table.add_row("enforced", str(payload["decision"]["enforced"]))
-    console.print(table)
-
-
-@governance_enforcement_app.command("gaps")
-def governance_enforcement_gaps_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Emit the governance enforcement gap audit."""
-    payload = _store(db).governance_enforcement_gaps(config_path=config)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Governance Enforcement Gaps")
-    table.add_column("Command")
-    table.add_column("Access")
-    table.add_column("Future Phase")
-    for item in payload["commands"]:
-        table.add_row(escape(item["command"]), escape(item["access_level"]), escape(item["future_phase"]))
-    console.print(table)
-    console.print(
-        f"commands={payload['summary']['command_count']} "
-        f"audit_required={payload['summary']['audit_required_count']}"
-    )
-
-
-@governance_enforcement_app.command("check")
-def governance_enforcement_check_command(
-    command: Annotated[str, typer.Option("--command", help="ThreadVault command to dry-run against governance policy.")],
-    role: Annotated[str, typer.Option("--role", help="Governance role name.")],
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    audit_log: Annotated[Path | None, typer.Option("--audit-log", help="Optional local audit JSONL path.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Actor for optional audit logging.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for optional audit logging.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for optional audit logging.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Dry-run future governance enforcement for one command and role."""
-    payload = _store(db).governance_enforcement_check(
-        config_path=config,
-        command=command,
-        role=role,
-        audit_log=audit_log,
-        actor=actor,
-        target_type=target_type,
-        target_id=target_id,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Governance Enforcement Dry Run")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("command", escape(command))
-    table.add_row("role", escape(role))
-    table.add_row("known_command", str(payload["command_policy"]["known"]))
-    table.add_row("access_level", escape(str(payload["command_policy"]["access_level"] or "")))
-    table.add_row("would_allow", str(payload["permission"]["would_allow"]))
-    table.add_row("would_block_if_enforced", str(payload["enforcement"]["would_block_if_enforced"]))
-    table.add_row("status", escape(payload["enforcement"]["status"]))
-    console.print(table)
-
-
-@governance_policy_app.command("readiness")
-def governance_policy_readiness_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Report readiness for future team governance policy enforcement."""
-    payload = _store(db).governance_policy_readiness(config_path=config)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Governance Policy Readiness")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("overall_status", escape(payload["readiness"]["overall_status"]))
-    table.add_row("team_enforcement_ready", str(payload["governance"]["team_enforcement_ready"]))
-    table.add_row("blocking_count", str(payload["readiness"]["blocking_count"]))
-    table.add_row("local_first", str(payload["diagnostics"]["local_first"]))
-    table.add_row("server_required", str(payload["governance"]["server_required"]))
-    console.print(table)
-
-
-@governance_policy_app.command("central-readiness")
-def governance_central_policy_readiness_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Report readiness for centralized policy storage and versioning."""
-    payload = _store(db).governance_central_policy_readiness(config_path=config)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Central Policy Readiness")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("overall_status", escape(payload["readiness"]["overall_status"]))
-    table.add_row("central_policy_ready", str(payload["governance"]["central_policy_ready"]))
-    table.add_row("blocking_count", str(payload["readiness"]["blocking_count"]))
-    table.add_row("local_static_policy", str(payload["fallback"]["local_static_policy_available"]))
-    table.add_row("server_opt_in", str(payload["governance"]["server_opt_in"]))
-    console.print(table)
-
-
-@governance_policy_app.command("central-store")
-def governance_central_policy_store_command(
-    policy: Annotated[Path | None, typer.Option("--policy", help="Optional local central policy JSON document.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Optional actor id to resolve against central policy.")] = None,
-    operation: Annotated[
-        str | None,
-        typer.Option("--operation", help="Optional governance operation to resolve, such as export_archive."),
-    ] = None,
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Validate and resolve a local central policy document."""
-    payload = _store(db).governance_central_policy_store(
-        config_path=config,
-        policy_path=policy,
-        actor=actor,
-        operation=operation,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Central Policy Store")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("policy_valid", str(payload["policy"]["valid"]))
-    table.add_row("store_available", str(payload["store"]["available"]))
-    table.add_row("actor", escape(str(payload["actor_resolution"]["requested"] or "")))
-    table.add_row("operation", escape(str(payload["operation_resolution"]["requested"] or "")))
-    table.add_row("would_allow", str(payload["enforcement"]["would_allow"]))
-    table.add_row("status", escape(payload["enforcement"]["status"]))
-    table.add_row("server_required", str(payload["governance"]["server_required"]))
-    console.print(table)
-
-
-@governance_server_app.command("policy-readiness")
-def governance_server_policy_readiness_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Report readiness for optional server/team policy enforcement."""
-    payload = _store(db).governance_server_policy_readiness(config_path=config)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Governance Server Policy Readiness")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("overall_status", escape(payload["readiness"]["overall_status"]))
-    table.add_row("safe_to_enable_server_mode", str(payload["readiness"]["safe_to_enable_server_mode"]))
-    table.add_row("blocking_count", str(payload["readiness"]["blocking_count"]))
-    table.add_row("server_opt_in", str(payload["governance"]["server_opt_in"]))
-    table.add_row("server_required", str(payload["governance"]["server_required"]))
-    console.print(table)
-
-
-@governance_server_app.command("read-only-manifest")
-def governance_read_only_server_manifest_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Emit the opt-in read-only shared/server prototype manifest."""
-    payload = _store(db).governance_read_only_server_manifest(config_path=config)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Read-Only Server Prototype")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("implemented", str(payload["runtime"]["implemented"]))
-    table.add_row("prototype", str(payload["runtime"]["prototype"]))
-    table.add_row("route_count", str(payload["diagnostics"]["route_count"]))
-    table.add_row("server_required", str(payload["governance"]["server_required"]))
-    table.add_row("server_opt_in", str(payload["governance"]["server_opt_in"]))
-    console.print(table)
-
-
-@governance_server_app.command("read-only-smoke")
-def governance_read_only_server_smoke_command(
-    query: Annotated[str, typer.Option("--query", help="Query used for the agent retrieval smoke route.")] = "pytest",
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Exercise read-only server routes in process without binding a socket."""
-    payload = _store(db).governance_read_only_server_smoke(config_path=config, query=query)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Read-Only Server Smoke")
-    table.add_column("Route")
-    table.add_column("OK")
-    table.add_column("Schema")
-    for check in payload["checks"]:
-        table.add_row(escape(check["path"]), str(check["ok"]), escape(check["schema"]))
-    console.print(table)
-    if not payload["ok"]:
-        raise typer.Exit(code=1)
-
-
-@governance_server_app.command("serve-read-only")
-def governance_serve_read_only_command(
-    enable: Annotated[bool, typer.Option("--enable", help="Required explicit opt-in before binding a local server.")] = False,
-    host: Annotated[str, typer.Option("--host", help="Bind host. Loopback is the intended prototype default.")] = "127.0.0.1",
-    port: Annotated[int, typer.Option("--port", min=1, max=65535, help="Bind port.")] = 8765,
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
-) -> None:
-    """Start the opt-in read-only shared/server prototype."""
-    if not enable:
-        raise typer.BadParameter("serve-read-only requires explicit --enable before binding a socket.")
-    server = build_read_only_server(_store(db), host=host, port=port, config_path=config)
-    console.print(f"[green]ThreadVault read-only server:[/green] http://{host}:{port}")
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        console.print("[yellow]Stopping read-only server.[/yellow]")
-    finally:
-        server.server_close()
-
-
-@governance_v3_app.command("gap-audit")
-def governance_v3_gap_audit_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Report remaining gaps before v3 final acceptance."""
-    payload = _store(db).governance_v3_completion_gap_audit(config_path=config)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault v3 Completion Gap Audit")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("overall_status", escape(payload["completion"]["overall_status"]))
-    table.add_row("v3_complete", str(payload["completion"]["v3_complete"]))
-    table.add_row("accepted_phase_count", str(payload["completion"]["accepted_phase_count"]))
-    table.add_row("remaining_gap_count", str(payload["completion"]["remaining_gap_count"]))
-    table.add_row("blocking_count", str(payload["completion"]["blocking_count"]))
-    table.add_row("server_opt_in", str(payload["governance"]["server_opt_in"]))
-    console.print(table)
-
-
-@governance_v3_app.command("acceptance-smoke")
-def governance_v3_acceptance_smoke_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
-    query: Annotated[str, typer.Option("--query", help="Query used for retrieval/client/server smoke checks.")] = "pytest",
-    session: Annotated[str, typer.Option("--session", help="Session id used for client/export smoke checks.")] = "sess-current",
-    work_dir: Annotated[Path | None, typer.Option("--work-dir", help="Directory for temporary smoke artifacts.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Run the final v3 acceptance smoke."""
-    payload = _store(db).governance_v3_acceptance_smoke(
-        config_path=config,
-        query=query,
-        session_id=session,
-        work_dir=work_dir,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault v3 Acceptance Smoke")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("status", escape(payload["status"]))
-    table.add_row("ok", str(payload["ok"]))
-    table.add_row("checks", str(payload["summary"]["required_check_count"]))
-    table.add_row("failed", str(payload["summary"]["failed_check_count"]))
-    table.add_row("server_required", str(payload["governance"]["server_required"]))
-    table.add_row("cloud_sync", str(payload["governance"]["cloud_sync"]))
-    console.print(table)
-    if not payload["ok"]:
-        raise typer.Exit(code=1)
-
-
-@governance_identity_app.command("actor-readiness")
-def governance_identity_actor_readiness_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Report readiness for identity providers and actor binding."""
-    payload = _store(db).governance_identity_actor_readiness(config_path=config)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Identity Actor Readiness")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("overall_status", escape(payload["readiness"]["overall_status"]))
-    table.add_row("identity_binding_ready", str(payload["governance"]["identity_binding_ready"]))
-    table.add_row("blocking_count", str(payload["readiness"]["blocking_count"]))
-    table.add_row("manual_actor_labels", str(payload["local_fallback"]["manual_actor_labels_available"]))
-    table.add_row("server_opt_in", str(payload["governance"]["server_opt_in"]))
-    console.print(table)
-
-
-@governance_identity_app.command("bind")
-def governance_identity_actor_binding_command(
-    actor: Annotated[str, typer.Option("--actor", help="Actor id to resolve from local identity config.")],
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    command: Annotated[str | None, typer.Option("--command", help="Command being attributed to the actor.")] = None,
-    operation: Annotated[str | None, typer.Option("--operation", help="Sensitive operation being attributed.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for request attribution.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for request attribution.")] = None,
-    client_id: Annotated[str | None, typer.Option("--client-id", help="Client/runtime id for request attribution.")] = None,
-    audit_log: Annotated[Path | None, typer.Option("--audit-log", help="Optional local audit JSONL path.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Resolve an actor against local static identity config."""
-    payload = _store(db).governance_identity_actor_binding(
-        config_path=config,
-        actor=actor,
-        command=command,
-        operation=operation,
-        target_type=target_type,
-        target_id=target_id,
-        client_id=client_id,
-        audit_log=audit_log,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Identity Actor Binding")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("actor", escape(actor))
-    table.add_row("bound", str(payload["binding"]["bound"]))
-    table.add_row("status", escape(payload["binding"]["status"]))
-    table.add_row("roles", escape(",".join(payload["role_mapping"]["roles"])))
-    table.add_row("audit_written", str(payload["audit"]["written"]))
-    console.print(table)
-
-
-@governance_backup_app.command("central-readiness")
-def governance_central_backup_readiness_command(
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Report readiness for centralized backup/restore policy."""
-    payload = _store(db).governance_central_backup_readiness(config_path=config)
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Central Backup Readiness")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("overall_status", escape(payload["readiness"]["overall_status"]))
-    table.add_row("central_backup_ready", str(payload["governance"]["central_backup_ready"]))
-    table.add_row("shared_restore_ready", str(payload["governance"]["shared_restore_ready"]))
-    table.add_row("blocking_count", str(payload["readiness"]["blocking_count"]))
-    table.add_row("local_backup_restore", str(payload["local_backup"]["sufficient_for_local_use"]))
-    table.add_row("server_opt_in", str(payload["governance"]["server_opt_in"]))
-    console.print(table)
-
-
-@governance_backup_app.command("policy")
-def governance_central_backup_policy_command(
-    policy: Annotated[Path | None, typer.Option("--policy", help="Optional local centralized backup policy JSON path.")] = None,
-    operation: Annotated[
-        str | None,
-        typer.Option("--operation", help="Optional operation to preview: backup_archive, restore_backup, delete_or_prune."),
-    ] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Optional actor id to resolve through local identity config.")] = None,
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Validate centralized backup/restore policy and preview decisions."""
-    payload = _store(db).governance_central_backup_policy(
-        config_path=config,
-        policy_path=policy,
-        operation=operation,
-        actor=actor,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Central Backup Policy")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("policy_valid", str(payload["policy"]["valid"]))
-    table.add_row("operation", escape(str(payload["operation_resolution"]["requested"])))
-    table.add_row("allowed", str(payload["operation_resolution"]["allowed"]))
-    table.add_row("status", escape(payload["enforcement"]["status"]))
-    table.add_row("server_opt_in", str(payload["governance"]["server_opt_in"]))
-    console.print(table)
-
-
-@governance_preflight_app.command("export-backup")
-def governance_export_backup_preflight_command(
-    command: Annotated[str, typer.Option("--command", help="Export or backup command to preflight.")],
-    role: Annotated[str, typer.Option("--role", help="Governance role name.")],
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    audit_log: Annotated[Path | None, typer.Option("--audit-log", help="Optional local audit JSONL path.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Actor for optional audit logging.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for optional audit logging.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for optional audit logging.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Preflight export/backup governance without executing the business command."""
-    payload = _store(db).governance_export_backup_preflight(
-        config_path=config,
-        command=command,
-        role=role,
-        audit_log=audit_log,
-        actor=actor,
-        target_type=target_type,
-        target_id=target_id,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Export/Backup Governance Preflight")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("command", escape(command))
-    table.add_row("role", escape(role))
-    table.add_row("in_scope", str(payload["scope"]["in_scope"]))
-    table.add_row("would_allow", str(payload["permission"]["would_allow"]))
-    table.add_row("preflight_status", escape(payload["enforcement"]["preflight_status"]))
-    table.add_row("business_command_executed", str(payload["execution"]["business_command_executed"]))
-    console.print(table)
-
-
-@governance_preflight_app.command("restore-retention")
-def governance_restore_retention_preflight_command(
-    command: Annotated[str, typer.Option("--command", help="Restore or retention command to preflight.")],
-    role: Annotated[str, typer.Option("--role", help="Governance role name.")],
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    audit_log: Annotated[Path | None, typer.Option("--audit-log", help="Optional local audit JSONL path.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Actor for optional audit logging.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for optional audit logging.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for optional audit logging.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Preflight restore/retention governance without executing the business command."""
-    payload = _store(db).governance_restore_retention_preflight(
-        config_path=config,
-        command=command,
-        role=role,
-        audit_log=audit_log,
-        actor=actor,
-        target_type=target_type,
-        target_id=target_id,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Restore/Retention Governance Preflight")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("command", escape(command))
-    table.add_row("role", escape(role))
-    table.add_row("in_scope", str(payload["scope"]["in_scope"]))
-    table.add_row("would_allow", str(payload["permission"]["would_allow"]))
-    table.add_row("preflight_status", escape(payload["enforcement"]["preflight_status"]))
-    table.add_row("business_command_executed", str(payload["execution"]["business_command_executed"]))
-    console.print(table)
-
-
-@governance_preflight_app.command("raw-read")
-def governance_raw_read_preflight_command(
-    command: Annotated[str, typer.Option("--command", help="Raw-read command to preflight.")],
-    role: Annotated[str, typer.Option("--role", help="Governance role name.")],
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    audit_log: Annotated[Path | None, typer.Option("--audit-log", help="Optional local audit JSONL path.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Actor for optional audit logging.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for optional audit logging.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for optional audit logging.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Preflight raw-read governance without executing the business command."""
-    payload = _store(db).governance_raw_read_preflight(
-        config_path=config,
-        command=command,
-        role=role,
-        audit_log=audit_log,
-        actor=actor,
-        target_type=target_type,
-        target_id=target_id,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Raw Read Governance Preflight")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("command", escape(command))
-    table.add_row("role", escape(role))
-    table.add_row("in_scope", str(payload["scope"]["in_scope"]))
-    table.add_row("would_allow", str(payload["permission"]["would_allow"]))
-    table.add_row("preflight_status", escape(payload["enforcement"]["preflight_status"]))
-    table.add_row("business_command_executed", str(payload["execution"]["business_command_executed"]))
-    console.print(table)
-
-
-@governance_preflight_app.command("summary-search")
-def governance_summary_search_preflight_command(
-    command: Annotated[str, typer.Option("--command", help="Summary/search command to preflight.")],
-    role: Annotated[str, typer.Option("--role", help="Governance role name.")],
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    audit_log: Annotated[Path | None, typer.Option("--audit-log", help="Optional local audit JSONL path.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Actor for optional audit logging.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for optional audit logging.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for optional audit logging.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Preflight summary/search governance without executing the business command."""
-    payload = _store(db).governance_summary_search_preflight(
-        config_path=config,
-        command=command,
-        role=role,
-        audit_log=audit_log,
-        actor=actor,
-        target_type=target_type,
-        target_id=target_id,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Summary/Search Governance Preflight")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("command", escape(command))
-    table.add_row("role", escape(role))
-    table.add_row("in_scope", str(payload["scope"]["in_scope"]))
-    table.add_row("would_allow", str(payload["permission"]["would_allow"]))
-    table.add_row("preflight_status", escape(payload["enforcement"]["preflight_status"]))
-    table.add_row("business_command_executed", str(payload["execution"]["business_command_executed"]))
-    console.print(table)
-
-
-@governance_preflight_app.command("export-preview")
-def governance_export_preview_preflight_command(
-    command: Annotated[str, typer.Option("--command", help="Client export-preview command to preflight.")],
-    role: Annotated[str, typer.Option("--role", help="Governance role name.")],
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    audit_log: Annotated[Path | None, typer.Option("--audit-log", help="Optional local audit JSONL path.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Actor for optional audit logging.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for optional audit logging.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for optional audit logging.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Preflight client export-preview governance without executing the business command."""
-    payload = _store(db).governance_export_preview_preflight(
-        config_path=config,
-        command=command,
-        role=role,
-        audit_log=audit_log,
-        actor=actor,
-        target_type=target_type,
-        target_id=target_id,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Export Preview Governance Preflight")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("command", escape(command))
-    table.add_row("role", escape(role))
-    table.add_row("in_scope", str(payload["scope"]["in_scope"]))
-    table.add_row("would_allow", str(payload["permission"]["would_allow"]))
-    table.add_row("preflight_status", escape(payload["enforcement"]["preflight_status"]))
-    table.add_row("business_command_executed", str(payload["execution"]["business_command_executed"]))
-    console.print(table)
-
-
-@governance_preflight_app.command("external-model")
-def governance_external_model_preflight_command(
-    command: Annotated[str, typer.Option("--command", help="External model command surface to preflight.")],
-    role: Annotated[str, typer.Option("--role", help="Governance role name.")],
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    audit_log: Annotated[Path | None, typer.Option("--audit-log", help="Optional local audit JSONL path.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Actor for optional audit logging.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for optional audit logging.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for optional audit logging.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Preflight external-model governance without sending any outbound payload."""
-    payload = _store(db).governance_external_model_preflight(
-        config_path=config,
-        command=command,
-        role=role,
-        audit_log=audit_log,
-        actor=actor,
-        target_type=target_type,
-        target_id=target_id,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault External Model Governance Preflight")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("command", escape(command))
-    table.add_row("role", escape(role))
-    table.add_row("in_scope", str(payload["scope"]["in_scope"]))
-    table.add_row("would_allow", str(payload["permission"]["would_allow"]))
-    table.add_row("preflight_status", escape(payload["enforcement"]["preflight_status"]))
-    table.add_row("external_call_executed", str(payload["execution"]["external_call_executed"]))
-    console.print(table)
-
-
-@governance_instrumentation_app.command("business-command")
-def governance_business_command_instrumentation_command(
-    command: Annotated[str, typer.Option("--command", help="ThreadVault business command to instrument.")],
-    role: Annotated[str, typer.Option("--role", help="Governance role name.")],
-    config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml governance config.")] = None,
-    audit_log: Annotated[Path | None, typer.Option("--audit-log", help="Optional local audit JSONL path.")] = None,
-    actor: Annotated[str | None, typer.Option("--actor", help="Actor for optional audit logging.")] = None,
-    target_type: Annotated[str | None, typer.Option("--target-type", help="Target type for optional audit logging.")] = None,
-    target_id: Annotated[str | None, typer.Option("--target-id", help="Target id for optional audit logging.")] = None,
-    db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
-) -> None:
-    """Normalize governance preflight and audit evidence for a business command."""
-    payload = _store(db).governance_business_command_instrumentation(
-        config_path=config,
-        command=command,
-        role=role,
-        audit_log=audit_log,
-        actor=actor,
-        target_type=target_type,
-        target_id=target_id,
-    )
-    if json_output:
-        _print_json(payload)
-        return
-    table = Table(title="ThreadVault Business Command Governance Instrumentation")
-    table.add_column("Key")
-    table.add_column("Value")
-    table.add_row("command", escape(command))
-    table.add_row("role", escape(role))
-    table.add_row("category", escape(payload["command_policy"]["category"]))
-    table.add_row("instrumented", str(payload["instrumentation"]["instrumented"]))
-    table.add_row("blocked", str(payload["instrumentation"]["blocked"]))
-    table.add_row("should_execute", str(payload["instrumentation"]["business_command_should_execute"]))
-    table.add_row("audit_written", str((payload.get("audit") or {}).get("preflight_record_written", False)))
-    console.print(table)
-
-
 @agent_app.command("retrieve")
 def agent_retrieve_command(
     query: Annotated[str, typer.Argument(help="Agent retrieval query text.")],
@@ -1865,33 +956,11 @@ def agent_retrieve_command(
     type_filter: Annotated[str | None, typer.Option("--type", help="Filter by top_type or sub_type.")] = None,
     tool: Annotated[str | None, typer.Option("--tool", help="Filter by tool name.")] = None,
     local_debug: Annotated[bool, typer.Option("--local-debug", help="Include local debug metadata such as file paths.")] = False,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Run the agent-facing retrieval contract."""
     if mode not in {"hybrid", "fts"}:
         raise typer.BadParameter("--mode must be hybrid or fts.")
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault agent retrieve",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="query",
-        target_id=query,
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault agent retrieve", governance, json_output)
     payload = _store(db).agent_retrieve(
         query=query,
         config_path=config,
@@ -1906,8 +975,6 @@ def agent_retrieve_command(
         tool=tool,
         local_debug=local_debug,
     )
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return
@@ -2247,18 +1314,22 @@ def ingest_queue_process_command(
 def codex_hook_ingest_command(
     codex_home: Annotated[Path | None, typer.Option("--codex-home", help="Override Codex home for the queued request.")] = None,
     db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
+    apply: Annotated[
+        bool,
+        typer.Option("--apply", help="Immediately import only the transcript named by this hook payload."),
+    ] = False,
     diagnostic_json: Annotated[
         bool,
         typer.Option("--diagnostic-json", help="Emit ThreadVault diagnostic JSON instead of hook response."),
     ] = False,
 ) -> None:
-    """Read a Codex Hook JSON payload from stdin and enqueue ingestion work."""
+    """Read a Codex Hook payload, enqueue it, and optionally import its transcript."""
     raw = sys.stdin.read()
     try:
         payload = json.loads(raw) if raw.strip() else {}
         if not isinstance(payload, dict):
             raise ValueError("Hook payload must be a JSON object.")
-        result = _store(db).handle_codex_hook(payload, codex_home=codex_home)
+        result = _store(db).handle_codex_hook(payload, codex_home=codex_home, apply=apply)
     except Exception as exc:  # noqa: BLE001 - hooks should not break Codex turns.
         result = invalid_hook_payload_result(str(exc))
     _print_json(result if diagnostic_json else result.get("hook_response", hook_continue_response()))
@@ -2269,21 +1340,60 @@ def codex_hook_config_command(
     command: Annotated[
         str,
         typer.Option("--command", help="Hook command to place in the generated snippet."),
-    ] = "threadvault codex-hook ingest",
-    timeout: Annotated[int, typer.Option("--timeout", min=1, help="Hook command timeout in seconds.")] = 10,
-    status_message: Annotated[str, typer.Option("--status-message", help="Codex hook status message.")] = "Queueing ThreadVault ingestion",
+    ] = "threadvault codex-hook ingest --apply",
+    timeout: Annotated[int, typer.Option("--timeout", min=1, help="Hook command timeout in seconds.")] = 30,
+    status_message: Annotated[
+        str,
+        typer.Option("--status-message", help="Codex hook status message."),
+    ] = "Archiving this Codex turn in ThreadVault",
     db: Annotated[Path | None, typer.Option("--db", help="Optional database path to include in the command.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
-    """Emit a sample Codex hooks.json Stop hook snippet."""
+    """Emit a Codex hooks.json Stop hook snippet for automatic single-file import."""
     resolved_command = command
-    if db is not None and command == "threadvault codex-hook ingest":
-        resolved_command = f'threadvault codex-hook ingest --db "{_db_option(db)}"'
+    if db is not None and command == "threadvault codex-hook ingest --apply":
+        resolved_command = f'threadvault codex-hook ingest --apply --db "{_db_option(db)}"'
     payload = _store(None).codex_hook_config(resolved_command, timeout=timeout, status_message=status_message)
     if json_output:
         _print_json(payload)
         return
     console.print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+@codex_hook_app.command("install")
+def codex_hook_install_command(
+    command: Annotated[
+        str,
+        typer.Option("--command", help="Absolute ThreadVault hook command to install."),
+    ] = "threadvault codex-hook ingest --apply",
+    timeout: Annotated[int, typer.Option("--timeout", min=1, help="Hook command timeout in seconds.")] = 30,
+    status_message: Annotated[
+        str,
+        typer.Option("--status-message", help="Codex hook status message."),
+    ] = "Archiving this Codex turn in ThreadVault",
+    codex_home: Annotated[Path | None, typer.Option("--codex-home", help="Codex home containing hooks.json.")] = None,
+    db: Annotated[Path | None, typer.Option("--db", help="Database path to include in the hook command.")] = None,
+    apply: Annotated[bool, typer.Option("--apply", help="Write hooks.json. Defaults to a dry-run plan.")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Plan or install the user-level automatic ThreadVault Stop hook."""
+    resolved_command = command
+    if db is not None and command == "threadvault codex-hook ingest --apply":
+        resolved_command = f'threadvault codex-hook ingest --apply --db "{_db_option(db)}"'
+    payload = _store(None).install_codex_hook(
+        codex_home or default_codex_home(),
+        resolved_command,
+        timeout=timeout,
+        status_message=status_message,
+        apply=apply,
+    )
+    if json_output:
+        _print_json(payload)
+        return
+    verb = "Installed" if apply else "Would install"
+    console.print(f"[green]{verb} Codex Stop hook:[/green] {escape(payload['path'])}")
+    if payload["trust_required"]:
+        console.print("Open /hooks in Codex once to review and trust the new hook.")
 
 
 @export_target_app.command("markdown")
@@ -2294,16 +1404,6 @@ def export_target_markdown_command(
     db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
     privacy_mode: Annotated[str, typer.Option("--privacy-mode", help="warn, redact, or fail.")] = "warn",
     privacy_config: Annotated[Path | None, typer.Option("--privacy-config", help="Optional threadvault.toml privacy config.")] = None,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Batch export sessions/project to Markdown with a manifest."""
@@ -2311,18 +1411,6 @@ def export_target_markdown_command(
         raise typer.BadParameter("Provide at least one --session or --project.")
     if privacy_mode not in {"warn", "redact", "fail"}:
         raise typer.BadParameter("--privacy-mode must be warn, redact, or fail.")
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault export-target markdown",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="export_target",
-        target_id=str(out),
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault export-target markdown", governance, json_output)
     try:
         payload = _store(db).export_target(
             out,
@@ -2334,8 +1422,6 @@ def export_target_markdown_command(
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return
@@ -2353,16 +1439,6 @@ def export_target_obsidian_command(
     db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
     privacy_mode: Annotated[str, typer.Option("--privacy-mode", help="warn, redact, or fail.")] = "warn",
     privacy_config: Annotated[Path | None, typer.Option("--privacy-config", help="Optional threadvault.toml privacy config.")] = None,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Batch export sessions/project to an Obsidian-ready Markdown vault."""
@@ -2370,18 +1446,6 @@ def export_target_obsidian_command(
         raise typer.BadParameter("Provide at least one --session or --project.")
     if privacy_mode not in {"warn", "redact", "fail"}:
         raise typer.BadParameter("--privacy-mode must be warn, redact, or fail.")
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault export-target obsidian",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="export_target",
-        target_id=str(out),
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault export-target obsidian", governance, json_output)
     try:
         payload = _store(db).export_target(
             out,
@@ -2393,8 +1457,6 @@ def export_target_obsidian_command(
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return
@@ -2414,16 +1476,6 @@ def export_target_skill_command(
     db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
     privacy_mode: Annotated[str, typer.Option("--privacy-mode", help="warn, redact, or fail.")] = "warn",
     privacy_config: Annotated[Path | None, typer.Option("--privacy-config", help="Optional threadvault.toml privacy config.")] = None,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Batch export sessions/project to a Codex Skill candidate folder."""
@@ -2431,18 +1483,6 @@ def export_target_skill_command(
         raise typer.BadParameter("Provide at least one --session or --project.")
     if privacy_mode not in {"warn", "redact", "fail"}:
         raise typer.BadParameter("--privacy-mode must be warn, redact, or fail.")
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault export-target skill",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="export_target",
-        target_id=str(out),
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault export-target skill", governance, json_output)
     try:
         payload = _store(db).export_target(
             out,
@@ -2456,8 +1496,6 @@ def export_target_skill_command(
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return
@@ -2525,39 +1563,15 @@ def backup_history_prune_command(
     keep: Annotated[int | None, typer.Option("--keep", min=1, help="Number of latest valid backups to keep.")] = None,
     config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml config with [backup_history].keep.")] = None,
     apply: Annotated[bool, typer.Option("--apply", help="Actually delete old backups. Defaults to dry-run.")] = False,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Preview or apply backup retention."""
-    governance = _maybe_governance_instrumentation(
-        None,
-        command="threadvault backup-history prune",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="backup_history",
-        target_id=str(backup_dir),
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault backup-history prune", governance, json_output)
     try:
         resolved_keep, keep_source = resolve_retention_keep(keep, config, "backup_history")
         payload = prune_backup_history(backup_dir, keep=resolved_keep, apply=apply)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
     payload["keep_source"] = keep_source
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return
@@ -2632,34 +1646,10 @@ def backup_command(
     db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
     force: Annotated[bool, typer.Option("--force", help="Overwrite an existing backup file.")] = False,
     no_manifest: Annotated[bool, typer.Option("--no-manifest", help="Do not write a sidecar manifest file.")] = False,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Create a local SQLite backup of the ThreadVault archive."""
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault backup",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="backup",
-        target_id=str(out),
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault backup", governance, json_output)
     payload = _store(db).backup(out, force=force, write_manifest=not no_manifest)
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
     elif payload["ok"]:
@@ -2742,31 +1732,9 @@ def restore_command(
         typer.Option("--allow-missing-manifest", help="Allow applying a legacy backup without a manifest."),
     ] = False,
     restore_history: Annotated[Path | None, typer.Option("--restore-history", help="Optional restore history JSONL path.")] = None,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Restore a ThreadVault backup with explicit safety gates."""
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault restore",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="restore",
-        target_id=str(target_db),
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault restore", governance, json_output)
     payload = _store(db).restore(
         backup=backup,
         target_db=target_db,
@@ -2776,8 +1744,6 @@ def restore_command(
         allow_missing_manifest=allow_missing_manifest,
         restore_history=restore_history,
     )
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
     elif payload["ok"]:
@@ -2833,39 +1799,15 @@ def restore_history_prune_command(
     config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml config with [restore_history].keep.")] = None,
     apply: Annotated[bool, typer.Option("--apply", help="Rewrite the history file. Defaults to dry-run.")] = False,
     db: Annotated[Path | None, typer.Option("--db", help="Unused; kept for command shape consistency.")] = None,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Preview or apply restore history retention."""
-    governance = _maybe_governance_instrumentation(
-        db,
-        command="threadvault restore-history prune",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="restore_history",
-        target_id=str(history) if history else None,
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault restore-history prune", governance, json_output)
     try:
         resolved_keep, keep_source = resolve_retention_keep(keep, config, "restore_history")
         payload = _store(db).restore_history_prune(history, keep=resolved_keep, apply=apply)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
     payload["keep_source"] = keep_source
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return
@@ -3084,39 +2026,15 @@ def audit_history_prune_command(
     keep: Annotated[int | None, typer.Option("--keep", min=1, help="Number of latest valid reports to keep.")] = None,
     config: Annotated[Path | None, typer.Option("--config", help="Optional threadvault.toml config with [audit_history].keep.")] = None,
     apply: Annotated[bool, typer.Option("--apply", help="Actually delete old reports. Defaults to dry-run.")] = False,
-    governance_role: Annotated[str | None, typer.Option("--governance-role", help="Role for explicit governance preflight.")] = None,
-    governance_config: Annotated[
-        Path | None,
-        typer.Option("--governance-config", help="Optional threadvault.toml for governance preflight."),
-    ] = None,
-    governance_audit_log: Annotated[
-        Path | None,
-        typer.Option("--governance-audit-log", help="Optional local audit JSONL path for governance preflight."),
-    ] = None,
-    governance_actor: Annotated[str | None, typer.Option("--governance-actor", help="Actor for governance audit metadata.")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Preview or apply audit report retention."""
-    governance = _maybe_governance_instrumentation(
-        None,
-        command="threadvault audit-history prune",
-        role=governance_role,
-        config=governance_config,
-        audit_log=governance_audit_log,
-        actor=governance_actor,
-        target_type="audit_history",
-        target_id=str(report_dir),
-    )
-    if _governance_blocked(governance):
-        _emit_governance_blocked("threadvault audit-history prune", governance, json_output)
     try:
         resolved_keep, keep_source = resolve_retention_keep(keep, config, "audit_history")
         payload = prune_audit_history(report_dir, keep=resolved_keep, apply=apply)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
     payload["keep_source"] = keep_source
-    _mark_governance_executed(governance)
-    _attach_governance(payload, governance)
     if json_output:
         _print_json(payload)
         return

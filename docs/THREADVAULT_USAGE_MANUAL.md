@@ -20,7 +20,7 @@ ThreadVault 解决的是这几类问题：
 
 - 本地 Codex 会话扫描和导入。
 - SQLite 归档数据库与 FTS5 全文搜索。
-- 本地原生 Tkinter 桌面应用，作为 1.0.0 主界面。
+- 本地原生 Tkinter 桌面应用，作为 2.x 个人专用主界面。
 - 旧 Web UI runtime、启动器、活跃 schema、测试和活跃发现元数据已从当前包中移除；历史证据保留在 `docs/progress/archive/legacy-v4/`。
 - 会话列表、会话详情、摘要、事件预览和 warning 查看。
 - v2 检索合同、hybrid retrieval、agent retrieval、summary chunks。
@@ -81,7 +81,7 @@ threadvault --help
 
 ### 5.1 本地桌面应用
 
-启动 1.0.0 方向的最小原生窗口：
+启动 2.x 个人专用的最小原生窗口：
 
 ```powershell
 .\启动ThreadVault桌面版.cmd
@@ -99,18 +99,20 @@ threadvault desktop launch
 threadvault desktop smoke --json
 ```
 
-桌面应用使用 Python 标准库 Tkinter，不需要浏览器、Electron、React、Tauri 或前端构建流程。当前迁入的高频页面包括：
+桌面应用使用 Python 标准库 Tkinter，不需要浏览器、Electron、React、Tauri 或前端构建流程。2.4 的高频页面包括：
 
 | 页签 | 用途 |
 |---|---|
-| 浏览 | 搜索旧会话、打开摘要、查看搜索结果。 |
-| 导出 | 对当前会话生成 Markdown、Obsidian 或 Skill 导出预览；不直接写文件。 |
-| 安全 | 查看 parser warning 和 privacy scan 摘要；执行备份、备份验证、恢复预检和恢复到新目标库。 |
-| MCP | 查看 MCP manifest/serve 命令和只读工具。 |
-| 健康 | 运行数据库统计、doctor 诊断、重建搜索索引和数据库压缩。 |
-| 高级 | 原生查看 Schema、机器人文档、治理状态和治理诊断；确认后写出 Schema 文件。 |
+| 会话 | 以标题、项目、更新时间、事件数和警告徽标浏览/搜索旧会话；内部 UUID 不作为主标签。 |
+| 导出 | 选择目录和隐私处理，先生成安全预览，再通过“确认导出”真正写入文件和 manifest。 |
+| 备份 | “智能备份中心”显示最近检查、自动计划、下次运行、磁盘空间和档位，一键运行；高级子页提供隐私检查、手动单库备份和安全恢复。 |
+| Codex 联动 | 查看 MCP、Stop hook 和每日智能备份的本机连接状态。 |
+| 健康 | 打开即运行只读诊断；重建索引和压缩数据库放在独立维护区域。 |
+| 高级 | 查看/写出 Schema 和机器人说明；普通使用无需进入。 |
 
-性能策略：窗口只负责显示和操作，归档读取、搜索、导出预览、隐私检查、备份、恢复预检、恢复执行、诊断和高级面板都通过后台线程调用现有接口，避免主窗口卡死。Tkinter 变量只在 UI 线程读取，后台线程只接收普通字符串/路径值。备份、重建索引、压缩数据库、恢复执行和 schema write 会先弹出本地确认框；桌面恢复执行只允许写到不存在的新目标库，拒绝覆盖已有数据库。
+性能策略：窗口只负责显示、确认和选择路径；归档读取、搜索、导出、隐私检查、智能备份、恢复、诊断和高级面板都通过后台线程调用现有接口。导出参数一旦改变，旧预览立即失效；智能备份继续使用 CLI 同一套档位、空间、验证和保留策略。恢复目标默认生成 `threadvault-restored.db` 一类的新文件名，只允许写到不存在的新库。
+
+最省心的日常用法：打开“备份 → 智能备份中心”看顶部状态；需要时点“立即智能备份”。系统自动选择核心、证据或取证档位，无需手工判断。自动任务仍按计划运行，桌面按钮不会取代调度器。
 
 | 按钮 | 用途 | 结果 |
 |---|---|---|
@@ -271,7 +273,8 @@ MCP tools：
 - MCP 默认不暴露 raw path metadata。
 - `local_debug=true` 才会返回本地调试元数据。
 - MCP 预览导出不写文件；真正写文件仍要运行 `threadvault export-target ...`。
-- 不通过 MCP 绕过 privacy scan、preview gate 或 governance preflight。
+- 不通过 MCP 绕过 privacy scan、preview gate 或 confirmation gate。
+- MCP 只读打开已有数据库；数据库不存在时不会自动创建或迁移。
 
 详细配置示例和 AI 自配置协议见 `docs/MCP_INTEGRATION.md`。
 
@@ -487,9 +490,6 @@ threadvault config doctor --json
 - privacy allowlist
 - audit / backup / restore history 保留数量
 - retrieval vector 是否启用
-- governance 是否启用
-- local identity actors
-- central policy / audit / backup policy 文件路径
 
 ## 12. 备份与恢复
 
@@ -539,45 +539,30 @@ threadvault restore-history latest --json
 - UI 中恢复执行必须确认。
 - 备份文件可能包含私密会话内容。
 
-## 13. 治理与审计
+## 13. 个人安全边界
 
-治理是本地可选诊断和预检，不代表默认开启云/团队模式。
+ThreadVault 2.x 不提供团队模式、中心策略/审计服务或共享 HTTP server。个人使用的安全边界由以下流程承担：
 
-查看治理状态：
-
-```powershell
-threadvault governance status --json
-```
-
-权限预检：
-
-```powershell
-threadvault governance permission check --role viewer --operation search --actor reviewer@example --target-type archive --target-id local --json
-```
-
-治理 gap：
-
-```powershell
-threadvault governance enforcement gaps --json
-threadvault governance v3 gap-audit --json
-```
-
-外部模型预检：
-
-```powershell
-threadvault governance preflight external-model --command "threadvault summarize --external" --role operator --json
-```
-
-本地审计记录：
-
-```powershell
-threadvault governance audit append --log <repo-root>\audit.jsonl --operation export --actor local-user --status preview --target-type session --target-id SESSION_ID --json
-threadvault governance audit list --log <repo-root>\audit.jsonl --json
-```
+- 导出前运行隐私扫描和只读 preview；
+- 写导出文件需要显式命令或桌面确认；
+- 备份可校验完整性和 manifest；
+- restore 先生成计划，执行时必须显式 `--apply`；
+- MCP 始终只读，不创建数据库或写导出文件。
 
 ## 14. 自动入库队列和 Codex Hook
 
-Hook 只负责轻量入队，不在 Hook 进程里做大扫描。
+Codex `Stop` hook 会把请求写入队列，并只导入本轮 payload 给出的 `transcript_path`。它不会在 Hook 进程里扫描全部历史；完整扫描只用于首次 backfill 或手动恢复。
+
+首次安装（默认 dry-run，必须加 `--apply` 才写 `~/.codex/hooks.json`）：
+
+```powershell
+$threadvaultExe = (Resolve-Path <repo-root>\.venv\Scripts\threadvault.exe).Path
+$archiveDb = (Resolve-Path <repo-root>\data\threadvault.db).Path
+$hookCommand = '"' + $threadvaultExe + '" codex-hook ingest --apply --db "' + $archiveDb + '"'
+& $threadvaultExe codex-hook install --command $hookCommand --apply --json
+```
+
+安装后，在 Codex 输入 `/hooks`，人工检查并信任一次新 hook。Codex 要求非托管命令 hook 经过这一步；ThreadVault 不会绕过该安全机制。
 
 入队：
 
@@ -612,8 +597,10 @@ threadvault codex-hook config --json
 Hook 调用入口：
 
 ```powershell
-threadvault codex-hook ingest --db <repo-root>\data\threadvault.db
+threadvault codex-hook ingest --apply --db <repo-root>\data\threadvault.db
 ```
+
+不用 `--apply` 时只入队；带 `--apply` 时队列状态会从 `pending` 变成 `processing`，最后变成 `completed` 或 `failed`。
 
 ## 15. JSON 和 Schema
 
@@ -663,15 +650,23 @@ threadvault --help
 threadvault init
 threadvault import --json
 threadvault stats --json
+threadvault codex-hook install --db <repo-root>\data\threadvault.db --json
+codex mcp add threadvault -- <threadvault-exe> mcp serve --db <repo-root>\data\threadvault.db
 .\启动ThreadVault桌面版.cmd
 ```
 
+先检查 hook 安装计划，再使用前文的绝对 `--command` 加 `--apply` 安装；随后在 Codex `/hooks` 完成一次信任。
+
 ### 16.2 每天更新归档
 
+正常情况下无需每天手动运行 `threadvault import`。Codex 每轮结束时由 `Stop` hook 自动更新当前 transcript。可以用下面命令抽查：
+
 ```powershell
-threadvault import --json
+threadvault ingest-queue list --limit 10 --json
 threadvault doctor --json
 ```
+
+只有 hook 被禁用、数据库离线或需要补历史时，才手动运行 `threadvault import --json`。
 
 ### 16.3 查找历史问题
 
@@ -690,7 +685,17 @@ threadvault export-target skill --session SESSION_ID --out <repo-root>\threadvau
 
 或直接在普通 UI 里点击“导出给 Codex 继续用”。
 
+若 Codex 已注册 ThreadVault MCP，可在新 task 里直接让 Codex 使用 `threadvault_retrieve` 搜索旧对话，再用 `threadvault_session` 打开证据。
+
 ### 16.5 周期性维护
+
+普通情况下直接使用桌面“备份 → 智能备份中心”，或让每天的自动任务运行。命令行等价入口是：
+
+```powershell
+threadvault storage auto --apply --json
+```
+
+以下手动命令只在诊断、恢复演练或指定备份目录时使用：
 
 ```powershell
 threadvault reindex --fts-only --json
@@ -786,7 +791,37 @@ threadvault restore --backup BACKUP.db --target-db RESTORED.db --apply --json
 - `docs/PROGRESS.md`：当前进展和验证记录。
 - `docs/progress/archive/`：历史开发归档。
 
-## 19. 最小验收命令
+## 19. 存储瘦身与冷热归档
+
+日常检索只依赖热库 `data\threadvault.db`。完整的大型工具输出、压缩历史、补丁、元数据和图片证据存放在 `data\threadvault-cold`，需要导出或审查原始事件时会自动回读。
+
+```powershell
+threadvault storage audit --json
+threadvault storage verify --deep --json
+threadvault storage prune --json
+threadvault storage prune --apply --json
+```
+
+日常不需要自己判断档位，推荐只运行这一条：
+
+```powershell
+threadvault storage auto --db data\threadvault.db --cold-root data\threadvault-cold --codex-home $env:USERPROFILE\.codex --out data\storage-backups --apply --json
+```
+
+自动策略会先建立一份 `evidence` 基线；以后有变化时按最高到期档位只做一份：每日 `core`、每周 `evidence`、累计运行满 30 天后每月 `forensic`。没有变化或仍在周期内就跳过。每份新备份会先校验，再只清理自动目录中的旧代，保留数量为 Core 3、Evidence 2、Forensic 1；手工备份不参与自动删除。磁盘空间不足（含 5 GiB 安全余量）时会阻止备份并报告，不会静默降级或删除唯一内容。
+
+不加 `--apply` 只查看本次会如何判断，不写备份。需要人工指定恢复级别时，仍可使用以下专家命令：
+
+```powershell
+threadvault storage backup --profile core --out backups\core --json
+threadvault storage backup --profile evidence --out backups\evidence --json
+threadvault storage backup --profile forensic --codex-home $env:USERPROFILE\.codex --out backups\forensic --json
+threadvault storage verify-backup --manifest <storage-manifest.json> --deep --json
+```
+
+不要直接对正在使用的数据库做手工删表或原地压缩。需要重新应用策略时，使用 `storage rebuild --target-db <new.db> --apply`，验证成功后再切换。
+
+## 20. 最小验收命令
 
 ```powershell
 threadvault --help

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "ok",
+    "applied",
+    "action",
+    "profile",
+    "reason",
+    "db_path",
+    "out_root",
+    "policy",
+    "archive_state",
+    "latest",
+    "disk"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "applied": {
+      "type": "boolean"
+    },
+    "action": {
+      "type": "string"
+    },
+    "profile": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "db_path": {
+      "type": "string"
+    },
+    "out_root": {
+      "type": "string"
+    },
+    "policy": {
+      "type": "object"
+    },
+    "archive_state": {
+      "type": "object"
+    },
+    "latest": {
+      "type": "object"
+    },
+    "disk": {
+      "type": "object"
+    },
+    "backup": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "verification": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "retention": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

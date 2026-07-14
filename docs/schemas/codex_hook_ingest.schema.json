@@ -7,6 +7,7 @@
     "hook_event_name",
     "codex_home",
     "enqueue",
+    "process",
     "hook_response"
   ],
   "properties": {
@@ -32,6 +33,12 @@
       ]
     },
     "enqueue": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "process": {
       "type": [
         "object",
         "null"

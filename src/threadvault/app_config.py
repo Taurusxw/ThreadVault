@@ -27,11 +27,6 @@ class AppConfig:
     vector_enabled: bool = False
     vector_adapter: str = "local-hash"
     vector_dimensions: int = 64
-    governance_enabled: bool = False
-    governance_identity_actors: list[dict[str, Any]] = field(default_factory=list)
-    governance_policy_central_store: Path | None = None
-    governance_audit_central_store: Path | None = None
-    governance_backup_policy: Path | None = None
 
 
 PrivacyConfig = AppConfig
@@ -64,21 +59,6 @@ def load_app_config(path: Path | None = None) -> AppConfig:
     if vector_adapter != "local-hash":
         raise ValueError("retrieval.vector.adapter must be local-hash")
     vector_dimensions = _positive_int_or_default(vector_config.get("dimensions"), 64, "retrieval.vector.dimensions")
-    governance_config = data.get("governance", {})
-    governance_enabled = _bool_or_default(governance_config.get("enabled"), False, "governance.enabled")
-    governance_identity_actors = _identity_actors(governance_config.get("identity", {}).get("actors", []))
-    governance_policy_central_store = _optional_path_or_none(
-        governance_config.get("policy", {}).get("central_store"),
-        "governance.policy.central_store",
-    )
-    governance_audit_central_store = _optional_path_or_none(
-        governance_config.get("audit", {}).get("central_store"),
-        "governance.audit.central_store",
-    )
-    governance_backup_policy = _optional_path_or_none(
-        governance_config.get("backup", {}).get("policy"),
-        "governance.backup.policy",
-    )
     return AppConfig(
         source_path=config_path,
         archive_db_path=archive_db_path,
@@ -89,11 +69,6 @@ def load_app_config(path: Path | None = None) -> AppConfig:
         vector_enabled=vector_enabled,
         vector_adapter=vector_adapter,
         vector_dimensions=vector_dimensions,
-        governance_enabled=governance_enabled,
-        governance_identity_actors=governance_identity_actors,
-        governance_policy_central_store=governance_policy_central_store,
-        governance_audit_central_store=governance_audit_central_store,
-        governance_backup_policy=governance_backup_policy,
     )
 
 
@@ -136,31 +111,6 @@ keep = 20
 enabled = false
 adapter = "local-hash"
 dimensions = 64
-
-[governance]
-# Governance is disabled by default. Enabling it makes local governance intent visible,
-# but does not require a server, enable cloud sync, or enforce permissions yet.
-enabled = false
-
-[governance.identity]
-# Optional local static actor map for v3 team-governance previews.
-# This is local-only and does not enable shared enforcement by itself.
-actors = []
-
-[governance.policy]
-# Optional local central policy document for v3 team-governance previews.
-# This is local-only and does not enable shared enforcement by itself.
-central_store = ""
-
-[governance.audit]
-# Optional local centralized audit JSONL store for v3 team-governance previews.
-# This is local-only and does not enable shared enforcement by itself.
-central_store = ""
-
-[governance.backup]
-# Optional local centralized backup/restore policy document for v3 team-governance previews.
-# This is local-only and does not enable shared backup, restore, or retention execution by itself.
-policy = ""
 """
 
 
@@ -208,7 +158,6 @@ def describe_app_config(path: Path | None = None, include_values: bool = False) 
             "backup_history": {"keep": None},
             "restore_history": {"keep": None},
             "retrieval": {"vector": {"enabled": False, "adapter": "local-hash", "dimensions": 64}},
-            "governance": {"enabled": False},
         }
     config = load_app_config(path)
     return {
@@ -222,7 +171,6 @@ def describe_app_config(path: Path | None = None, include_values: bool = False) 
         "backup_history": {"keep": config.backup_history_keep},
         "restore_history": {"keep": config.restore_history_keep},
         "retrieval": _retrieval_summary(config),
-        "governance": _governance_summary(config),
     }
 
 
@@ -250,7 +198,7 @@ def diagnose_app_config(path: Path | None = None) -> dict[str, Any]:
             errors.append({"code": "invalid_config_value", "message": str(exc)})
             suggestions.append(
                 "Fix invalid config values such as audit_history.keep, backup_history.keep, restore_history.keep, "
-                "storage.archive_db, retrieval.vector, governance.enabled, governance.identity.actors, or governance backup/policy paths."
+                "storage.archive_db, or retrieval.vector."
             )
     return {
         **payload,
@@ -266,32 +214,6 @@ def _str_or_none(value) -> str | None:
     if value is None:
         return None
     return str(value)
-
-
-def _identity_actors(value: Any) -> list[dict[str, Any]]:
-    if value is None:
-        return []
-    if not isinstance(value, list):
-        raise ValueError("governance.identity.actors must be an array")
-    actors: list[dict[str, Any]] = []
-    for index, item in enumerate(value):
-        if not isinstance(item, dict):
-            raise ValueError(f"governance.identity.actors[{index}] must be an object")
-        actor_id = _str_or_none(item.get("id"))
-        if not actor_id:
-            raise ValueError(f"governance.identity.actors[{index}].id is required")
-        raw_roles = item.get("roles", [])
-        if not isinstance(raw_roles, list) or any(not isinstance(role, str) for role in raw_roles):
-            raise ValueError(f"governance.identity.actors[{index}].roles must be an array of strings")
-        actors.append(
-            {
-                "id": actor_id,
-                "display": _str_or_none(item.get("display")),
-                "roles": list(raw_roles),
-                "source": _str_or_none(item.get("source")) or "local-static",
-            }
-        )
-    return actors
 
 
 def _positive_int_or_none(value, name: str) -> int | None:
@@ -388,34 +310,4 @@ def _storage_summary(config: AppConfig) -> dict[str, Any]:
     return {
         "archive_db": str(config.archive_db_path) if config.archive_db_path else None,
         "archive_db_configured": config.archive_db_path is not None,
-    }
-
-
-def _governance_summary(config: AppConfig) -> dict[str, Any]:
-    return {
-        "enabled": config.governance_enabled,
-        "identity": {
-            "actor_count": len(config.governance_identity_actors),
-            "actors": [
-                {
-                    "id": actor["id"],
-                    "display": actor.get("display"),
-                    "roles": actor["roles"],
-                    "source": actor["source"],
-                }
-                for actor in config.governance_identity_actors
-            ],
-        },
-        "policy": {
-            "central_store": str(config.governance_policy_central_store) if config.governance_policy_central_store else None,
-            "central_store_configured": config.governance_policy_central_store is not None,
-        },
-        "audit": {
-            "central_store": str(config.governance_audit_central_store) if config.governance_audit_central_store else None,
-            "central_store_configured": config.governance_audit_central_store is not None,
-        },
-        "backup": {
-            "policy": str(config.governance_backup_policy) if config.governance_backup_policy else None,
-            "policy_configured": config.governance_backup_policy is not None,
-        },
     }

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "profile",
+    "database"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "database": {
+      "type": "object"
+    },
+    "cold": {
+      "type": "object"
+    },
+    "forensic_files": {
+      "type": "integer"
+    },
+    "manifest": {
+      "type": "string"
+    }
+  }
+}

@@ -1,10 +1,12 @@
 # ThreadVault
 
-ThreadVault is a local-first, privacy-first archive, retrieval, export, governance, and native desktop tool for local Codex sessions.
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-It discovers Codex transcript JSONL files from local `sessions` and `archived_sessions` directories, normalizes current and legacy event shapes into SQLite, indexes searchable text with SQLite FTS5, and exposes the archive through CLI commands, JSON contracts, agent-facing retrieval, export targets, governance diagnostics, MCP, and a minimal native desktop app.
+ThreadVault is a local-first, privacy-first archive, retrieval, export, native desktop, and MCP tool for one person's local Codex sessions.
 
-Current package version: `1.0.1`.
+It discovers Codex transcript JSONL files from local `sessions` and `archived_sessions` directories, normalizes current and legacy event shapes into SQLite, indexes searchable text with SQLite FTS5, and exposes the archive through CLI commands, JSON contracts, agent-facing retrieval, export targets, MCP, and a minimal native desktop app.
+
+Current package version: `2.4.0`.
 
 ## What It Is For
 
@@ -16,7 +18,8 @@ Typical uses:
 - Open a session and inspect its summary, event previews, warnings, and evidence event IDs.
 - Export selected sessions or project material to Markdown, Obsidian-ready vault files, or a Codex Skill candidate folder.
 - Give Codex or another local agent a compact, evidence-backed context package instead of dumping raw transcripts.
-- Run local privacy scans, backups, restore plans, diagnostics, schema validation, and governance readiness checks.
+- Run local privacy scans, backups, restore plans, diagnostics, and schema validation.
+- Keep daily search fast with a compact hot database while retaining bulky evidence in a content-addressed cold store.
 
 ## Current Status
 
@@ -32,11 +35,14 @@ The stable baseline now includes:
 - Privacy scanning with `warn`, `redact`, and `fail` modes.
 - JSON output contracts, packaged JSON Schemas, and validation helpers.
 - Corpus audit reports, audit history, backup/restore workflows, restore history, and retention helpers.
-- Optional local governance readiness, policy, audit, identity actor, preflight, and instrumentation surfaces.
+- Personal safety gates for privacy scanning, export preview, explicit confirmation, backup verification, and conservative restore.
 - A primary minimal native Tkinter desktop app that uses background loading and does not require a browser.
 - Native-first discovery metadata: capabilities and robot docs advertise `native_desktop` as the primary local interface.
 - The former personal Web UI runtime, launcher, active schemas, tests, and active discovery metadata have been removed from the active package; v4 evidence remains in `docs/progress/archive/legacy-v4/`.
 - A read-only MCP stdio server for Codex, ZCode, OpenCode, and other MCP-capable local agents.
+- Schema v8 hot/cold storage, exact assistant-body deduplication, cold garbage collection, and Core/Evidence/Forensic backup profiles.
+- One-command smart backup selection with verification, disk guards, and bounded automatic retention.
+- A desktop Backup Center with automatic status/next-run/disk visibility, one-click smart backup, friendly session titles, and a confirmed export workflow.
 
 Still intentionally not default:
 
@@ -44,18 +50,23 @@ Still intentionally not default:
 - Mandatory cloud sync or hosted server use.
 - Mandatory external LLM summaries.
 - Mandatory vector indexing.
-- Team/shared enforcement as a requirement for personal use.
+- Team mode, central policy/audit services, or a shared HTTP server.
 
 ## Versioning
 
 ThreadVault uses semantic package versions for active development. Substantive optimization or development changes should advance the package version, update `README.md`, and add a dated `docs/CHANGELOG.md` entry.
 
-The 1.0.x release line uses the native desktop app as the primary local interface and keeps the former browser UI only as archived v4 historical evidence.
+The 2.x release line is intentionally personal-only. It uses the native desktop app as the primary local interface, keeps MCP read-only, and retains former team/governance and browser UI work only as archived historical evidence.
 
 Current and historical version line:
 
 | Version | Focus |
 |---|---|
+| `2.4.0` | Foolproof native desktop workflows for smart backup, confirmed export, friendly browsing, safe restore targets, and clearer diagnostics. |
+| `2.3.0` | Foolproof smart backup selection, verification, disk guards, and bounded automatic retention. |
+| `2.2.0` | Hot/cold storage lifecycle, minimal backups, exact duplicate-body removal, and copy-on-write migration. |
+| `2.1.0` | Automatic per-turn Codex archiving through a supported Stop hook, current event compatibility, and documented MCP registration. |
+| `2.0.0` | Personal-only runtime; removed team/governance/shared-server contracts, modularized MCP/store surfaces, and migrated compacted parser data. |
 | `1.0.1` | Removed the remaining active Web UI launcher, readiness test, and retired Web discovery metadata. |
 | `1.0.0` | Native desktop primary release; removed active personal Web UI runtime, schemas, and tests. |
 | `0.49.0` | Retired active Web UI CLI commands and redirected the old browser launcher to the desktop app. |
@@ -90,12 +101,30 @@ ThreadVault uses different paths for different jobs. Keeping these separate avoi
 | Path | Default / Example | Purpose |
 |---|---|---|
 | Archive database | `<repo-root>\data\threadvault.db` in this project checkout | The local SQLite index/store used for search, retrieval, summaries, UI, backup, and restore. Override with `--db`, `THREADVAULT_DB`, or `[storage].archive_db`. |
+| Cold evidence store | `<repo-root>\data\threadvault-cold` | Immutable content-addressed blobs for large tool output, metadata, patches, compacted history, and image assets. |
 | Export directory | `threadvault-desktop-export/` in the desktop flow | User-facing Markdown, Obsidian, or Skill files written after preview/review. |
-| Backup directory | Usually `threadvault-desktop-backups/` or a user-provided folder | Local SQLite backup copies and manifests. |
-| Config file | `%APPDATA%\threadvault\threadvault.toml` on Windows | Privacy allowlist, vector settings, history retention, and optional governance config. |
+| Backup directory | `<archive-db-parent>\storage-backups` or a user-selected folder | Automatic Core/Evidence/Forensic backups, verification manifests, and last-run state; manual backups remain separate. |
+| Config file | `%APPDATA%\threadvault\threadvault.toml` on Windows | Privacy allowlist, vector settings, and history retention. |
 | Codex home | `%USERPROFILE%\.codex` unless `CODEX_HOME` or `--codex-home` is used | Source transcript files under `sessions` and `archived_sessions`. |
 
 The archive database is not meant to be opened as a daily document. Use search, the UI, or exports to read and reuse the knowledge.
+
+## Storage Lifecycle
+
+ThreadVault keeps human conversation text and the clean FTS index in the hot SQLite database. Large reversible evidence moves to `threadvault-cold`; routine telemetry keeps only a small hash stub; exact duplicate `event_msg/agent_message` bodies are removed when the canonical assistant message exists.
+
+```powershell
+threadvault storage audit --json
+threadvault storage verify --deep --json
+threadvault storage prune --json
+threadvault storage auto --apply --json
+threadvault storage backup --profile core --out backups\core --json
+threadvault storage backup --profile evidence --out backups\evidence --json
+```
+
+`storage auto --apply` is the normal hands-off entrypoint. It creates an initial Evidence backup, then chooses at most one due tier: daily Core, weekly Evidence, or monthly Forensic after 30 days of history. It skips unchanged archives, verifies every created backup, keeps only the newest 3/2/1 automatic Core/Evidence/Forensic generations, never deletes manually created backups, and blocks before writing when the configured disk reserve would be crossed.
+
+Use `storage rebuild --target-db ...` for copy-on-write migrations. It never overwrites the source database and accepts the target only after count, conversation digest, doctor, and cold-reference checks pass.
 
 ## Install
 
@@ -103,7 +132,9 @@ Use Python 3.11 or newer. On Windows with the Python launcher:
 
 ```powershell
 cd <repo-root>
-py -3.12 -m pip install -e ".[dev]"
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pip check
 ```
 
 Verify the CLI:
@@ -128,7 +159,7 @@ Or run the CLI directly:
 threadvault desktop launch
 ```
 
-The desktop app uses Python stdlib Tkinter, opens without a browser, and keeps archive/search/export-preview/safety/maintenance/advanced checks on background worker threads so the window stays responsive. Backup, reindex, vacuum, restore apply, and schema write actions use native confirmation prompts before writing locally; desktop restore apply only writes to a new target database and refuses overwrite.
+The desktop app uses Python stdlib Tkinter, opens without a browser, and keeps archive/search/export/backup/safety/maintenance checks on background worker threads so the window stays responsive. The Backup Center automatically explains the selected backup tier, last/next run, disk guard, and retention policy. Export writes require a current preview plus native confirmation. Restore defaults to a new database filename and refuses overwrite.
 
 Run a non-window desktop smoke check:
 
@@ -149,6 +180,40 @@ Import Codex sessions from the default local Codex home:
 ```powershell
 threadvault import
 ```
+
+## Daily Codex Archive Workflow
+
+Run one full backfill after installation, then let the Codex `Stop` hook import only the transcript that changed after each turn:
+
+```powershell
+$threadvaultExe = (Resolve-Path .\.venv\Scripts\threadvault.exe).Path
+$archiveDb = (Resolve-Path .\data\threadvault.db).Path
+$hookCommand = '"' + $threadvaultExe + '" codex-hook ingest --apply --db "' + $archiveDb + '"'
+
+& $threadvaultExe import --db $archiveDb
+& $threadvaultExe codex-hook install --command $hookCommand --apply --json
+codex mcp add threadvault -- $threadvaultExe mcp serve --db $archiveDb
+```
+
+Open `/hooks` once in Codex, review the new user-level hook, and trust it. Codex requires this one-time trust review for non-managed command hooks. The installer writes `~/.codex/hooks.json`, preserves unrelated hooks, and does not replace the existing `notify` command.
+
+Check that both integrations are present:
+
+```powershell
+Get-Content "$HOME\.codex\hooks.json"
+codex mcp list
+& $threadvaultExe ingest-queue list --db $archiveDb --json
+```
+
+Later, retrieve an old conversation in whichever surface is most convenient:
+
+```powershell
+& $threadvaultExe search "关键词" --db $archiveDb
+& $threadvaultExe agent retrieve "关键词" --db $archiveDb --json
+& $threadvaultExe client session SESSION_ID --db $archiveDb --json
+```
+
+The native desktop app provides the same search-and-open flow. In a new Codex task, the registered read-only MCP tools let Codex search the archive and open session evidence directly.
 
 List imported sessions:
 
@@ -314,6 +379,7 @@ Restore and prune operations are conservative by default. Destructive cleanup re
 Detailed planning, usage, contracts, and historical development records live under `docs/`.
 
 - `CONTEXT.md` - canonical project vocabulary.
+- `README.zh-CN.md` - standalone Simplified Chinese project manual.
 - `AGENTS.md` - project-specific Codex rules.
 - `CONTRIBUTING.md` - contribution workflow and privacy expectations.
 - `SECURITY.md` - vulnerability reporting and local data boundary.

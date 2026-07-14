@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "cold_root",
+    "blobs"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "cold_root": {
+      "type": "string"
+    },
+    "blobs": {
+      "type": "integer"
+    },
+    "missing": {
+      "type": "integer"
+    },
+    "invalid": {
+      "type": "integer"
+    },
+    "deep": {
+      "type": "boolean"
+    },
+    "errors": {
+      "type": "array"
+    }
+  }
+}

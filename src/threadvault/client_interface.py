@@ -5,14 +5,13 @@ from typing import Any
 
 from .agent_interface import AgentRetrievalRequest, agent_retrieve
 from .app_config import AppConfig
-from .governance import governance_status
 
 CLIENT_INTERFACE_CONTRACT_VERSION = "client_interface.v1"
 CLIENT_OVERVIEW_CONTRACT_VERSION = "client_overview.v1"
 CLIENT_SESSION_CONTRACT_VERSION = "client_session.v1"
 CLIENT_EXPORT_PREVIEW_CONTRACT_VERSION = "client_export_preview.v1"
 CLIENT_WARNINGS_CONTRACT_VERSION = "client_warnings.v1"
-CLIENT_FAMILIES = ["desktop", "ide", "web", "tui", "server"]
+CLIENT_FAMILIES = ["desktop", "ide", "tui"]
 
 
 def client_manifest(config: AppConfig, capabilities_payload: dict[str, Any], robot_guide_payload: dict[str, Any]) -> dict[str, Any]:
@@ -28,9 +27,9 @@ def client_manifest(config: AppConfig, capabilities_payload: dict[str, Any], rob
         "client_families": [
             _family(
                 "desktop",
-                status="planned",
+                status="primary_local_interface",
                 server_required=False,
-                recommended_entrypoints=["threadvault client manifest --json", "threadvault agent retrieve QUERY --json"],
+                recommended_entrypoints=["threadvault desktop launch", "threadvault desktop smoke --json"],
             ),
             _family(
                 "ide",
@@ -43,12 +42,6 @@ def client_manifest(config: AppConfig, capabilities_payload: dict[str, Any], rob
                 ],
             ),
             _family(
-                "web",
-                status="planned",
-                server_required=False,
-                recommended_entrypoints=["threadvault client manifest --json", "threadvault agent retrieve QUERY --json"],
-            ),
-            _family(
                 "tui",
                 status="accepted_minimal_runtime",
                 server_required=False,
@@ -57,13 +50,6 @@ def client_manifest(config: AppConfig, capabilities_payload: dict[str, Any], rob
                     "threadvault client tui --query QUERY --json",
                     "threadvault client tui --export-preview-session SESSION_ID --out OUT --json",
                 ],
-            ),
-            _family(
-                "server",
-                status="deferred",
-                server_required=False,
-                opt_in=True,
-                recommended_entrypoints=["threadvault client manifest --json", "threadvault capabilities --json"],
             ),
         ],
         "entrypoints": {
@@ -109,13 +95,10 @@ def client_manifest(config: AppConfig, capabilities_payload: dict[str, Any], rob
             "summary": robot_guide_payload["summary_pipeline"]["schemas"],
             "vector": robot_guide_payload["vector"]["schemas"],
             "export": ["export_target_manifest"],
-            "governance": "governance_status",
         },
         "defaults": {
             "local_first": feature_flags["local_first"],
             "server_required": False,
-            "server_available": False,
-            "server_opt_in": True,
             "cloud_sync": feature_flags["cloud_sync"],
             "external_model_calls": feature_flags["external_llm_summary"],
             "raw_paths_in_default_output": False,
@@ -129,7 +112,6 @@ def client_manifest(config: AppConfig, capabilities_payload: dict[str, Any], rob
             "prefer_agent_retrieval_for_search": True,
             "local_debug_metadata_opt_in": True,
         },
-        "governance": governance_status(config),
     }
 
 
@@ -138,13 +120,11 @@ def _family(
     status: str,
     server_required: bool,
     recommended_entrypoints: list[str],
-    opt_in: bool = False,
 ) -> dict[str, Any]:
     return {
         "name": name,
         "status": status,
         "server_required": server_required,
-        "opt_in": opt_in,
         "recommended_entrypoints": recommended_entrypoints,
     }
 
@@ -246,7 +226,6 @@ def client_session_detail(
 def client_export_preview(
     preview: dict[str, Any],
     execute_command: str,
-    governance_instrumentation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "contract_version": CLIENT_EXPORT_PREVIEW_CONTRACT_VERSION,
@@ -269,88 +248,11 @@ def client_export_preview(
             "execute": execute_command,
             "manifest_name": "threadvault-export-manifest.json",
         },
-        "governance_instrumentation": governance_instrumentation or _governance_instrumentation_disabled(),
         "diagnostics": {
             **preview["diagnostics"],
             "server_required": False,
             "external_model_calls": False,
-            "governance_instrumented": bool(governance_instrumentation and governance_instrumentation["enabled"]),
-            "governance_blocked": bool(governance_instrumentation and governance_instrumentation["blocked"]),
         },
-    }
-
-
-def blocked_client_export_preview(
-    *,
-    profile: str,
-    out_dir: Any,
-    session_ids: list[str],
-    project: str | None,
-    privacy_mode: str,
-    execute_command: str,
-    governance_instrumentation: dict[str, Any],
-) -> dict[str, Any]:
-    root = str(out_dir.expanduser()) if hasattr(out_dir, "expanduser") else str(out_dir)
-    return {
-        "contract_version": CLIENT_EXPORT_PREVIEW_CONTRACT_VERSION,
-        "request": {
-            "profile": profile,
-            "root": root,
-            "sessions": session_ids,
-            "project": project,
-            "privacy_mode": privacy_mode,
-        },
-        "selection": {
-            "sessions": session_ids,
-            "project": project,
-            "selected_session_ids": [],
-        },
-        "planned_files": [],
-        "skipped": [
-            {
-                "kind": "governance",
-                "reason": "governance_preflight_blocked",
-                "preflight_status": governance_instrumentation["preflight"]["enforcement"]["preflight_status"],
-            }
-        ],
-        "privacy": {
-            "mode": privacy_mode,
-            "findings_count": 0,
-            "effective_findings_count": 0,
-            "blocked": False,
-        },
-        "evidence": {
-            "event_ids": [],
-            "sessions_with_evidence": [],
-        },
-        "actions": {
-            "execute": execute_command,
-            "manifest_name": "threadvault-export-manifest.json",
-        },
-        "governance_instrumentation": governance_instrumentation,
-        "diagnostics": {
-            "preview": False,
-            "writes_files": False,
-            "manifest_written": False,
-            "planned_file_count": 0,
-            "skipped_count": 1,
-            "server_required": False,
-            "external_model_calls": False,
-            "governance_instrumented": True,
-            "governance_blocked": True,
-        },
-    }
-
-
-def _governance_instrumentation_disabled() -> dict[str, Any]:
-    return {
-        "enabled": False,
-        "blocked": False,
-        "reason": "not_requested",
-        "role": None,
-        "actor": None,
-        "audit_log": None,
-        "preflight": None,
     }
 
 

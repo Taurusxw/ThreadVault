@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "applied",
+    "source_db",
+    "target_db",
+    "cold_root"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "applied": {
+      "type": "boolean"
+    },
+    "source_db": {
+      "type": "string"
+    },
+    "target_db": {
+      "type": "string"
+    },
+    "cold_root": {
+      "type": "string"
+    },
+    "validations": {
+      "type": "object"
+    }
+  }
+}

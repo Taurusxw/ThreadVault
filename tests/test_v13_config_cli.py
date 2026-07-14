@@ -62,31 +62,6 @@ def test_config_show_can_include_values_with_explicit_opt_in(tmp_path: Path) -> 
     assert payload["privacy"]["allowlist_rules"][0]["text"] == "dev@example.com"
 
 
-def test_config_show_reports_governance_identity_actor_count(tmp_path: Path) -> None:
-    runner = CliRunner()
-    config = tmp_path / "threadvault.toml"
-    config.write_text(
-        """
-[governance]
-enabled = true
-
-[governance.identity]
-actors = [
-  { id = "reviewer@example", roles = ["reviewer"] },
-]
-""",
-        encoding="utf-8",
-    )
-
-    result = runner.invoke(app, ["config", "show", "--config", str(config), "--json"])
-
-    assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
-    assert payload["governance"]["enabled"] is True
-    assert payload["governance"]["identity"]["actor_count"] == 1
-    assert payload["governance"]["identity"]["actors"][0]["id"] == "reviewer@example"
-
-
 def test_config_doctor_reports_invalid_toml_as_json(tmp_path: Path) -> None:
     runner = CliRunner()
     config = tmp_path / "threadvault.toml"

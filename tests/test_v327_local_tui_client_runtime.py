@@ -116,10 +116,11 @@ def test_client_tui_runtime_non_json_renders_sections(tmp_path: Path) -> None:
     assert "Export Preview" in result.output
 
 
-def test_client_tui_runtime_discovery_schema_docs_and_gap_audit() -> None:
+def test_client_tui_runtime_discovery_schema_docs_and_personal_only_boundary() -> None:
     caps = capabilities()
     assert "client tui" in caps["json_outputs"]
     assert caps["feature_flags"]["client_tui_runtime"] is True
+    assert "governance" not in caps["commands"]
 
     guide = robot_guide()
     assert guide["client_interface"]["tui_runtime_contract_version"] == "client_tui_runtime.v1"
@@ -139,15 +140,3 @@ def test_client_tui_runtime_discovery_schema_docs_and_gap_audit() -> None:
     ]:
         assert path.exists(), f"missing {path}"
     assert not Path("deep-research-report.md").exists()
-
-    runner = CliRunner()
-    result = runner.invoke(app, ["governance", "v3", "gap-audit", "--json"])
-    assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
-    assert payload["completion"]["accepted_phase_count"] == 33
-    assert payload["completion"]["current_phase"] == "phase-33-v3-final-acceptance-smoke"
-    assert payload["completion"]["v3_complete"] is True
-    assert "client_tui_runtime" in payload["implemented_capabilities"]
-    assert "richer_client_runtime_not_accepted" not in {blocker["code"] for blocker in payload["blockers"]}
-    gaps = {gap["code"]: gap for gap in payload["remaining_gaps"]}
-    assert gaps["richer_client_runtime"]["status"] == "accepted_minimal_tui_runtime"

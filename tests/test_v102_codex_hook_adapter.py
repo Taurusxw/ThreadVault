@@ -6,7 +6,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from threadvault.cli import app
-from threadvault.codex_hooks import build_codex_hook_config, handle_codex_hook_payload, infer_codex_home
+from threadvault.codex_hooks import build_codex_hook_config, handle_codex_hook_payload, infer_codex_home, install_codex_hook
 from threadvault.database import connect, init_db
 from threadvault.schemas import validate_payload
 
@@ -47,6 +47,22 @@ def test_hook_handler_enqueues_stop_payload_without_importing(tmp_path: Path) ->
     assert sessions == 0
 
 
+def test_hook_handler_apply_imports_only_named_transcript_and_completes_queue(tmp_path: Path) -> None:
+    db = tmp_path / "threadvault.db"
+    with connect(db) as conn:
+        init_db(conn)
+        result = handle_codex_hook_payload(conn, hook_payload(), apply=True)
+        sessions = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+        queued = conn.execute("SELECT status, attempts FROM ingestion_queue").fetchone()
+
+    assert result["ok"] is True
+    assert result["process"]["status"] == "completed"
+    assert result["process"]["import_stats"]["discovered"] == 1
+    assert result["process"]["import_stats"]["imported"] == 1
+    assert sessions == 1
+    assert dict(queued) == {"status": "completed", "attempts": 1}
+
+
 def test_codex_hook_cli_default_stdout_is_hook_compatible_json(tmp_path: Path) -> None:
     runner = CliRunner()
     db = tmp_path / "threadvault.db"
@@ -61,6 +77,23 @@ def test_codex_hook_cli_default_stdout_is_hook_compatible_json(tmp_path: Path) -
     queued = json.loads(list_result.output)
     assert queued["count"] == 1
     assert queued["requests"][0]["reason"] == "codex-hook:Stop"
+
+
+def test_codex_hook_cli_apply_imports_transcript(tmp_path: Path) -> None:
+    runner = CliRunner()
+    db = tmp_path / "threadvault.db"
+
+    result = runner.invoke(
+        app,
+        ["codex-hook", "ingest", "--db", str(db), "--apply"],
+        input=json.dumps(hook_payload()),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == {"continue": True}
+    with connect(db) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 1
+        assert conn.execute("SELECT status FROM ingestion_queue").fetchone()[0] == "completed"
 
 
 def test_codex_hook_cli_diagnostic_json_validates(tmp_path: Path) -> None:
@@ -95,12 +128,12 @@ def test_codex_hook_cli_invalid_stdin_continues_without_enqueue(tmp_path: Path) 
 
 
 def test_codex_hook_config_shape_and_schema() -> None:
-    config = build_codex_hook_config("threadvault codex-hook ingest --db vault.db", timeout=7)
+    config = build_codex_hook_config("threadvault codex-hook ingest --apply --db vault.db", timeout=7)
 
     assert validate_payload("codex_hook_config", config)["ok"] is True
     hook = config["hooks"]["Stop"][0]["hooks"][0]
     assert hook["type"] == "command"
-    assert hook["command"] == "threadvault codex-hook ingest --db vault.db"
+    assert hook["command"] == "threadvault codex-hook ingest --apply --db vault.db"
     assert hook["timeout"] == 7
 
 
@@ -114,8 +147,50 @@ def test_codex_hook_config_cli_json_validates(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert validate_payload("codex_hook_config", payload)["ok"] is True
     command = payload["hooks"]["Stop"][0]["hooks"][0]["command"]
-    assert "threadvault codex-hook ingest" in command
+    assert "threadvault codex-hook ingest --apply" in command
     assert str(db) in command
+
+
+def test_codex_hook_install_is_dry_run_by_default_and_idempotent(tmp_path: Path) -> None:
+    codex_home = tmp_path / ".codex"
+    command = '"C:\\ThreadVault\\threadvault.exe" codex-hook ingest --apply --db "C:\\vault.db"'
+
+    planned = install_codex_hook(codex_home, command)
+    assert planned["apply"] is False
+    assert planned["action"] == "created"
+    assert not (codex_home / "hooks.json").exists()
+
+    installed = install_codex_hook(codex_home, command, apply=True)
+    assert validate_payload("codex_hook_install", installed)["ok"] is True
+    assert installed["action"] == "created"
+    assert installed["trust_required"] is True
+
+    repeated = install_codex_hook(codex_home, command, apply=True)
+    assert repeated["action"] == "unchanged"
+    config = json.loads((codex_home / "hooks.json").read_text(encoding="utf-8"))
+    handlers = config["hooks"]["Stop"][0]["hooks"]
+    assert len(handlers) == 1
+    assert handlers[0]["command"] == command
+
+
+def test_codex_hook_install_preserves_non_threadvault_handlers(tmp_path: Path) -> None:
+    codex_home = tmp_path / ".codex"
+    codex_home.mkdir()
+    existing = {
+        "hooks": {
+            "Stop": [{"hooks": [{"type": "command", "command": "other-tool stop"}]}],
+            "SessionStart": [{"hooks": [{"type": "command", "command": "other-tool start"}]}],
+        }
+    }
+    (codex_home / "hooks.json").write_text(json.dumps(existing), encoding="utf-8")
+
+    installed = install_codex_hook(codex_home, "threadvault codex-hook ingest --apply", apply=True)
+
+    assert installed["action"] == "updated"
+    config = installed["config"]
+    assert config["hooks"]["SessionStart"] == existing["hooks"]["SessionStart"]
+    stop_commands = [handler["command"] for group in config["hooks"]["Stop"] for handler in group["hooks"]]
+    assert stop_commands == ["other-tool stop", "threadvault codex-hook ingest --apply"]
 
 
 def test_capabilities_and_schema_registry_include_codex_hook_adapter() -> None:
@@ -133,6 +208,7 @@ def test_capabilities_and_schema_registry_include_codex_hook_adapter() -> None:
     schemas = json.loads(result.output)["schemas"]
     assert "codex_hook_ingest" in schemas
     assert "codex_hook_config" in schemas
+    assert "codex_hook_install" in schemas
 
 
 def test_v102_docs_exist() -> None:

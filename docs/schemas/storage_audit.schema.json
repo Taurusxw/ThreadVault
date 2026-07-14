@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "db_path",
+    "db_bytes",
+    "schema_version",
+    "cold_root",
+    "event_totals",
+    "cold"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "db_path": {
+      "type": "string"
+    },
+    "db_bytes": {
+      "type": "integer"
+    },
+    "schema_version": {
+      "type": "integer"
+    },
+    "cold_root": {
+      "type": "string"
+    },
+    "event_totals": {
+      "type": "object"
+    },
+    "by_type": {
+      "type": "array"
+    },
+    "by_storage_class": {
+      "type": "array"
+    },
+    "cold": {
+      "type": "object"
+    },
+    "sqlite": {
+      "type": "object"
+    },
+    "policy": {
+      "type": "object"
+    }
+  }
+}

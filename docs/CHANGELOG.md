@@ -1,5 +1,75 @@
 # Changelog
 
+## 2026-07-14 - 2.4.0 Foolproof Native Desktop Workflows
+
+- Replaced raw session identifiers with scrollable title/project/time tables and warning badges, using read-only Codex state only for friendly title enrichment.
+- Added a first-class Backup Center that shows automatic schedule, next run, disk guard, selected tier, retention policy, and a one-click smart-backup action over the existing storage policy.
+- Completed native export as preview, privacy review, immutable plan validation, explicit confirmation, and actual file writing with a manifest.
+- Defaulted restore to a collision-free new database filename and kept overwrite refusal.
+- Made health diagnostics load automatically, separated maintenance actions, added directory/file pickers, keyboard shortcuts, visible focus, scrollbars, Chinese labels, and background progress feedback.
+- Bumped desktop contracts to `desktop_app.v2` and `desktop_smoke.v2`, with capability and robot-guide discovery for the new workflows.
+- Published the complete personal-only 2.x baseline with separate English and Simplified Chinese project manuals and v2.4.0 release acceptance records.
+
+## 2026-07-14 - 2.3.0 Foolproof Smart Backups
+
+- Added `threadvault storage auto` as the single normal backup entrypoint with dry-run and explicit apply modes.
+- Added automatic bootstrap Evidence, daily Core, weekly Evidence, and monthly Forensic selection; only the highest due changed tier runs.
+- Added logical change detection, a 5 GiB free-space reserve, post-create verification, a cross-process lock, and a machine-readable last-run record.
+- Added bounded automatic retention (Core 3, Evidence 2, Forensic 1) without deleting manual backups or unique live archive content.
+- Added the `storage_auto` JSON Schema and regression coverage for selection, unchanged skips, retention, disk blocking, and CLI contract validation.
+
+## 2026-07-14 - 2.2.0 Hot/Cold Archive Lifecycle
+
+- Added schema v8 event storage metadata and immutable content-addressed cold blobs.
+- Kept canonical human conversation and the clean FTS index hot while externalizing compacted history, large tool output, patches, metadata payloads, and image assets.
+- Removed exact duplicate agent-message bodies and stopped repeating message/token bodies in `turns`.
+- Added copy-on-write storage audit/rebuild/verify/event/prune workflows with conversation-digest acceptance.
+- Added Core, Evidence, and Forensic backup profiles plus deep verification.
+- Migrated the real archive from 5.293 GiB to about 1.16 GiB hot storage, retained cold evidence, and completed an incremental catch-up with zero import failures.
+
+## 2026-07-13 - 2.1.0 Automatic Codex Archiving
+
+### Version
+
+- Bumped package version from `2.0.0` to `2.1.0` for a new user-visible automatic ingestion workflow and current Codex event compatibility.
+- Kept JSON contract `2.0` and bumped database schema from v6 to v7 for the idempotent parser-warning taxonomy migration; no stored columns changed.
+
+### Changed
+
+- Added targeted single-transcript import for Codex `Stop` hooks, so each completed turn can update the archive without rescanning the full Codex home.
+- Added idempotent, dry-run-first `threadvault codex-hook install`; `--apply` writes the supported user-level `~/.codex/hooks.json` while preserving unrelated hooks.
+- Kept queue history for hook ingestion and records each applied request as `completed` or `failed`.
+- Recognized `world_state` and `inter_agent_communication_metadata` as supported metadata that remains in the raw archive but is excluded from the clean text index.
+- Accepted repeated `session_meta` records as valid parent/subagent provenance instead of emitting duplicate warnings.
+- Fixed collaborative transcript identity so `session_meta.id` is the archived child/thread id while `session_id` remains parent provenance; unchanged files are automatically reprocessed when `parse_version` advances.
+- Documented and installed the ThreadVault read-only MCP server through the official `codex mcp add` workflow.
+
+### Validation
+
+- Full rebuild snapshot imported all 320 discovered JSONL files and processed 790,799 events with seven genuine `missing_function_call_output` warnings and no unknown-event warnings; a final incremental catch-up then scanned 326 active transcripts and completed with zero failures.
+- Full validation and live integration evidence are recorded in `docs/progress/rounds/2026-07-13-round-002-automatic-ingestion-and-codex-integration.md`.
+
+## 2026-07-13 - 2.0.0 Personal-Only Runtime
+
+### Version
+
+- Bumped package version from `1.0.1` to `2.0.0` because active team/governance/shared-server commands and JSON contracts were intentionally removed.
+- Bumped the base JSON contract marker from `1.0` to `2.0`.
+- Bumped database schema version from `5` to `6` for the compacted-event compatibility migration.
+
+### Changed
+
+- Removed the active governance module, shared HTTP server prototype, governance CLI tree, desktop governance panels, config fields, JSON schemas, and associated tests.
+- Preserved personal privacy scan, export preview, explicit confirmation, backup verification, conservative restore, and read-only MCP safety gates.
+- Reduced the former large store/CLI/schema surfaces and split MCP transport, validation, and read-only query execution into focused modules.
+- Added strict JSON-RPC lifecycle/request validation, tool input-schema enforcement, read-only SQLite/query-only access, path redaction, and non-creating missing-DB behavior to MCP.
+- Added native support for Codex `compacted` records and an idempotent v6 migration for 89 stale `unknown_current_type` records in the existing local archive.
+- Removed stale `~hreadvault-*` distribution metadata and documented a project `.venv` workflow that isolates ThreadVault from unrelated global Selenium/Trio dependency warnings.
+
+### Validation
+
+- Focused and full validation is recorded in `docs/progress/rounds/2026-07-13-round-001-personal-only-modularization.md`.
+
 ## 2026-07-06 - 1.0.1 Web UI Residue Removal
 
 ### Version

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "manifest"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "manifest": {
+      "type": "string"
+    },
+    "profile": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "database": {
+      "type": "object"
+    },
+    "database_sha256_ok": {
+      "type": "boolean"
+    },
+    "cold": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "forensic_errors": {
+      "type": "array"
+    }
+  }
+}

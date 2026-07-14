@@ -11,7 +11,6 @@
     "privacy",
     "evidence",
     "actions",
-    "governance_instrumentation",
     "diagnostics"
   ],
   "properties": {
@@ -104,54 +103,6 @@
         }
       }
     },
-    "governance_instrumentation": {
-      "type": "object",
-      "additionalProperties": true,
-      "required": [
-        "enabled",
-        "blocked",
-        "reason",
-        "role",
-        "actor",
-        "audit_log",
-        "preflight"
-      ],
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
-        "blocked": {
-          "type": "boolean"
-        },
-        "reason": {
-          "type": "string"
-        },
-        "role": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "actor": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "audit_log": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "preflight": {
-          "type": [
-            "object",
-            "null"
-          ]
-        }
-      }
-    },
     "diagnostics": {
       "type": "object",
       "additionalProperties": true,
@@ -162,9 +113,7 @@
         "planned_file_count",
         "skipped_count",
         "server_required",
-        "external_model_calls",
-        "governance_instrumented",
-        "governance_blocked"
+        "external_model_calls"
       ],
       "properties": {
         "preview": {
@@ -186,12 +135,6 @@
           "type": "boolean"
         },
         "external_model_calls": {
-          "type": "boolean"
-        },
-        "governance_instrumented": {
-          "type": "boolean"
-        },
-        "governance_blocked": {
           "type": "boolean"
         }
       }

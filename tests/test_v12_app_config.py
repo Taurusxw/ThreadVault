@@ -85,34 +85,6 @@ def test_privacy_config_compatibility_wrapper(tmp_path: Path) -> None:
     assert loaded.audit_history_keep == 3
 
 
-def test_load_app_config_parses_governance_identity_actors(tmp_path: Path) -> None:
-    config = tmp_path / "threadvault.toml"
-    config.write_text(
-        """
-[governance]
-enabled = true
-
-[governance.identity]
-actors = [
-  { id = "reviewer@example", display = "Reviewer", roles = ["reviewer"], source = "local-static" },
-]
-""",
-        encoding="utf-8",
-    )
-
-    loaded = load_app_config(config)
-
-    assert loaded.governance_enabled is True
-    assert loaded.governance_identity_actors == [
-        {
-            "id": "reviewer@example",
-            "display": "Reviewer",
-            "roles": ["reviewer"],
-            "source": "local-static",
-        }
-    ]
-
-
 def test_load_app_config_rejects_boolean_audit_keep(tmp_path: Path) -> None:
     config = tmp_path / "threadvault.toml"
     config.write_text("[audit_history]\nkeep = true\n", encoding="utf-8")

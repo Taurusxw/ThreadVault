@@ -13,6 +13,17 @@ from .agent_interface import (
     agent_retrieve,
 )
 from .app_config import load_app_config
+from .archive_lifecycle import (
+    STORAGE_PROFILES,
+    backup_storage_profile,
+    hydrate_event_rows,
+    prune_cold_storage,
+    read_cold_event,
+    rebuild_archive,
+    storage_audit,
+    verify_cold_storage,
+    verify_storage_backup,
+)
 from .backup_manifest import verify_backup_manifest, write_backup_manifest
 from .client_interface import (
     CLIENT_EXPORT_PREVIEW_CONTRACT_VERSION,
@@ -20,7 +31,6 @@ from .client_interface import (
     CLIENT_OVERVIEW_CONTRACT_VERSION,
     CLIENT_SESSION_CONTRACT_VERSION,
     CLIENT_WARNINGS_CONTRACT_VERSION,
-    blocked_client_export_preview,
     client_export_preview,
     client_manifest,
     client_overview,
@@ -28,7 +38,7 @@ from .client_interface import (
     client_warnings_detail,
 )
 from .client_runtime import CLIENT_TUI_RUNTIME_CONTRACT_VERSION, client_tui_runtime
-from .codex_hooks import build_codex_hook_config, handle_codex_hook_payload
+from .codex_hooks import build_codex_hook_config, handle_codex_hook_payload, install_codex_hook
 from .config import default_codex_home, discover_session_dirs
 from .database import (
     SCHEMA_VERSION,
@@ -55,81 +65,6 @@ from .database import (
 )
 from .export_targets import ExportTargetRequest, export_target, preview_export_target
 from .exporter import export_project_markdown, export_session
-from .governance import (
-    AUDIT_APPEND_COMMAND,
-    AUDIT_LIST_COMMAND,
-    BUSINESS_COMMAND_INSTRUMENTATION_COMMAND,
-    CENTRAL_BACKUP_POLICY_COMMAND,
-    CENTRAL_BACKUP_READINESS_COMMAND,
-    CENTRAL_POLICY_READINESS_COMMAND,
-    CENTRAL_POLICY_STORE_COMMAND,
-    CENTRALIZED_AUDIT_READINESS_COMMAND,
-    CENTRALIZED_AUDIT_STORE_COMMAND,
-    ENFORCEMENT_CHECK_COMMAND,
-    ENFORCEMENT_GAPS_COMMAND,
-    EXPORT_BACKUP_PREFLIGHT_COMMAND,
-    EXPORT_PREVIEW_PREFLIGHT_COMMAND,
-    EXTERNAL_MODEL_PREFLIGHT_COMMAND,
-    GOVERNANCE_AUDIT_APPEND_CONTRACT_VERSION,
-    GOVERNANCE_AUDIT_LIST_CONTRACT_VERSION,
-    GOVERNANCE_BUSINESS_COMMAND_INSTRUMENTATION_CONTRACT_VERSION,
-    GOVERNANCE_CENTRAL_BACKUP_POLICY_CONTRACT_VERSION,
-    GOVERNANCE_CENTRAL_BACKUP_READINESS_CONTRACT_VERSION,
-    GOVERNANCE_CENTRAL_POLICY_READINESS_CONTRACT_VERSION,
-    GOVERNANCE_CENTRAL_POLICY_STORE_CONTRACT_VERSION,
-    GOVERNANCE_CENTRALIZED_AUDIT_READINESS_CONTRACT_VERSION,
-    GOVERNANCE_CENTRALIZED_AUDIT_STORE_CONTRACT_VERSION,
-    GOVERNANCE_ENFORCEMENT_CHECK_CONTRACT_VERSION,
-    GOVERNANCE_ENFORCEMENT_GAPS_CONTRACT_VERSION,
-    GOVERNANCE_EXPORT_BACKUP_PREFLIGHT_CONTRACT_VERSION,
-    GOVERNANCE_EXPORT_PREVIEW_PREFLIGHT_CONTRACT_VERSION,
-    GOVERNANCE_EXTERNAL_MODEL_PREFLIGHT_CONTRACT_VERSION,
-    GOVERNANCE_IDENTITY_ACTOR_BINDING_CONTRACT_VERSION,
-    GOVERNANCE_IDENTITY_ACTOR_READINESS_CONTRACT_VERSION,
-    GOVERNANCE_PERMISSION_CHECK_CONTRACT_VERSION,
-    GOVERNANCE_POLICY_READINESS_CONTRACT_VERSION,
-    GOVERNANCE_RAW_READ_PREFLIGHT_CONTRACT_VERSION,
-    GOVERNANCE_RESTORE_RETENTION_PREFLIGHT_CONTRACT_VERSION,
-    GOVERNANCE_SERVER_POLICY_READINESS_CONTRACT_VERSION,
-    GOVERNANCE_STATUS_CONTRACT_VERSION,
-    GOVERNANCE_SUMMARY_SEARCH_PREFLIGHT_CONTRACT_VERSION,
-    GOVERNANCE_V3_ACCEPTANCE_SMOKE_CONTRACT_VERSION,
-    GOVERNANCE_V3_COMPLETION_GAP_AUDIT_CONTRACT_VERSION,
-    IDENTITY_ACTOR_BINDING_COMMAND,
-    IDENTITY_ACTOR_READINESS_COMMAND,
-    PERMISSION_CHECK_COMMAND,
-    POLICY_READINESS_COMMAND,
-    RAW_READ_PREFLIGHT_COMMAND,
-    RESTORE_RETENTION_PREFLIGHT_COMMAND,
-    SERVER_POLICY_READINESS_COMMAND,
-    SUMMARY_SEARCH_PREFLIGHT_COMMAND,
-    V3_ACCEPTANCE_SMOKE_COMMAND,
-    V3_COMPLETION_GAP_AUDIT_COMMAND,
-    append_audit_record,
-    check_permission,
-    governance_business_command_instrumentation,
-    governance_central_backup_policy,
-    governance_central_backup_readiness,
-    governance_central_policy_readiness,
-    governance_central_policy_store,
-    governance_centralized_audit_readiness,
-    governance_centralized_audit_store,
-    governance_enforcement_check,
-    governance_enforcement_gaps,
-    governance_export_backup_preflight,
-    governance_export_preview_preflight,
-    governance_external_model_preflight,
-    governance_identity_actor_binding,
-    governance_identity_actor_readiness,
-    governance_policy_readiness,
-    governance_raw_read_preflight,
-    governance_restore_retention_preflight,
-    governance_server_policy_readiness,
-    governance_status,
-    governance_summary_search_preflight,
-    governance_v3_completion_gap_audit,
-    list_audit_records,
-)
 from .hybrid_retrieval import HYBRID_RETRIEVAL_CONTRACT_VERSION, HybridRetrievalRequest, hybrid_retrieve
 from .importer import import_codex_home, sample_codex_home
 from .ingestion import IngestionRequest, enqueue_ingestion, list_ingestion_queue, process_ingestion_queue
@@ -141,14 +76,7 @@ from .restore_history import latest_restore_history, list_restore_history, prune
 from .restore_plan import build_restore_plan
 from .retrieval import RETRIEVAL_CONTRACT_VERSION, RETRIEVAL_MODES, RetrievalQuery, build_retrieval_diagnostics, retrieve, retrieve_response
 from .schemas import CONTRACT_VERSION, contract_schemas
-from .shared_server import (
-    READ_ONLY_SERVER_MANIFEST_COMMAND,
-    READ_ONLY_SERVER_MANIFEST_CONTRACT_VERSION,
-    READ_ONLY_SERVER_SMOKE_COMMAND,
-    READ_ONLY_SERVER_SMOKE_CONTRACT_VERSION,
-    read_only_server_smoke,
-    shared_server_manifest,
-)
+from .smart_backup import run_smart_backup
 from .state import inspect_state
 from .summarizer import build_summary
 from .summary_pipeline import SUMMARY_CHUNKS_CONTRACT_VERSION, SummaryChunkRequest, build_summary_chunks
@@ -165,7 +93,7 @@ from .vector_adapter import (
 PRIMARY_LOCAL_INTERFACE = "native_desktop"
 PRIMARY_LOCAL_INTERFACE_COMMAND = "threadvault desktop launch"
 PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND = "threadvault desktop smoke --json"
-MAJOR_RELEASE_TARGET = "1.0.0"
+MAJOR_RELEASE_TARGET = "2.0.0"
 
 
 class ArchiveStore:
@@ -198,13 +126,41 @@ class ArchiveStore:
             init_db(conn)
             return process_ingestion_queue(conn, codex_home=codex_home, limit=limit, apply=apply)
 
-    def handle_codex_hook(self, payload: dict[str, Any], codex_home: Path | None = None) -> dict[str, Any]:
+    def handle_codex_hook(
+        self,
+        payload: dict[str, Any],
+        codex_home: Path | None = None,
+        *,
+        apply: bool = False,
+    ) -> dict[str, Any]:
         with connect(self.db_path) as conn:
             init_db(conn)
-            return handle_codex_hook_payload(conn, payload, codex_home=codex_home)
+            return handle_codex_hook_payload(conn, payload, codex_home=codex_home, apply=apply)
 
-    def codex_hook_config(self, command: str, timeout: int = 10, status_message: str = "Queueing ThreadVault ingestion") -> dict[str, Any]:
+    def codex_hook_config(
+        self,
+        command: str,
+        timeout: int = 30,
+        status_message: str = "Archiving this Codex turn in ThreadVault",
+    ) -> dict[str, Any]:
         return build_codex_hook_config(command, timeout=timeout, status_message=status_message)
+
+    def install_codex_hook(
+        self,
+        codex_home: Path,
+        command: str,
+        *,
+        timeout: int = 30,
+        status_message: str = "Archiving this Codex turn in ThreadVault",
+        apply: bool = False,
+    ) -> dict[str, Any]:
+        return install_codex_hook(
+            codex_home,
+            command,
+            timeout=timeout,
+            status_message=status_message,
+            apply=apply,
+        )
 
     def list(self, limit: int = 50, cwd: str | None = None) -> list[SessionRow]:
         with connect(self.db_path) as conn:
@@ -315,619 +271,6 @@ class ArchiveStore:
     def client_manifest(self, config_path: Path | None = None) -> dict[str, Any]:
         return client_manifest(load_app_config(config_path), capabilities(), robot_guide())
 
-    def governance_status(self, config_path: Path | None = None) -> dict[str, Any]:
-        return governance_status(load_app_config(config_path))
-
-    def governance_audit_append(
-        self,
-        log_path: Path,
-        *,
-        operation: str,
-        actor: str,
-        status: str,
-        target_type: str,
-        target_id: str,
-        metadata: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        return append_audit_record(
-            log_path,
-            operation=operation,
-            actor=actor,
-            status=status,
-            target_type=target_type,
-            target_id=target_id,
-            metadata=metadata,
-        )
-
-    def governance_audit_list(self, log_path: Path, limit: int = 50) -> dict[str, Any]:
-        return list_audit_records(log_path, limit=limit)
-
-    def governance_centralized_audit_store(
-        self,
-        config_path: Path | None = None,
-        *,
-        action: str,
-        store_path: Path | None = None,
-        operation: str | None = None,
-        actor: str | None = None,
-        status: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-        metadata: dict[str, Any] | None = None,
-        limit: int = 50,
-    ) -> dict[str, Any]:
-        return governance_centralized_audit_store(
-            load_app_config(config_path),
-            action=action,
-            store_path=store_path,
-            operation=operation,
-            actor=actor,
-            status=status,
-            target_type=target_type,
-            target_id=target_id,
-            metadata=metadata,
-            limit=limit,
-        )
-
-    def governance_permission_check(
-        self,
-        config_path: Path | None = None,
-        *,
-        operation: str,
-        role: str,
-        audit_log: Path | None = None,
-        actor: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-    ) -> dict[str, Any]:
-        return check_permission(
-            load_app_config(config_path),
-            operation=operation,
-            role=role,
-            audit_log=audit_log,
-            actor=actor,
-            target_type=target_type,
-            target_id=target_id,
-        )
-
-    def governance_enforcement_gaps(self, config_path: Path | None = None) -> dict[str, Any]:
-        return governance_enforcement_gaps(load_app_config(config_path))
-
-    def governance_enforcement_check(
-        self,
-        config_path: Path | None = None,
-        *,
-        command: str,
-        role: str,
-        audit_log: Path | None = None,
-        actor: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-    ) -> dict[str, Any]:
-        return governance_enforcement_check(
-            load_app_config(config_path),
-            command=command,
-            role=role,
-            audit_log=audit_log,
-            actor=actor,
-            target_type=target_type,
-            target_id=target_id,
-        )
-
-    def governance_business_command_instrumentation(
-        self,
-        config_path: Path | None = None,
-        *,
-        command: str,
-        role: str,
-        audit_log: Path | None = None,
-        actor: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-    ) -> dict[str, Any]:
-        return governance_business_command_instrumentation(
-            load_app_config(config_path),
-            command=command,
-            role=role,
-            audit_log=audit_log,
-            actor=actor,
-            target_type=target_type,
-            target_id=target_id,
-        )
-
-    def governance_policy_readiness(self, config_path: Path | None = None) -> dict[str, Any]:
-        return governance_policy_readiness(load_app_config(config_path))
-
-    def governance_server_policy_readiness(self, config_path: Path | None = None) -> dict[str, Any]:
-        return governance_server_policy_readiness(load_app_config(config_path))
-
-    def governance_read_only_server_manifest(self, config_path: Path | None = None) -> dict[str, Any]:
-        return shared_server_manifest(load_app_config(config_path), db_path=self.db_path)
-
-    def governance_read_only_server_smoke(self, config_path: Path | None = None, query: str = "pytest") -> dict[str, Any]:
-        return read_only_server_smoke(self, config_path=config_path, query=query)
-
-    def governance_centralized_audit_readiness(self, config_path: Path | None = None) -> dict[str, Any]:
-        return governance_centralized_audit_readiness(load_app_config(config_path))
-
-    def governance_v3_completion_gap_audit(self, config_path: Path | None = None) -> dict[str, Any]:
-        return governance_v3_completion_gap_audit(load_app_config(config_path))
-
-    def governance_v3_acceptance_smoke(
-        self,
-        config_path: Path | None = None,
-        *,
-        query: str = "pytest",
-        session_id: str = "sess-current",
-        work_dir: Path | None = None,
-    ) -> dict[str, Any]:
-        smoke_dir = (work_dir or self.db_path.parent / "threadvault-v3-smoke").expanduser()
-        smoke_dir.mkdir(parents=True, exist_ok=True)
-        governance_config = config_path or smoke_dir / "threadvault-governance.toml"
-        if config_path is None:
-            governance_config.write_text("[governance]\nenabled = true\n", encoding="utf-8")
-        audit_log = smoke_dir / "governance-smoke-audit.jsonl"
-        backup_out = smoke_dir / "reader-blocked-backup.db"
-
-        checks: list[dict[str, Any]] = []
-
-        def add_check(code: str, category: str, ok: bool, evidence: dict[str, Any], message: str, required: bool = True) -> None:
-            checks.append(
-                {
-                    "code": code,
-                    "category": category,
-                    "ok": ok,
-                    "required": required,
-                    "message": message,
-                    "evidence": evidence,
-                }
-            )
-
-        gap_audit = self.governance_v3_completion_gap_audit()
-        capabilities_payload = capabilities()
-        guide = robot_guide()
-        schemas = robot_schemas()
-
-        add_check(
-            "local_first_defaults",
-            "boundary",
-            bool(
-                gap_audit["governance"]["server_required"] is False
-                and gap_audit["governance"]["server_opt_in"] is True
-                and gap_audit["governance"]["cloud_sync"] is False
-                and capabilities_payload["feature_flags"]["local_first"] is True
-                and capabilities_payload["feature_flags"]["cloud_sync"] is False
-            ),
-            {
-                "server_required": gap_audit["governance"]["server_required"],
-                "server_opt_in": gap_audit["governance"]["server_opt_in"],
-                "cloud_sync": gap_audit["governance"]["cloud_sync"],
-            },
-            "CLI and governance defaults remain local-first and server/cloud opt-in.",
-        )
-
-        retrieval = self.retrieve(query=query, limit=5)
-        hybrid = self.hybrid_retrieve(query=query, limit=5)
-        agent = self.agent_retrieve(query=query, limit=5)
-        vector = self.vector_status()
-        add_check(
-            "accepted_v2_retrieval_reused",
-            "v2_retrieval",
-            bool(
-                retrieval["results"]
-                and retrieval["diagnostics"]["used_mode"] == "fts"
-                and hybrid["results"]
-                and hybrid["diagnostics"]["capabilities_used"] == ["fts", "hybrid"]
-                and agent["results"]
-                and agent["privacy"]["raw_paths_included"] is False
-                and vector["config"]["enabled"] is False
-            ),
-            {
-                "retrieval_results": len(retrieval["results"]),
-                "hybrid_capabilities": hybrid["diagnostics"]["capabilities_used"],
-                "agent_raw_paths_included": agent["privacy"]["raw_paths_included"],
-                "vector_enabled_by_default": vector["config"]["enabled"],
-            },
-            "Accepted v2 retrieval, hybrid, vector default, and agent interface still work.",
-        )
-
-        manifest = self.client_manifest()
-        overview = self.client_overview(query=query, limit=5)
-        tui = self.client_tui_runtime(query=query, limit=5, export_preview_session=session_id, export_preview_out=smoke_dir / "preview")
-        add_check(
-            "richer_client_runtime",
-            "client",
-            bool(
-                manifest["defaults"]["server_required"] is False
-                and overview["sessions"]
-                and overview["search"]["results"]
-                and tui["runtime"]["status"] == "accepted_minimal_runtime"
-                and tui["export_preview"] is not None
-                and tui["privacy"]["export_preview_writes_files"] is False
-            ),
-            {
-                "sessions": len(overview["sessions"]),
-                "search_results": len(overview["search"]["results"]),
-                "tui_status": tui["runtime"]["status"],
-                "export_preview_writes_files": tui["privacy"]["export_preview_writes_files"],
-            },
-            "Richer local client can browse, search, and preview exports without writing files.",
-        )
-
-        read_only = self.governance_read_only_server_smoke(query=query)
-        add_check(
-            "optional_read_only_server",
-            "server",
-            bool(
-                read_only["ok"]
-                and read_only["governance"]["server_required"] is False
-                and read_only["governance"]["server_opt_in"] is True
-                and read_only["summary"]["failed_route_count"] == 0
-            ),
-            {
-                "ok": read_only["ok"],
-                "checked_route_count": read_only["summary"]["checked_route_count"],
-                "server_required": read_only["governance"]["server_required"],
-                "server_opt_in": read_only["governance"]["server_opt_in"],
-            },
-            "Optional read-only server prototype passes in-process smoke without becoming required.",
-        )
-
-        raw_block = self.governance_business_command_instrumentation(
-            config_path=governance_config,
-            command="threadvault client session",
-            role="reader",
-            actor="reader@example",
-            target_type="session",
-            target_id=session_id,
-        )
-        search_allow = self.governance_business_command_instrumentation(
-            config_path=governance_config,
-            command="threadvault retrieval query",
-            role="reader",
-            actor="reader@example",
-            target_type="query",
-            target_id=query,
-        )
-        backup_block = self.governance_business_command_instrumentation(
-            config_path=governance_config,
-            command="threadvault backup",
-            role="reader",
-            actor="reader@example",
-            audit_log=audit_log,
-            target_type="backup",
-            target_id=str(backup_out),
-        )
-        add_check(
-            "governance_access_separation_and_instrumentation",
-            "governance",
-            bool(
-                raw_block["instrumentation"]["blocked"]
-                and not search_allow["instrumentation"]["blocked"]
-                and backup_block["instrumentation"]["blocked"]
-                and backup_block["audit"]["preflight_record_written"] is True
-                and not backup_out.exists()
-            ),
-            {
-                "raw_read_blocked_for_reader": raw_block["instrumentation"]["blocked"],
-                "summary_search_allowed_for_reader": not search_allow["instrumentation"]["blocked"],
-                "backup_blocked_for_reader": backup_block["instrumentation"]["blocked"],
-                "audit_written": backup_block["audit"]["preflight_record_written"],
-                "blocked_backup_exists": backup_out.exists(),
-            },
-            "Governance separates raw read from summary/search and blocks denied side effects before execution.",
-        )
-
-        add_check(
-            "governance_runtime_discovery",
-            "governance",
-            bool(
-                self.governance_identity_actor_readiness()["identity_provider"]["implemented"]
-                and self.governance_central_policy_readiness()["central_policy"]["store_implemented"]
-                and self.governance_centralized_audit_readiness()["centralized_audit"]["store_implemented"]
-                and self.governance_central_backup_readiness()["policy"]["backup_policy_implemented"]
-                and self.governance_server_policy_readiness()["outbound_policy"]["default_external_calls_enabled"] is False
-            ),
-            {
-                "identity_actor_binding": self.governance_identity_actor_readiness()["actor_binding"]["implemented"],
-                "central_policy_store": self.governance_central_policy_readiness()["central_policy"]["store_implemented"],
-                "centralized_audit_store": self.governance_centralized_audit_readiness()["centralized_audit"]["store_implemented"],
-                "central_backup_policy": self.governance_central_backup_readiness()["policy"]["backup_policy_implemented"],
-                "external_calls_enabled_by_default": self.governance_server_policy_readiness()["outbound_policy"][
-                    "default_external_calls_enabled"
-                ],
-            },
-            "Governance runtimes are discoverable and external model calls stay disabled by default.",
-        )
-
-        phase_docs = [
-            Path("docs/progress/archive/legacy-v3/README.md"),
-            Path("docs/progress/archive/legacy-v3/phases/phase-33-v3-final-acceptance-smoke/plan.md"),
-            Path("docs/progress/archive/legacy-v3/phases/phase-33-v3-final-acceptance-smoke/design-notes.md"),
-            Path("docs/progress/archive/legacy-v3/phases/phase-33-v3-final-acceptance-smoke/acceptance.md"),
-        ]
-        add_check(
-            "discovery_schema_and_docs",
-            "contracts",
-            bool(
-                "governance v3 acceptance-smoke" in capabilities_payload["json_outputs"]
-                and capabilities_payload["feature_flags"]["governance_v3_acceptance_smoke"] is True
-                and guide["governance"]["v3_acceptance_smoke_schema"] == "governance_v3_acceptance_smoke"
-                and "governance_v3_acceptance_smoke" in schemas
-                and all(path.exists() for path in phase_docs)
-                and not Path("deep-research-report.md").exists()
-            ),
-            {
-                "json_output_registered": "governance v3 acceptance-smoke" in capabilities_payload["json_outputs"],
-                "schema_registered": "governance_v3_acceptance_smoke" in schemas,
-                "phase_docs_present": all(path.exists() for path in phase_docs),
-                "deep_research_report_absent": not Path("deep-research-report.md").exists(),
-            },
-            "Discovery, schema summaries, phase docs, and retired root report invariant are present.",
-        )
-
-        required_checks = [check for check in checks if check["required"]]
-        failed_checks = [check for check in required_checks if not check["ok"]]
-        criteria = [
-            {
-                "code": "local_cli_without_server",
-                "status": "satisfied" if checks[0]["ok"] else "failed",
-                "evidence": ["local_first_defaults", "accepted_v2_retrieval_reused"],
-            },
-            {
-                "code": "richer_client_browse_search_export",
-                "status": "satisfied" if checks[2]["ok"] else "failed",
-                "evidence": ["richer_client_runtime"],
-            },
-            {
-                "code": "shared_access_separation",
-                "status": "satisfied" if checks[3]["ok"] and checks[4]["ok"] else "failed",
-                "evidence": ["optional_read_only_server", "governance_access_separation_and_instrumentation"],
-            },
-            {
-                "code": "audit_records_for_sensitive_operations",
-                "status": "satisfied" if checks[4]["ok"] and checks[5]["ok"] else "failed",
-                "evidence": ["governance_access_separation_and_instrumentation", "governance_runtime_discovery"],
-            },
-            {
-                "code": "external_model_cloud_explicit",
-                "status": "satisfied" if checks[0]["ok"] and checks[5]["ok"] else "failed",
-                "evidence": ["local_first_defaults", "governance_runtime_discovery"],
-            },
-        ]
-        ok = not failed_checks and all(item["status"] == "satisfied" for item in criteria)
-        return {
-            "contract_version": GOVERNANCE_V3_ACCEPTANCE_SMOKE_CONTRACT_VERSION,
-            "status": "accepted" if ok else "failed",
-            "ok": ok,
-            "governance": {
-                "server_required": False,
-                "server_opt_in": True,
-                "cloud_sync": False,
-                "team_capabilities_opt_in": True,
-                "production_shared_enforcement_claimed": False,
-            },
-            "checks": checks,
-            "summary": {
-                "required_check_count": len(required_checks),
-                "passed_check_count": len(required_checks) - len(failed_checks),
-                "failed_check_count": len(failed_checks),
-                "criteria_count": len(criteria),
-                "criteria_satisfied_count": len([item for item in criteria if item["status"] == "satisfied"]),
-            },
-            "criteria": criteria,
-            "gap_audit": {
-                "current": {
-                    "accepted_phase_count": gap_audit["completion"]["accepted_phase_count"],
-                    "current_phase": gap_audit["completion"]["current_phase"],
-                    "blocking_count": gap_audit["completion"]["blocking_count"],
-                    "v3_complete": gap_audit["completion"]["v3_complete"],
-                }
-            },
-            "diagnostics": {
-                "db_path": str(self.db_path),
-                "work_dir": str(smoke_dir),
-                "config_path": str(governance_config),
-                "query": query,
-                "session_id": session_id,
-                "local_first": True,
-                "privacy_first": True,
-                "server_required": False,
-                "server_opt_in": True,
-                "cloud_sync": False,
-                "v2_retrieval_core_changed": False,
-                "deep_research_report_retired": not Path("deep-research-report.md").exists(),
-            },
-        }
-
-    def governance_identity_actor_readiness(self, config_path: Path | None = None) -> dict[str, Any]:
-        return governance_identity_actor_readiness(load_app_config(config_path))
-
-    def governance_identity_actor_binding(
-        self,
-        config_path: Path | None = None,
-        *,
-        actor: str,
-        command: str | None = None,
-        operation: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-        client_id: str | None = None,
-        audit_log: Path | None = None,
-    ) -> dict[str, Any]:
-        return governance_identity_actor_binding(
-            load_app_config(config_path),
-            actor=actor,
-            command=command,
-            operation=operation,
-            target_type=target_type,
-            target_id=target_id,
-            client_id=client_id,
-            audit_log=audit_log,
-        )
-
-    def governance_central_policy_readiness(self, config_path: Path | None = None) -> dict[str, Any]:
-        return governance_central_policy_readiness(load_app_config(config_path))
-
-    def governance_central_policy_store(
-        self,
-        config_path: Path | None = None,
-        *,
-        policy_path: Path | None = None,
-        actor: str | None = None,
-        operation: str | None = None,
-    ) -> dict[str, Any]:
-        return governance_central_policy_store(
-            load_app_config(config_path),
-            policy_path=policy_path,
-            actor=actor,
-            operation=operation,
-        )
-
-    def governance_central_backup_readiness(self, config_path: Path | None = None) -> dict[str, Any]:
-        return governance_central_backup_readiness(load_app_config(config_path))
-
-    def governance_central_backup_policy(
-        self,
-        config_path: Path | None = None,
-        *,
-        policy_path: Path | None = None,
-        operation: str | None = None,
-        actor: str | None = None,
-    ) -> dict[str, Any]:
-        return governance_central_backup_policy(
-            load_app_config(config_path),
-            policy_path=policy_path,
-            operation=operation,
-            actor=actor,
-        )
-
-    def governance_export_backup_preflight(
-        self,
-        config_path: Path | None = None,
-        *,
-        command: str,
-        role: str,
-        audit_log: Path | None = None,
-        actor: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-    ) -> dict[str, Any]:
-        return governance_export_backup_preflight(
-            load_app_config(config_path),
-            command=command,
-            role=role,
-            audit_log=audit_log,
-            actor=actor,
-            target_type=target_type,
-            target_id=target_id,
-        )
-
-    def governance_restore_retention_preflight(
-        self,
-        config_path: Path | None = None,
-        *,
-        command: str,
-        role: str,
-        audit_log: Path | None = None,
-        actor: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-    ) -> dict[str, Any]:
-        return governance_restore_retention_preflight(
-            load_app_config(config_path),
-            command=command,
-            role=role,
-            audit_log=audit_log,
-            actor=actor,
-            target_type=target_type,
-            target_id=target_id,
-        )
-
-    def governance_raw_read_preflight(
-        self,
-        config_path: Path | None = None,
-        *,
-        command: str,
-        role: str,
-        audit_log: Path | None = None,
-        actor: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-    ) -> dict[str, Any]:
-        return governance_raw_read_preflight(
-            load_app_config(config_path),
-            command=command,
-            role=role,
-            audit_log=audit_log,
-            actor=actor,
-            target_type=target_type,
-            target_id=target_id,
-        )
-
-    def governance_summary_search_preflight(
-        self,
-        config_path: Path | None = None,
-        *,
-        command: str,
-        role: str,
-        audit_log: Path | None = None,
-        actor: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-    ) -> dict[str, Any]:
-        return governance_summary_search_preflight(
-            load_app_config(config_path),
-            command=command,
-            role=role,
-            audit_log=audit_log,
-            actor=actor,
-            target_type=target_type,
-            target_id=target_id,
-        )
-
-    def governance_export_preview_preflight(
-        self,
-        config_path: Path | None = None,
-        *,
-        command: str,
-        role: str,
-        audit_log: Path | None = None,
-        actor: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-    ) -> dict[str, Any]:
-        return governance_export_preview_preflight(
-            load_app_config(config_path),
-            command=command,
-            role=role,
-            audit_log=audit_log,
-            actor=actor,
-            target_type=target_type,
-            target_id=target_id,
-        )
-
-    def governance_external_model_preflight(
-        self,
-        config_path: Path | None = None,
-        *,
-        command: str,
-        role: str,
-        audit_log: Path | None = None,
-        actor: str | None = None,
-        target_type: str | None = None,
-        target_id: str | None = None,
-    ) -> dict[str, Any]:
-        return governance_external_model_preflight(
-            load_app_config(config_path),
-            command=command,
-            role=role,
-            audit_log=audit_log,
-            actor=actor,
-            target_type=target_type,
-            target_id=target_id,
-        )
-
     def client_overview(
         self,
         config_path: Path | None = None,
@@ -986,10 +329,6 @@ class ArchiveStore:
         privacy_config_path: Path | None = None,
         skill_name: str | None = None,
         skill_description: str | None = None,
-        governance_role: str | None = None,
-        governance_config_path: Path | None = None,
-        governance_audit_log: Path | None = None,
-        governance_actor: str | None = None,
     ) -> dict[str, Any]:
         request = ExportTargetRequest(
             out_dir=out_dir,
@@ -1002,44 +341,10 @@ class ArchiveStore:
             skill_description=skill_description,
         )
         execute_command = _export_preview_execute_command(request)
-        governance_instrumentation = None
-        if governance_role is not None:
-            preflight = governance_export_preview_preflight(
-                load_app_config(governance_config_path),
-                command="threadvault client export-preview",
-                role=governance_role,
-                audit_log=governance_audit_log,
-                actor=governance_actor,
-                target_type="client_export_preview",
-                target_id=project or ",".join(session_ids or []) or str(out_dir),
-            )
-            blocked = bool(preflight["permission"]["enforced"] and not preflight["permission"]["allowed"])
-            governance_instrumentation = {
-                "enabled": True,
-                "blocked": blocked,
-                "reason": "preflight_blocked" if blocked else "preflight_allowed",
-                "role": governance_role,
-                "actor": governance_actor,
-                "audit_log": str(governance_audit_log.expanduser()) if governance_audit_log else None,
-                "preflight": preflight,
-            }
-            if blocked:
-                return blocked_client_export_preview(
-                    profile=profile,
-                    out_dir=out_dir,
-                    session_ids=session_ids or [],
-                    project=project,
-                    privacy_mode=privacy_mode,
-                    execute_command=execute_command,
-                    governance_instrumentation=governance_instrumentation,
-                )
         with connect(self.db_path) as conn:
             init_db(conn)
             preview = preview_export_target(conn, request)
-        if governance_instrumentation is not None:
-            governance_instrumentation["preflight"]["execution"]["preview_generated"] = True
-            governance_instrumentation["preflight"]["execution"]["manifest_returned"] = True
-        return client_export_preview(preview, execute_command, governance_instrumentation=governance_instrumentation)
+        return client_export_preview(preview, execute_command)
 
     def client_warnings(
         self,
@@ -1263,6 +568,7 @@ class ArchiveStore:
                 no_tool_output=no_tool_output,
                 no_reasoning=no_reasoning,
             )
+            events = hydrate_event_rows(conn, self.db_path, events)
             return export_session(
                 session,
                 events,
@@ -1324,6 +630,75 @@ class ArchiveStore:
             database_vacuum(conn)
         return {"ok": True, "db_path": str(self.db_path)}
 
+    def storage_audit(self, cold_root: Path | None = None) -> dict[str, Any]:
+        with connect(self.db_path) as conn:
+            init_db(conn)
+        return storage_audit(self.db_path, cold_root=cold_root)
+
+    def storage_rebuild(
+        self,
+        target_db: Path,
+        cold_root: Path | None = None,
+        *,
+        apply: bool = False,
+        batch_size: int = 1000,
+    ) -> dict[str, Any]:
+        return rebuild_archive(
+            self.db_path,
+            target_db,
+            cold_root=cold_root,
+            apply=apply,
+            batch_size=batch_size,
+        )
+
+    def storage_verify(self, cold_root: Path | None = None, *, deep: bool = False) -> dict[str, Any]:
+        return verify_cold_storage(self.db_path, cold_root=cold_root, deep=deep)
+
+    def storage_prune(self, cold_root: Path | None = None, *, apply: bool = False) -> dict[str, Any]:
+        return prune_cold_storage(self.db_path, cold_root=cold_root, apply=apply)
+
+    def storage_event(self, event_id: int, cold_root: Path | None = None) -> dict[str, Any]:
+        return read_cold_event(self.db_path, event_id, cold_root=cold_root)
+
+    def storage_backup(
+        self,
+        out_dir: Path,
+        *,
+        profile: str = "core",
+        cold_root: Path | None = None,
+        codex_home: Path | None = None,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        return backup_storage_profile(
+            self.db_path,
+            out_dir,
+            profile=profile,
+            cold_root=cold_root,
+            codex_home=codex_home,
+            force=force,
+        )
+
+    def storage_backup_verify(self, manifest: Path, *, deep: bool = False) -> dict[str, Any]:
+        return verify_storage_backup(manifest, deep=deep)
+
+    def storage_auto_backup(
+        self,
+        *,
+        out_root: Path | None = None,
+        cold_root: Path | None = None,
+        codex_home: Path | None = None,
+        apply: bool = False,
+        include_forensic: bool = True,
+    ) -> dict[str, Any]:
+        return run_smart_backup(
+            self.db_path,
+            out_root=out_root,
+            cold_root=cold_root,
+            codex_home=codex_home,
+            apply=apply,
+            include_forensic=include_forensic,
+        )
+
     def backup(self, out: Path, force: bool = False, write_manifest: bool = True) -> dict[str, Any]:
         payload = backup_database(self.db_path, out, force=force)
         payload["manifest"] = None
@@ -1383,6 +758,7 @@ class ArchiveStore:
             if session is None:
                 raise KeyError(session_id)
             events = get_events_filtered(conn, session_id)
+            events = hydrate_event_rows(conn, self.db_path, events)
         text = "\n".join(str(event["text_content"] or "") for event in events)
         config = load_app_config(privacy_config_path)
         findings = scan_sensitive_text(text, allowlist=config.allowlist)
@@ -1433,7 +809,7 @@ def capabilities() -> dict[str, Any]:
         "contract_version": CONTRACT_VERSION,
         "schema_version": SCHEMA_VERSION,
         "stability_policy": (
-            "JSON output fields are append-only within the 1.x contract unless a command is explicitly marked experimental."
+            "JSON output fields are append-only within the 2.x contract unless a command is explicitly marked experimental."
         ),
         "commands": [
             "init",
@@ -1475,7 +851,7 @@ def capabilities() -> dict[str, Any]:
             "client",
             "desktop",
             "mcp",
-            "governance",
+            "storage",
         ],
         "json_outputs": [
             "import",
@@ -1523,6 +899,7 @@ def capabilities() -> dict[str, Any]:
             "ingest-queue process",
             "codex-hook ingest",
             "codex-hook config",
+            "codex-hook install",
             "export-target markdown",
             "export-target obsidian",
             "export-target skill",
@@ -1544,33 +921,14 @@ def capabilities() -> dict[str, Any]:
             "desktop smoke",
             "mcp manifest",
             "mcp serve",
-            "governance status",
-            "governance audit append",
-            "governance audit list",
-            "governance permission check",
-            "governance enforcement gaps",
-            "governance enforcement check",
-            "governance instrumentation business-command",
-            "governance policy readiness",
-            "governance server policy-readiness",
-            "governance server read-only-manifest",
-            "governance server read-only-smoke",
-            "governance audit centralized-readiness",
-            "governance audit centralized-store",
-            "governance v3 gap-audit",
-            "governance v3 acceptance-smoke",
-            "governance identity actor-readiness",
-            "governance identity bind",
-            "governance policy central-readiness",
-            "governance policy central-store",
-            "governance backup central-readiness",
-            "governance backup policy",
-            "governance preflight export-backup",
-            "governance preflight restore-retention",
-            "governance preflight raw-read",
-            "governance preflight summary-search",
-            "governance preflight export-preview",
-            "governance preflight external-model",
+            "storage audit",
+            "storage rebuild",
+            "storage verify",
+            "storage event",
+            "storage prune",
+            "storage backup",
+            "storage verify-backup",
+            "storage auto",
         ],
         "export_formats": ["md", "json", "jsonl", "csv"],
         "export_profiles": ["full", "brief", "agent", "review"],
@@ -1605,39 +963,18 @@ def capabilities() -> dict[str, Any]:
             "client_tui_runtime": True,
             "client_session": True,
             "client_export_preview": True,
-            "client_export_preview_governance_instrumentation": True,
             "client_warnings": True,
             "native_desktop_app": True,
             "native_desktop_primary": True,
+            "desktop_smart_backup_center": True,
+            "desktop_confirmed_export": True,
             "mcp_stdio_server": True,
             "mcp_read_only_tools": True,
             "mcp_export_preview": True,
-            "governance_baseline": True,
-            "governance_audit_log": True,
-            "governance_permission_preflight": True,
-            "governance_enforcement_gap_audit": True,
-            "governance_enforcement_dry_run": True,
-            "governance_business_command_instrumentation": True,
-            "governance_policy_readiness": True,
-            "governance_server_policy_readiness": True,
-            "governance_read_only_server_manifest": True,
-            "governance_read_only_server_smoke": True,
-            "governance_centralized_audit_readiness": True,
-            "governance_centralized_audit_store": True,
-            "governance_v3_completion_gap_audit": True,
-            "governance_v3_acceptance_smoke": True,
-            "governance_identity_actor_readiness": True,
-            "governance_identity_actor_binding": True,
-            "governance_central_policy_readiness": True,
-            "governance_central_policy_store": True,
-            "governance_central_backup_readiness": True,
-            "governance_central_backup_policy": True,
-            "governance_export_backup_preflight": True,
-            "governance_restore_retention_preflight": True,
-            "governance_raw_read_preflight": True,
-            "governance_summary_search_preflight": True,
-            "governance_export_preview_preflight": True,
-            "governance_external_model_preflight": True,
+            "hot_cold_storage": True,
+            "content_addressed_cold_blobs": True,
+            "storage_backup_profiles": list(STORAGE_PROFILES),
+            "smart_backup": True,
             "summary_evidence_chunks": True,
             "local_vector_adapter": True,
             "local_vector_enabled_by_default": False,
@@ -1663,6 +1000,7 @@ def robot_guide() -> dict[str, Any]:
             "threadvault ingest-queue enqueue --source hook --reason session-stop --json",
             "threadvault ingest-queue process --apply --json",
             "threadvault codex-hook config --json",
+            "threadvault codex-hook install --db DB --json",
             "threadvault export-target markdown --session SESSION_ID --out OUT --json",
             "threadvault export-target obsidian --project CWD --out OUT --json",
             "threadvault export-target skill --project CWD --out OUT --skill-name NAME --json",
@@ -1683,39 +1021,17 @@ def robot_guide() -> dict[str, Any]:
             "threadvault client tui --export-preview-session SESSION_ID --out OUT --json",
             "threadvault client session --session SESSION_ID --json",
             "threadvault client export-preview --session SESSION_ID --out OUT --json",
-            "threadvault client export-preview --session SESSION_ID --out OUT --governance-role reviewer --json",
             "threadvault client warnings --session SESSION_ID --json",
             "threadvault mcp manifest --json",
             "threadvault mcp serve",
+            "threadvault storage audit --json",
+            "threadvault storage rebuild --target-db TARGET --json",
+            "threadvault storage verify --json",
+            "threadvault storage prune --json",
+            "threadvault storage backup --profile core --out OUT --json",
+            "threadvault storage auto --apply --json",
             PRIMARY_LOCAL_INTERFACE_COMMAND,
             PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND,
-            "threadvault governance status --json",
-            AUDIT_APPEND_COMMAND,
-            AUDIT_LIST_COMMAND,
-            PERMISSION_CHECK_COMMAND,
-            ENFORCEMENT_GAPS_COMMAND,
-            ENFORCEMENT_CHECK_COMMAND,
-            BUSINESS_COMMAND_INSTRUMENTATION_COMMAND,
-            POLICY_READINESS_COMMAND,
-            SERVER_POLICY_READINESS_COMMAND,
-            READ_ONLY_SERVER_MANIFEST_COMMAND,
-            READ_ONLY_SERVER_SMOKE_COMMAND,
-            CENTRALIZED_AUDIT_READINESS_COMMAND,
-            CENTRALIZED_AUDIT_STORE_COMMAND,
-            V3_COMPLETION_GAP_AUDIT_COMMAND,
-            V3_ACCEPTANCE_SMOKE_COMMAND,
-            IDENTITY_ACTOR_READINESS_COMMAND,
-            IDENTITY_ACTOR_BINDING_COMMAND,
-            CENTRAL_POLICY_READINESS_COMMAND,
-            CENTRAL_POLICY_STORE_COMMAND,
-            CENTRAL_BACKUP_READINESS_COMMAND,
-            CENTRAL_BACKUP_POLICY_COMMAND,
-            EXPORT_BACKUP_PREFLIGHT_COMMAND,
-            RESTORE_RETENTION_PREFLIGHT_COMMAND,
-            RAW_READ_PREFLIGHT_COMMAND,
-            SUMMARY_SEARCH_PREFLIGHT_COMMAND,
-            EXPORT_PREVIEW_PREFLIGHT_COMMAND,
-            EXTERNAL_MODEL_PREFLIGHT_COMMAND,
         ],
         "interface_policy": {
             "primary_local_interface": PRIMARY_LOCAL_INTERFACE,
@@ -1725,69 +1041,6 @@ def robot_guide() -> dict[str, Any]:
             "browser_required_for_primary": False,
             "server_required_for_primary": False,
             "frontend_build_pipeline_for_primary": False,
-        },
-        "governance": {
-            "module": "threadvault.governance",
-            "status_contract_version": GOVERNANCE_STATUS_CONTRACT_VERSION,
-            "schema": "governance_status",
-            "audit_append_contract_version": GOVERNANCE_AUDIT_APPEND_CONTRACT_VERSION,
-            "audit_list_contract_version": GOVERNANCE_AUDIT_LIST_CONTRACT_VERSION,
-            "audit_schemas": ["governance_audit_append", "governance_audit_list"],
-            "permission_check_contract_version": GOVERNANCE_PERMISSION_CHECK_CONTRACT_VERSION,
-            "permission_schema": "governance_permission_check",
-            "enforcement_gaps_contract_version": GOVERNANCE_ENFORCEMENT_GAPS_CONTRACT_VERSION,
-            "enforcement_gaps_schema": "governance_enforcement_gaps",
-            "enforcement_check_contract_version": GOVERNANCE_ENFORCEMENT_CHECK_CONTRACT_VERSION,
-            "enforcement_check_schema": "governance_enforcement_check",
-            "business_command_instrumentation_contract_version": GOVERNANCE_BUSINESS_COMMAND_INSTRUMENTATION_CONTRACT_VERSION,
-            "business_command_instrumentation_schema": "governance_business_command_instrumentation",
-            "policy_readiness_contract_version": GOVERNANCE_POLICY_READINESS_CONTRACT_VERSION,
-            "policy_readiness_schema": "governance_policy_readiness",
-            "server_policy_readiness_contract_version": GOVERNANCE_SERVER_POLICY_READINESS_CONTRACT_VERSION,
-            "server_policy_readiness_schema": "governance_server_policy_readiness",
-            "read_only_server_manifest_contract_version": READ_ONLY_SERVER_MANIFEST_CONTRACT_VERSION,
-            "read_only_server_manifest_schema": "governance_read_only_server_manifest",
-            "read_only_server_smoke_contract_version": READ_ONLY_SERVER_SMOKE_CONTRACT_VERSION,
-            "read_only_server_smoke_schema": "governance_read_only_server_smoke",
-            "centralized_audit_readiness_contract_version": (
-                GOVERNANCE_CENTRALIZED_AUDIT_READINESS_CONTRACT_VERSION
-            ),
-            "centralized_audit_readiness_schema": "governance_centralized_audit_readiness",
-            "centralized_audit_store_contract_version": GOVERNANCE_CENTRALIZED_AUDIT_STORE_CONTRACT_VERSION,
-            "centralized_audit_store_schema": "governance_centralized_audit_store",
-            "v3_completion_gap_audit_contract_version": GOVERNANCE_V3_COMPLETION_GAP_AUDIT_CONTRACT_VERSION,
-            "v3_completion_gap_audit_schema": "governance_v3_completion_gap_audit",
-            "v3_acceptance_smoke_contract_version": GOVERNANCE_V3_ACCEPTANCE_SMOKE_CONTRACT_VERSION,
-            "v3_acceptance_smoke_schema": "governance_v3_acceptance_smoke",
-            "identity_actor_readiness_contract_version": GOVERNANCE_IDENTITY_ACTOR_READINESS_CONTRACT_VERSION,
-            "identity_actor_readiness_schema": "governance_identity_actor_readiness",
-            "identity_actor_binding_contract_version": GOVERNANCE_IDENTITY_ACTOR_BINDING_CONTRACT_VERSION,
-            "identity_actor_binding_schema": "governance_identity_actor_binding",
-            "central_policy_readiness_contract_version": GOVERNANCE_CENTRAL_POLICY_READINESS_CONTRACT_VERSION,
-            "central_policy_readiness_schema": "governance_central_policy_readiness",
-            "central_policy_store_contract_version": GOVERNANCE_CENTRAL_POLICY_STORE_CONTRACT_VERSION,
-            "central_policy_store_schema": "governance_central_policy_store",
-            "central_backup_readiness_contract_version": GOVERNANCE_CENTRAL_BACKUP_READINESS_CONTRACT_VERSION,
-            "central_backup_readiness_schema": "governance_central_backup_readiness",
-            "central_backup_policy_contract_version": GOVERNANCE_CENTRAL_BACKUP_POLICY_CONTRACT_VERSION,
-            "central_backup_policy_schema": "governance_central_backup_policy",
-            "export_backup_preflight_contract_version": GOVERNANCE_EXPORT_BACKUP_PREFLIGHT_CONTRACT_VERSION,
-            "export_backup_preflight_schema": "governance_export_backup_preflight",
-            "restore_retention_preflight_contract_version": GOVERNANCE_RESTORE_RETENTION_PREFLIGHT_CONTRACT_VERSION,
-            "restore_retention_preflight_schema": "governance_restore_retention_preflight",
-            "raw_read_preflight_contract_version": GOVERNANCE_RAW_READ_PREFLIGHT_CONTRACT_VERSION,
-            "raw_read_preflight_schema": "governance_raw_read_preflight",
-            "summary_search_preflight_contract_version": GOVERNANCE_SUMMARY_SEARCH_PREFLIGHT_CONTRACT_VERSION,
-            "summary_search_preflight_schema": "governance_summary_search_preflight",
-            "export_preview_preflight_contract_version": GOVERNANCE_EXPORT_PREVIEW_PREFLIGHT_CONTRACT_VERSION,
-            "export_preview_preflight_schema": "governance_export_preview_preflight",
-            "external_model_preflight_contract_version": GOVERNANCE_EXTERNAL_MODEL_PREFLIGHT_CONTRACT_VERSION,
-            "external_model_preflight_schema": "governance_external_model_preflight",
-            "enabled_by_default": False,
-            "server_required": False,
-            "server_opt_in": True,
-            "permissions_enforced": False,
-            "audit_log_implemented": True,
         },
         "client_interface": {
             "module": "threadvault.client_interface",
@@ -1805,11 +1058,9 @@ def robot_guide() -> dict[str, Any]:
                 "client_export_preview",
                 "client_warnings",
             ],
-            "client_families": ["desktop", "ide", "web", "tui", "server"],
+            "client_families": ["desktop", "ide", "tui"],
             "accepted_runtimes": ["threadvault-local-tui"],
             "server_required": False,
-            "server_opt_in": True,
-            "instrumented_commands": ["threadvault client export-preview"],
         },
         "desktop_app": {
             "module": "threadvault.desktop_app",
@@ -1818,8 +1069,8 @@ def robot_guide() -> dict[str, Any]:
             "recommended_for_daily_use": True,
             "launch_command": PRIMARY_LOCAL_INTERFACE_COMMAND,
             "smoke_command": PRIMARY_LOCAL_INTERFACE_SMOKE_COMMAND,
-            "contract_version": "desktop_app.v1",
-            "smoke_contract_version": "desktop_smoke.v1",
+            "contract_version": "desktop_app.v2",
+            "smoke_contract_version": "desktop_smoke.v2",
             "toolkit": "tkinter",
             "major_release_target": MAJOR_RELEASE_TARGET,
             "server_required": False,
@@ -1831,10 +1082,12 @@ def robot_guide() -> dict[str, Any]:
                 "client_overview",
                 "client_session",
                 "client_export_preview",
+                "export_target",
                 "client_warnings",
                 "stats",
                 "doctor",
                 "backup",
+                "storage_auto_backup",
                 "verify_backup",
                 "restore_plan",
                 "restore",
@@ -1844,8 +1097,6 @@ def robot_guide() -> dict[str, Any]:
                 "write_schema_files",
                 "robot_guide",
                 "robot_schemas",
-                "governance_status",
-                "governance_diagnostics",
             ],
         },
         "agent_interface": {
@@ -1968,10 +1219,19 @@ def robot_schemas() -> dict[str, Any]:
             "hook_event_name": "string|null",
             "codex_home": "string|null",
             "enqueue": "object|null",
+            "process": "object|null",
             "hook_response": "object",
         },
         "codex_hook_config": {
             "hooks": "object",
+        },
+        "codex_hook_install": {
+            "ok": "boolean",
+            "apply": "boolean",
+            "path": "string",
+            "action": "string",
+            "config": "object",
+            "trust_required": "boolean",
         },
         "export_target_manifest": {
             "manifest_version": "string",
@@ -2028,7 +1288,6 @@ def robot_schemas() -> dict[str, Any]:
             "schemas": "object",
             "defaults": "object",
             "integration_policy": "object",
-            "governance": "object",
         },
         "client_overview": {
             "contract_version": "string",
@@ -2069,7 +1328,6 @@ def robot_schemas() -> dict[str, Any]:
             "privacy": "object",
             "evidence": "object",
             "actions": "object",
-            "governance_instrumentation": "object",
             "diagnostics": "object",
         },
         "client_warnings": {
@@ -2079,330 +1337,6 @@ def robot_schemas() -> dict[str, Any]:
             "warnings": "object",
             "privacy": "object",
             "actions": "object",
-            "diagnostics": "object",
-        },
-        "governance_status": {
-            "contract_version": "string",
-            "enabled": "boolean",
-            "mode": "string",
-            "access_levels": "object[]",
-            "roles": "object[]",
-            "sensitive_operations": "object[]",
-            "audit_requirements": "object",
-            "defaults": "object",
-            "diagnostics": "object",
-        },
-        "governance_audit_append": {
-            "contract_version": "string",
-            "ok": "boolean",
-            "log": "object",
-            "record": "object",
-            "diagnostics": "object",
-        },
-        "governance_audit_list": {
-            "contract_version": "string",
-            "log": "object",
-            "records": "object[]",
-            "warnings": "object[]",
-            "diagnostics": "object",
-        },
-        "governance_permission_check": {
-            "contract_version": "string",
-            "request": "object",
-            "governance": "object",
-            "decision": "object",
-            "audit": "object",
-            "diagnostics": "object",
-        },
-        "governance_enforcement_gaps": {
-            "contract_version": "string",
-            "governance": "object",
-            "commands": "object[]",
-            "summary": "object",
-            "recommendations": "string[]",
-            "diagnostics": "object",
-        },
-        "governance_enforcement_check": {
-            "contract_version": "string",
-            "request": "object",
-            "command_policy": "object",
-            "permission": "object",
-            "enforcement": "object",
-            "audit": "object",
-            "diagnostics": "object",
-        },
-        "governance_business_command_instrumentation": {
-            "contract_version": "string",
-            "request": "object",
-            "governance": "object",
-            "command_policy": "object",
-            "instrumentation": "object",
-            "preflight": "object",
-            "audit": "object",
-            "execution": "object",
-            "diagnostics": "object",
-        },
-        "governance_policy_readiness": {
-            "contract_version": "string",
-            "governance": "object",
-            "readiness": "object",
-            "capabilities": "object",
-            "command_categories": "object[]",
-            "blockers": "object[]",
-            "recommended_next_phases": "string[]",
-            "diagnostics": "object",
-        },
-        "governance_server_policy_readiness": {
-            "contract_version": "string",
-            "governance": "object",
-            "readiness": "object",
-            "server": "object",
-            "policy": "object",
-            "identity": "object",
-            "instrumentation": "object",
-            "audit": "object",
-            "backup_restore": "object",
-            "outbound_policy": "object",
-            "blockers": "object[]",
-            "recommended_next_phases": "string[]",
-            "diagnostics": "object",
-        },
-        "governance_read_only_server_manifest": {
-            "contract_version": "string",
-            "governance": "object",
-            "runtime": "object",
-            "routes": "object[]",
-            "read_only": "object",
-            "security": "object",
-            "integration": "object",
-            "commands": "object",
-            "diagnostics": "object",
-        },
-        "governance_read_only_server_smoke": {
-            "contract_version": "string",
-            "ok": "boolean",
-            "request": "object",
-            "checks": "object[]",
-            "summary": "object",
-            "governance": "object",
-            "diagnostics": "object",
-        },
-        "governance_centralized_audit_readiness": {
-            "contract_version": "string",
-            "governance": "object",
-            "readiness": "object",
-            "local_audit": "object",
-            "centralized_audit": "object",
-            "identity": "object",
-            "integrity": "object",
-            "retention": "object",
-            "review": "object",
-            "backup_export": "object",
-            "instrumentation": "object",
-            "blockers": "object[]",
-            "recommended_next_phases": "string[]",
-            "diagnostics": "object",
-        },
-        "governance_centralized_audit_store": {
-            "contract_version": "string",
-            "request": "object",
-            "governance": "object",
-            "store": "object",
-            "append": "object",
-            "query": "object",
-            "verification": "object",
-            "records": "object[]",
-            "warnings": "object[]",
-            "errors": "object[]",
-            "blockers": "object[]",
-            "diagnostics": "object",
-        },
-        "governance_v3_completion_gap_audit": {
-            "contract_version": "string",
-            "governance": "object",
-            "completion": "object",
-            "milestones": "object[]",
-            "acceptance_criteria": "object[]",
-            "implemented_capabilities": "string[]",
-            "remaining_gaps": "object[]",
-            "blockers": "object[]",
-            "recommended_next_phases": "string[]",
-            "diagnostics": "object",
-        },
-        "governance_v3_acceptance_smoke": {
-            "contract_version": "string",
-            "status": "string",
-            "ok": "boolean",
-            "governance": "object",
-            "checks": "object[]",
-            "summary": "object",
-            "criteria": "object[]",
-            "gap_audit": "object",
-            "diagnostics": "object",
-        },
-        "governance_identity_actor_readiness": {
-            "contract_version": "string",
-            "governance": "object",
-            "readiness": "object",
-            "identity_provider": "object",
-            "actor_binding": "object",
-            "role_mapping": "object",
-            "request_attribution": "object",
-            "audit_provenance": "object",
-            "local_fallback": "object",
-            "blockers": "object[]",
-            "recommended_next_phases": "string[]",
-            "diagnostics": "object",
-        },
-        "governance_identity_actor_binding": {
-            "contract_version": "string",
-            "request": "object",
-            "governance": "object",
-            "identity_provider": "object",
-            "actor": "object",
-            "binding": "object",
-            "role_mapping": "object",
-            "request_attribution": "object",
-            "audit": "object",
-            "diagnostics": "object",
-        },
-        "governance_central_policy_readiness": {
-            "contract_version": "string",
-            "governance": "object",
-            "readiness": "object",
-            "local_policy": "object",
-            "central_policy": "object",
-            "adapter": "object",
-            "versioning": "object",
-            "provenance": "object",
-            "migration": "object",
-            "identity_dependency": "object",
-            "fallback": "object",
-            "blockers": "object[]",
-            "recommended_next_phases": "string[]",
-            "diagnostics": "object",
-        },
-        "governance_central_policy_store": {
-            "contract_version": "string",
-            "request": "object",
-            "governance": "object",
-            "store": "object",
-            "policy": "object",
-            "validation": "object",
-            "provenance": "object",
-            "actor_resolution": "object",
-            "operation_resolution": "object",
-            "enforcement": "object",
-            "blockers": "object[]",
-            "diagnostics": "object",
-        },
-        "governance_central_backup_readiness": {
-            "contract_version": "string",
-            "governance": "object",
-            "readiness": "object",
-            "local_backup": "object",
-            "central_backup": "object",
-            "policy": "object",
-            "restore": "object",
-            "retention": "object",
-            "audit": "object",
-            "dependencies": "object",
-            "recovery_testing": "object",
-            "blockers": "object[]",
-            "recommended_next_phases": "string[]",
-            "diagnostics": "object",
-        },
-        "governance_central_backup_policy": {
-            "contract_version": "string",
-            "governance": "object",
-            "request": "object",
-            "store": "object",
-            "policy": "object",
-            "validation": "object",
-            "provenance": "object",
-            "repository": "object",
-            "backup": "object",
-            "restore": "object",
-            "retention": "object",
-            "legal_hold": "object",
-            "recovery_testing": "object",
-            "migration": "object",
-            "operation_resolution": "object",
-            "audit": "object",
-            "enforcement": "object",
-            "blockers": "object[]",
-            "diagnostics": "object",
-        },
-        "governance_export_backup_preflight": {
-            "contract_version": "string",
-            "request": "object",
-            "scope": "object",
-            "command_policy": "object",
-            "permission": "object",
-            "enforcement": "object",
-            "privacy": "object",
-            "audit": "object",
-            "execution": "object",
-            "diagnostics": "object",
-        },
-        "governance_restore_retention_preflight": {
-            "contract_version": "string",
-            "request": "object",
-            "scope": "object",
-            "command_policy": "object",
-            "permission": "object",
-            "enforcement": "object",
-            "recovery": "object",
-            "audit": "object",
-            "execution": "object",
-            "diagnostics": "object",
-        },
-        "governance_raw_read_preflight": {
-            "contract_version": "string",
-            "request": "object",
-            "scope": "object",
-            "command_policy": "object",
-            "permission": "object",
-            "enforcement": "object",
-            "privacy": "object",
-            "audit": "object",
-            "execution": "object",
-            "diagnostics": "object",
-        },
-        "governance_summary_search_preflight": {
-            "contract_version": "string",
-            "request": "object",
-            "scope": "object",
-            "command_policy": "object",
-            "permission": "object",
-            "enforcement": "object",
-            "privacy": "object",
-            "audit": "object",
-            "execution": "object",
-            "diagnostics": "object",
-        },
-        "governance_export_preview_preflight": {
-            "contract_version": "string",
-            "request": "object",
-            "scope": "object",
-            "command_policy": "object",
-            "permission": "object",
-            "enforcement": "object",
-            "privacy": "object",
-            "audit": "object",
-            "execution": "object",
-            "diagnostics": "object",
-        },
-        "governance_external_model_preflight": {
-            "contract_version": "string",
-            "request": "object",
-            "scope": "object",
-            "command_policy": "object",
-            "permission": "object",
-            "enforcement": "object",
-            "outbound_policy": "object",
-            "audit": "object",
-            "execution": "object",
             "diagnostics": "object",
         },
         "summary_chunks": {

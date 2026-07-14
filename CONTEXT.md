@@ -48,6 +48,10 @@ _Avoid_: search when discussing the full interface contract
 A read-only plan describing which files an export would write and what privacy findings apply.
 _Avoid_: export, dry export file
 
+**Desktop Export Plan**:
+An immutable desktop preview state that binds one session, output directory, export profile, and privacy mode. Any parameter change invalidates it before a confirmed write.
+_Avoid_: cached command, implicit export permission
+
 **Export Target**:
 A concrete output profile such as Markdown, Obsidian, or Codex Skill.
 _Avoid_: format when the target also controls folder layout and manifest behavior
@@ -60,30 +64,26 @@ _Avoid_: archive database, index database
 A structured sensitive-content finding that can warn, redact, or block export depending on privacy mode.
 _Avoid_: parser warning
 
-**Governance Preflight**:
-A local readiness or policy check that reports whether an operation is safe or properly instrumented before execution.
-_Avoid_: permission grant, enforcement by default
-
-**Audit Record**:
-A structured local record of a governance-sensitive operation.
-_Avoid_: import log, parse warning
+**Personal Safety Gate**:
+A local privacy scan, read-only preview, explicit confirmation, or verification step that protects a personal operation before it writes or exposes data.
+_Avoid_: team permission, governance preflight, central policy
 
 **Backup**:
 A local copy of the archive database for recovery.
 _Avoid_: export, vault, report
 
+**Backup Center**:
+The native desktop view over the existing smart-backup policy. It presents status, schedule, disk guard, selected tier, and one-click execution without owning backup policy.
+_Avoid_: backup engine, scheduler service
+
 **Restore Plan**:
 A reviewable dry-run description of restoring a backup to a target database.
 _Avoid_: restore
 
-**Personal UI**:
-The local browser UI served by ThreadVault for browsing, searching, exporting, maintaining, and governing the archive.
-_Avoid_: cloud UI, hosted dashboard
+**Native Desktop App**:
+The local Tkinter application for browsing, searching, previewing exports, and running personal safety or maintenance actions.
+_Avoid_: Personal UI, browser UI, hosted dashboard
 
-**Basic Mode**:
-The Personal UI mode for common daily actions: search old records, open recent sessions, and export material for Codex reuse.
-_Avoid_: limited product
-
-**Pro Mode**:
-The Personal UI mode exposing the broader workbench of archive, retrieval, export, maintenance, schema, and governance tools.
-_Avoid_: admin-only mode
+**MCP Read-Only Interface**:
+The local stdio interface through which an agent can inspect capabilities, diagnostics, retrieval results, sessions, and export previews without writing files or initializing a missing database.
+_Avoid_: shared server, remote API, team service

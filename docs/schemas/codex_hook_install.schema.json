@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "ok",
+    "apply",
+    "path",
+    "action",
+    "config",
+    "trust_required"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "apply": {
+      "type": "boolean"
+    },
+    "path": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "config": {
+      "type": "object"
+    },
+    "trust_required": {
+      "type": "boolean"
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 This document is the project-level knowledge graph for ThreadVault. It records the main domain entities, the modules that own them, the data flows between them, and the safety boundaries that keep the system local-first and privacy-first.
 
-This is not a claim that ThreadVault stores a graph database. The runtime archive is SQLite. The "knowledge graph" here is a maintained map of project concepts and relationships so future UI, CLI, retrieval, export, and governance work can reuse the same model.
+This is not a claim that ThreadVault stores a graph database. The runtime archive is SQLite. The "knowledge graph" here is a maintained map of project concepts and relationships so future desktop, CLI, retrieval, export, and MCP work can reuse the same model.
 
 ## Reading Guide
 
@@ -31,7 +31,10 @@ flowchart LR
   Hybrid --> Agent
 
   Store --> Client["Client Interface"]
-  Client --> Desktop["Native Desktop UI"]
+  Client --> Gateway["Desktop Data Gateway"]
+  Gateway --> Desktop["Native Desktop UI"]
+  Store --> SmartBackup["Smart Backup Policy"]
+  SmartBackup --> Gateway
   Store --> MCP["MCP Stdio Interface"]
   MCP --> ExternalAgents["Codex / ZCode / OpenCode"]
   Store --> ExportPreview["Export Preview"]
@@ -43,23 +46,21 @@ flowchart LR
   Privacy --> ExportWrite
 
   Store --> Backup["Backup / Restore"]
-  Store --> Governance["Governance / Audit / Policy"]
-  Governance --> Client
 ```
 
 ## Layered Model
 
 | Layer | Core Entities | Owning Modules | Notes |
 |---|---|---|---|
-| Source | Codex Transcript File, Codex Home, Hook Event | `codex_adapter.py`, `codex_hooks.py`, `config.py`, `parser.py` | Input is local JSONL under `sessions` or `archived_sessions`. Hooks enqueue work; they do not run heavy archive jobs. |
+| Source | Codex Transcript File, Codex Home, Hook Event | `codex_adapter.py`, `codex_hooks.py`, `config.py`, `parser.py` | Input is local JSONL under `sessions` or `archived_sessions`. Stop hooks import only the named transcript and never rescan the whole home. |
 | Archive | Archive Database, Session, Turn, Event, Clean Knowledge Field, Import Log, Parse Warning, FTS Index | `database.py`, `importer.py`, `store.py` | SQLite is the durable local archive; default search uses cleaned knowledge text derived from raw events. |
 | Knowledge | Summary, Evidence Event, Summary Chunk, Vector Chunk | `summarizer.py`, `summary_pipeline.py`, `vector_adapter.py` | Summaries remain evidence-backed. Vector chunks are optional and derived from summaries/evidence, not raw-event indexing by default. |
 | Retrieval | Retrieval Query, Retrieval Result, Hybrid Result, Agent Retrieval Payload | `retrieval.py`, `hybrid_retrieval.py`, `agent_interface.py` | FTS is the default path. Hybrid can combine FTS, vector, recency, project, and path signals. |
 | Client | Client Manifest, Client Overview, Client Session Detail, Client Export Preview, Client Warnings | `client_interface.py`, `client_runtime.py` | Client surfaces package archive data into stable UI/agent-friendly payloads. |
 | Export | Export Selection, Export Preview, Export Target, Export Manifest, Output File | `export_targets.py`, `exporter.py` | Write actions must follow preview acceptance and privacy handling. |
-| Safety | Privacy Finding, Governance Preflight, Permission Check, Audit Record, Policy Document | `privacy.py`, `governance.py`, `app_config.py` | Safety controls wrap reads, exports, raw access, external model calls, backup/restore, and future shared use. |
+| Safety | Privacy Finding, Export Preview, Backup Verification, Restore Plan, Confirmation Gate | `privacy.py`, `export_targets.py`, backup/restore modules | Personal safety controls wrap exports and local write operations. |
 | Operations | Backup, Backup Manifest, Restore Plan, Restore History, Audit History | `backup_manifest.py`, `backup_history.py`, `restore_plan.py`, `restore.py`, `restore_history.py`, `audit.py` | Local operational artifacts may contain private archive data and should be treated as private. |
-| Interface | CLI Command, Native Desktop View, MCP Tool, JSON Schema | `cli.py`, `desktop_app.py`, `desktop_data.py`, `mcp.py`, `schemas.py` | Active UI and agents should reuse existing store/client contracts instead of duplicating parser or database logic. |
+| Interface | CLI Command, Native Desktop View, Desktop Export Plan, Backup Center, MCP Tool, JSON Schema | `cli.py`, `desktop_app.py`, `desktop_data.py`, `mcp.py`, `schemas.py` | Active UI and agents should reuse existing store/client contracts instead of duplicating parser, database, export, or backup policy. |
 
 ## Core Entity Catalog
 
@@ -67,9 +68,11 @@ flowchart LR
 |---|---|---|---|---|
 | Codex Transcript File | Local Codex JSONL source file from `sessions` or `archived_sessions`. | Codex runtime outside ThreadVault | Parser, importer, audit | Local filesystem |
 | Codex Home | Root directory used to discover local Codex transcript files. | User config / CLI option | Importer, hook adapter, ingestion queue | Config / command input |
-| Hook Event | Lightweight signal that ThreadVault should enqueue ingest work. | Codex hook adapter | Ingestion queue | SQLite `ingestion_queue` |
-| Ingestion Request | A queued request to scan/import from a Codex home. | Hook adapter or CLI | Ingestion processor | SQLite `ingestion_queue` |
+| Hook Event | Turn-scoped signal carrying the transcript path to archive. | Codex hook adapter | Ingestion queue and targeted importer | SQLite `ingestion_queue` |
+| Ingestion Request | A recorded request to import one transcript or scan a Codex home. | Hook adapter or CLI | Ingestion processor | SQLite `ingestion_queue` |
 | Archive Database | Local SQLite database containing imported archive state. | `init_db`, import workflows | Store, CLI, UI, retrieval, export, backup | SQLite file |
+| Cold Blob | Immutable SHA-256-addressed payload or asset externalized from the hot archive. | Storage policy/import/rebuild | Hydration, Evidence backup, verification | Local filesystem |
+| Storage Class | Core, evidence, noise, or quarantine persistence decision attached to an event. | Storage policy | Audit, rebuild, pruning, backup selection | Event metadata |
 | Session | Primary archived unit, normally one Codex conversation. | Parser/importer | Overview, session detail, summary, export, retrieval | SQLite `sessions` |
 | Turn | Conversation grouping for related user/assistant/tool events. | Importer | Session detail, summary chunks, vector chunks | SQLite `turns` |
 | Event | Normalized message, tool, system, or warning-related record. | Parser/importer | Search, session detail, summaries, exports | SQLite `events`, `events_fts` |
@@ -90,19 +93,18 @@ flowchart LR
 | Client Export Preview | Client-facing export plan with files, privacy summary, and write readiness. | Client interface / export targets | Native desktop, export write gate | JSON contract |
 | Client Warnings | Warning-focused session detail plus privacy scan summary. | Client interface | Native desktop | JSON contract |
 | Export Selection | Session/project/range-style choice of archive material. | Export target request | Preview and export writers | Request payload |
-| Export Preview | Read-only plan for files that would be written. | Export targets / client interface | UI gate, users, governance | JSON contract |
+| Export Preview | Read-only plan for files that would be written. | Export targets / client interface | Desktop gate, users, agents | JSON contract |
+| Desktop Export Plan | Immutable desktop state binding session, target, profile, privacy, planned files, and blocked status. | Desktop data gateway | Native desktop confirmation gate | Runtime value |
 | Export Target | Concrete output profile: Markdown, Obsidian, or Codex Skill. | Export target module | Export writers | Filesystem output |
 | Export Manifest | Machine-readable record of written files, skipped items, privacy counts, and evidence. | Export target writer | Users, future tools, validation | Output folder file |
 | Output File | User-facing Markdown/Obsidian/Skill artifact. | Export writers | User, Codex, editors | Local filesystem |
 | Privacy Finding | Sensitive-content finding with warn/redact/fail behavior. | Privacy scanner | Export, client warnings, UI | Response payload; sometimes manifest metadata |
 | Backup | SQLite database copy for local recovery. | Backup workflow | Restore, verification, history | Local filesystem |
+| Backup Center | Native presentation of smart-backup status, schedule, disk guard, tier, and one-click execution. | Desktop data gateway | Local user | Runtime UI |
 | Backup Manifest | Metadata/provenance file beside a backup. | Backup manifest writer | Backup verification | Local filesystem |
 | Restore Plan | Dry-run plan for applying a backup to a target DB. | Restore planner | Restore apply, UI review | JSON payload |
 | Restore History | Record of restore operations. | Restore workflow | Restore history UI/CLI | Local filesystem |
 | Corpus Audit Report | Anonymized corpus-level report over local files. | Audit module | Audit history, diff | Local filesystem |
-| Audit Record | Governance/operation event in a local or central audit log. | Governance module | Audit list, readiness checks | JSONL file |
-| Identity Actor | Local static actor configuration for governance checks. | App config | Governance identity binding | Config payload |
-| Policy Document | Local central policy or backup policy document. | User/configured governance input | Governance readiness/runtime | Local filesystem |
 | Native Desktop App | Primary local Tkinter shell over desktop data gateway. | `desktop_app.py`, `desktop_data.py` | Local user | Runtime UI |
 | MCP Tool | Read-only stdio tool exposed to MCP-capable local agents. | `mcp.py` | Codex, ZCode, OpenCode, other MCP clients | Runtime manifest / JSON-RPC |
 | JSON Schema | Packaged contract used to validate command/API payloads. | `schemas.py` | CLI, tests, agents, docs | `docs/schemas/` |
@@ -133,17 +135,20 @@ flowchart LR
 | Client Session Detail | includes | Summary / Event Preview | `client_session` contract |
 | Client Warnings | includes | Parse Warning / Privacy Finding | `client_warnings` contract |
 | Export Preview | plans | Output File | `client_export_preview`, `export_target_manifest` |
+| Desktop Export Plan | binds and gates | Export Target | `DesktopDataGateway.prepare_export/execute_export` |
 | Export Target | writes | Output File | `export_targets.py`, `exporter.py` |
 | Export Manifest | records | Output File / Privacy Finding / Evidence Event | `export_target_manifest` |
 | Privacy Finding | gates or modifies | Export Target | `privacy_mode` warn/redact/fail |
 | Restore Plan | must precede | Restore Apply | `restore_plan`, `restore` |
 | Backup Manifest | verifies | Backup | `backup_manifest.py` |
-| Governance Preflight | evaluates | Command / Operation | `governance_*_preflight` contracts |
-| Permission Check | evaluates | Actor / Operation / Resource | `governance_permission_check` |
-| Audit Record | records | Governance-sensitive Operation | `governance_audit_*` contracts |
+| Event | references | Cold Blob | `events.payload_ref` or compact payload asset refs |
+| Storage Backup Manifest | binds | Hot DB, cold blobs, optional forensic JSONL | `archive_lifecycle.py` |
+| Smart Backup Decision | selects and verifies | Core / Evidence / Forensic Backup | `smart_backup.py`, `storage_auto` contract |
+| Backup Center | presents and invokes | Smart Backup Decision | `desktop_data.py`, `desktop_app.py` |
+| Smart Backup Retention | prunes only | Superseded automatic backup generations | Automatic keep counts are Core 3, Evidence 2, Forensic 1; manual backups are out of scope. |
 | Native Desktop App | routes through | Desktop Data Gateway | `desktop_data.py`, `threadvault desktop launch` |
 | Desktop Data Gateway | routes to | ArchiveStore Method | `DesktopDataGateway` |
-| MCP Tool | routes to | ArchiveStore Method | `mcp.py`, `threadvault mcp serve` |
+| MCP Tool | routes to | Read-only MCP Runtime | `mcp.py`, `mcp_runtime.py`, `threadvault mcp serve` |
 | MCP Tool | returns | Agent Retrieval / Client Session / Client Export Preview Payload | `structuredContent` |
 | JSON Schema | validates | JSON Payload | `schemas.py`, `docs/schemas/` |
 
@@ -152,6 +157,7 @@ flowchart LR
 | Logical Entity | SQLite Area | Notes |
 |---|---|---|
 | Archive Database | SQLite file | Default is `data/threadvault.db` under the project root; `--db`, `THREADVAULT_DB`, and `[storage].archive_db` can override it. |
+| Cold Evidence Store | Content-addressed files | Default is sibling `<db-stem>-cold`; derived files can be verified and garbage-collected by reachability. |
 | Session | `sessions` | Durable session metadata, project cwd, source kind, timestamps, event and warning counts. |
 | Turn | `turns` | Grouping and aggregate text fields for user/assistant/tool activity. |
 | Event | `events` | Normalized event text, type, tool, file path, raw JSON, and turn references. |
@@ -182,7 +188,7 @@ Important boundaries:
 
 - The importer reads local files only.
 - Raw transcript text remains local.
-- Hook-triggered ingestion should enqueue or narrowly signal work, not perform large scans inside the hook process.
+- Hook-triggered ingestion records queue history and imports only `transcript_path`; it must not perform a full Codex-home scan inside the hook process.
 
 ### 2. Search, Retrieval, And Agent Use
 
@@ -209,14 +215,15 @@ Important boundaries:
 Codex / ZCode / OpenCode
   -> MCP stdio initialize + tools/list
   -> threadvault_retrieve / threadvault_session / threadvault_export_preview
-  -> ArchiveStore contracts
+  -> validated read-only MCP runtime
   -> structuredContent returned to the agent
 ```
 
 Important boundaries:
 
-- MCP is a transport adapter, not a new archive implementation.
+- MCP separates transport/dispatch, validation, and read-only query execution.
 - MCP tools are read-only in the first version.
+- MCP opens only an existing database and cannot initialize or migrate it.
 - `threadvault_export_preview` can plan Obsidian/Skill output but must not write files.
 - Export writes stay explicit CLI/UI actions with privacy and preview gates.
 - Obsidian remains a Markdown output consumer, not a direct SQLite client.
@@ -263,13 +270,13 @@ Important boundaries:
 Tkinter window
   -> desktop_app handlers
   -> desktop_data DesktopDataGateway
-  -> ArchiveStore/client/export/safety/governance methods
+  -> ArchiveStore/client/export/personal safety methods
   -> text/list views and local filesystem outputs
 ```
 
 Important boundaries:
 
-- The native desktop UI is the primary 1.0.0 local interface.
+- The native desktop UI is the primary 2.x local interface.
 - The desktop UI does not start a browser, local HTTP server, WebView, Electron, React, Tauri, or frontend build pipeline.
 - Long operations run through background worker threads; Tk state is read on the UI thread before dispatch.
 - Write-like actions still use preview, privacy, confirmation, and target-path gates.
@@ -295,22 +302,9 @@ Important boundaries:
 - Restore apply is intentionally separated from restore planning.
 - Destructive cleanup/prune operations require explicit apply/confirmation.
 
-### 7. Governance And Audit
+### 7. Personal-Only Runtime Boundary
 
-```text
-Command / operation / actor / config
-  -> governance status or preflight
-  -> permission/readiness/policy result
-  -> optional audit record
-  -> UI and CLI diagnostics
-```
-
-Important boundaries:
-
-- Governance is local opt-in by default.
-- Identity actor binding is local static config in the current model, not authenticated enterprise identity.
-- Read-only shared server and central policy/audit/backup flows are optional governance surfaces, not required for personal local use.
-- External model calls remain explicit and policy-visible.
+The 2.x runtime has no team identity, permission, central policy/audit, or shared HTTP service. Historical v3 records remain archived evidence. External model calls are not part of the default path, and MCP remains a local read-only stdio interface.
 
 ## Interface Surface Map
 
@@ -319,9 +313,8 @@ Important boundaries:
 | CLI | `threadvault ...` | Archive DB, config, local files | Archive DB, export files, backups, audit/history files | Command flags and JSON contracts define exact behavior. |
 | Native desktop UI | `threadvault desktop launch` | Archive DB, config | May write exports, backups, schemas, restore targets, maintenance operations | Primary local interface; routes through `DesktopDataGateway` and native confirmations. |
 | Agent interface | `threadvault agent retrieve ... --json` | Retrieval/hybrid/vector status | No writes | Designed for stable machine use and evidence references. |
-| Client interface | `threadvault client ... --json` | Store, retrieval, governance status | Export preview is read-only; export writes use export target commands/actions | Designed for UI and future clients. |
+| Client interface | `threadvault client ... --json` | Store and retrieval | Export preview is read-only; export writes use export target commands/actions | Designed for the desktop and local clients. |
 | Schema interface | `threadvault schemas ...` | Packaged schema registry | Optional schema artifact writes | Validates JSON contracts. |
-| Governance interface | `threadvault governance ...` | Config, policy files, audit stores | Optional audit/policy/audit-store writes | Separates readiness/preflight from enforcement. |
 
 ## Safety And Privacy Boundaries
 
@@ -333,8 +326,8 @@ Important boundaries:
 | Privacy scan | Export and warning workflows must surface privacy findings instead of silently discarding them. |
 | Confirmation | Restore apply, destructive maintenance, prune, and similar operations require explicit confirmation. |
 | Vector indexing | Optional; disabled by default unless configured. It indexes derived chunks, not every raw event by default. |
-| External model calls | Not default; must remain explicit and visible in governance diagnostics. |
-| Server/shared use | Optional governance/client path; personal local CLI/UI remains usable without it. |
+| External model calls | Not default; any future use must remain explicit. |
+| Server/shared use | Not part of the active product; MCP is local stdio and read-only. |
 
 ## What ThreadVault Is Not
 
@@ -345,7 +338,7 @@ Important boundaries:
 | "The UI owns archive logic." | The UI calls existing store/client/action contracts. |
 | "Preview writes files." | Preview is read-only; write actions are separate. |
 | "Vector search replaces FTS." | FTS remains the default. Vector/hybrid is optional. |
-| "Governance means cloud/team mode is required." | Governance is local opt-in by default; shared use is optional. |
+| "MCP means ThreadVault exposes a shared server." | MCP is a local stdio child process over an existing read-only database. |
 | "Backups are safe to share because they are operational artifacts." | Backups can contain private transcripts and should be treated as private. |
 
 ## Completeness Checklist For Future Changes
@@ -354,7 +347,7 @@ When adding a new capability, update this graph if the change introduces or mate
 
 - A new durable entity, table, schema, or artifact.
 - A new write path from UI, CLI, agent, or server.
-- A new privacy, confirmation, governance, or audit boundary.
+- A new privacy, preview, confirmation, backup, or restore boundary.
 - A new relationship between archive data and exported knowledge assets.
 - A new retrieval adapter, ranking signal, or evidence reference type.
 - A new client surface that bypasses or wraps existing store methods.

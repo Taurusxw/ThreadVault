@@ -1,37 +1,39 @@
 # Architecture
 
-ThreadVault is a local-first archive, retrieval, export, governance, native desktop, and agent-integration system for Codex sessions. The architecture keeps raw transcript handling, search/retrieval, export generation, and UI interaction behind reusable Python modules so the CLI, native desktop app, and agent-facing contracts do not duplicate business logic.
+ThreadVault is a personal, local-first archive, retrieval, export, native desktop, and agent-integration system for Codex sessions. Raw transcript handling, search/retrieval, export generation, and UI interaction stay behind reusable Python modules so the CLI, desktop app, and agent-facing contracts do not duplicate business logic.
 
 ## Design Principles
 
 - Keep raw Codex transcript data local by default.
 - Keep SQLite as the personal archive database.
 - Put durable archive behavior behind `ArchiveStore`.
-- Treat the native Tkinter desktop app as the primary 1.0.x local interface.
+- Treat the native Tkinter desktop app as the primary 2.x local interface.
 - Keep the former Web UI runtime, launcher, active tests, active discovery metadata, and `personal_ui_*` schemas out of the runtime.
 - Reuse JSON schema contracts for CLI, UI, and agent payloads.
 - Separate read-only preview from write actions.
-- Keep privacy scan, confirmation, and governance gates visible at the API and UI layers.
+- Keep privacy scan, preview, confirmation, backup verification, and restore gates visible at the API and UI layers.
+- Keep the active runtime personal-only: no team mode, central governance service, or shared HTTP server.
+- Keep the hot database small enough for daily retrieval while preserving reversible bulky evidence in a local content-addressed cold store.
 
 ## Main Modules
 
 | Area | Primary Files | Responsibility |
 |---|---|---|
 | CLI | `src/threadvault/cli.py` | Typer command surface, argument parsing, user-facing command orchestration. |
-| Configuration | `config.py`, `app_config.py`, `privacy_config.py` | Default paths, `threadvault.toml`, privacy allowlist, vector config, governance config. |
+| Configuration | `config.py`, `app_config.py`, `privacy_config.py` | Default paths, `threadvault.toml`, privacy allowlist, vector config, and retention settings. |
 | Parser/import | `parser.py`, `importer.py`, `codex_adapter.py`, `database.py` | Codex JSONL discovery, parsing, normalization, imports, FTS triggers. |
+| Storage lifecycle | `storage_policy.py`, `cold_store.py`, `archive_lifecycle.py`, `smart_backup.py` | Event value classification, content-addressed cold blobs, hydration, rebuild, verification, garbage collection, backup profiles, and one-entrypoint automatic backup policy. |
 | Store | `src/threadvault/store.py` | High-level archive workflows and reusable business entrypoint for CLI/UI. |
-| Ingestion automation | `ingestion.py`, `codex_hooks.py` | Hook-safe ingestion queue, queue listing, dry-run/apply processing. |
+| Ingestion automation | `ingestion.py`, `codex_hooks.py` | Hook-safe queue history, targeted transcript import, user hook installation, and fallback queue processing. |
 | Retrieval | `retrieval.py`, `hybrid_retrieval.py`, `agent_interface.py` | Stable query contracts, FTS retrieval, hybrid ranking, agent-facing output. |
 | Summary/vector | `summarizer.py`, `summary_pipeline.py`, `vector_adapter.py` | Evidence-backed summaries, summary/evidence chunks, optional local deterministic vectors. |
 | Client interface | `client_interface.py`, `client_runtime.py` | Client manifest, overview, session detail, export preview, warnings, local TUI runtime. |
-| MCP interface | `mcp.py`, `mcp_contracts.py` | MCP stdio server, tool manifests, JSON-RPC request handling, read-only cross-agent integration surface. |
+| MCP interface | `mcp.py`, `mcp_runtime.py`, `mcp_validation.py`, `mcp_contracts.py` | MCP stdio transport/dispatch, read-only queries, input and lifecycle validation, and stable contracts. |
 | Desktop app | `desktop_app.py`, `desktop_data.py` | Primary minimal Tkinter native window and desktop-facing data interface over existing client/export/safety contracts. |
 | Export | `export_targets.py`, `exporter.py` | Single-session export, batch target preview/write, Markdown/Obsidian/Skill layouts, manifests. |
 | Privacy | `privacy.py` | Sensitive content scanning, effective findings, redaction/fail decisions. |
 | Backup/restore | `backup_manifest.py`, `backup_history.py`, `restore_plan.py`, `restore.py`, `restore_history.py` | Local backup verification, history, restore preflight, restore apply. |
 | Audit | `audit.py` | Corpus audit reports, audit history, diff, prune. |
-| Governance | `governance.py`, `shared_server.py` | Local governance status, preflight, policy readiness/runtime, audit records, optional read-only server surfaces. |
 | Schemas | `schemas.py`, `docs/schemas/` | JSON contract registry and schema artifact generation. |
 
 ## Runtime Data Flow
@@ -39,6 +41,8 @@ ThreadVault is a local-first archive, retrieval, export, governance, native desk
 ```mermaid
 flowchart TD
   CodexHome["CODEX_HOME / .codex"] --> TranscriptFiles["sessions + archived_sessions JSONL"]
+  CodexStop["Codex Stop Hook"] --> HookAdapter["Hook Adapter + Queue Record"]
+  HookAdapter --> TranscriptFiles
   TranscriptFiles --> Parser["Parser / Importer"]
   Parser --> DB["SQLite Archive DB"]
   DB --> Store["ArchiveStore"]
@@ -50,7 +54,6 @@ flowchart TD
   Store --> Retrieval["Retrieval / Agent Interface"]
   Store --> Export["Export Targets"]
   Store --> Ops["Backup / Restore / Audit"]
-  Store --> Gov["Governance"]
 
   Desktop --> Human["Local User"]
   MCP --> Agents["Codex / ZCode / OpenCode"]
@@ -65,13 +68,32 @@ ThreadVault intentionally separates the searchable archive from generated artifa
 | Thing | Default / Example | Owner | Meaning |
 |---|---|---|---|
 | Archive database | `<repo-root>\data\threadvault.db` by default in this checkout | `config.py`, `database.py`, `store.py` | The SQLite index/store for imported sessions; override with `--db`, `THREADVAULT_DB`, or `[storage].archive_db`. |
+| Cold evidence | Sibling `<db-stem>-cold` directory | `cold_store.py`, `archive_lifecycle.py` | Immutable SHA-256-addressed payloads and assets; no server is required. |
 | Export directory | `<repo-root>\threadvault-ui-output` | `export_targets.py`, UI action params | Markdown/Obsidian/Skill files for human or Codex reuse. |
-| Backup directory | User-provided or UI default | Backup modules | Copies of the archive database. |
-| History/audit files | User-provided or default local paths | Audit/restore/governance modules | Local operational records. |
+| Backup directory | User-provided or `data\storage-backups` | Backup modules, `smart_backup.py` | Manual copies plus bounded automatic Core/Evidence/Forensic generations. |
+| History/audit files | User-provided or default local paths | Corpus audit and restore modules | Local operational records. |
+
+## Hot/Cold Data Flow
+
+```text
+Codex JSONL
+  -> normalize event
+  -> storage policy
+     -> core: canonical conversation + compact payload in SQLite
+     -> evidence/quarantine: compact stub in SQLite + immutable cold blob
+     -> noise: hash stub only
+  -> clean indexed_text -> FTS5
+```
+
+Reads that need full evidence hydrate through `ArchiveStore`; ordinary search and MCP retrieval stay on the hot database. Rebuilds are copy-on-write. Activation is permitted only when source/target counts and canonical conversation digests agree and doctor/cold verification pass.
+
+Backup profiles are deliberately layered: Core is the daily searchable archive, Evidence adds cold blobs, and Forensic additionally snapshots source JSONL as content-addressed gzip files. `smart_backup.py` owns the automatic decision: bootstrap Evidence, then highest-due monthly/weekly/daily tier, skip unchanged data, verify before retention, and retain only automatic 3/2/1 generations. Manual backups remain outside that deletion scope.
 
 The database is useful because search/retrieval can query it. The export directory is useful because the user, Codex, Obsidian, or editors can read the generated files directly.
 
 The archive database keeps raw event text and payloads, but the default FTS surface indexes `indexed_text`, a cleaned knowledge field derived from raw events. This preserves auditability while reducing low-value search noise such as empty events, token counts, screenshots/base64 blobs, and oversized tool outputs.
+
+The normal automatic path is intentionally narrow: Codex passes `transcript_path` to the `Stop` hook, ThreadVault records the queue request, and the same short-lived hook process imports only that one JSONL file. Manual `threadvault import` remains the first-time backfill and recovery path. The user-level hook lives in `~/.codex/hooks.json`; MCP registration remains separate because it is a read-only retrieval interface, not an ingestion trigger.
 
 ## Historical Personal UI Archive
 
@@ -87,23 +109,23 @@ Tkinter window
   -> desktop_app event handlers
   -> background worker thread
   -> desktop_data DesktopDataGateway
-  -> ArchiveStore client_overview / client_session / client_export_preview / client_warnings / backup / restore_plan / restore / reindex / vacuum / schemas / robot docs / governance status
+  -> ArchiveStore client_overview / client_session / client_export_preview / export_target / client_warnings / storage_auto_backup / backup / restore_plan / restore / reindex / vacuum / schemas / robot docs
 ```
 
 Key desktop rules:
 
 - No Electron, React, Tauri, WebView, or frontend build pipeline is required.
-- The window is intentionally compact: browse, export preview, safety, MCP, health, and advanced command reference live in ordered tabs.
+- The window is intentionally compact: friendly session/search tables, confirmed export, Backup Center, Codex integration, health, and advanced references live in ordered tabs.
 - Long archive/search/export/safety operations run off the Tk main thread.
 - Tkinter state is read on the UI thread before dispatch; background workers receive plain values and post results back to the UI thread.
 - The desktop smoke command verifies Tkinter availability, desktop gateway loading, and no-browser/no-server boundaries without opening a window.
-- Export remains preview-first; the desktop app does not bypass privacy scan, preview, or explicit write gates.
+- `DesktopExportPlan` is the immutable desktop write token: changing the selected session, target, profile, or privacy mode invalidates it; export requires an executable plan and native confirmation.
+- The Backup Center reuses `ArchiveStore.storage_auto_backup` for automatic tier choice, disk guard, verification, and bounded retention; the Tk layer does not duplicate storage policy.
 - Backup, reindex, and vacuum use native confirmation prompts before writing locally.
 - Desktop restore apply is limited to verified backups restored into new non-overwrite target databases.
-- Schema, robot docs, and governance status are available as read-only native advanced panels.
+- Schema and robot docs are available as native advanced panels.
 - Schema writes use a native confirmation prompt and explicit output directory.
-- Governance diagnostics aggregate status, readiness, gap, and v3 completion checks into a read-only native panel.
-- Overwrite restore and governance/audit writes remain command-based until they have full native confirmation and target-path gates.
+- Restore defaults to a collision-free new database path and the desktop flow refuses overwrite.
 - Capability discovery exposes `interface_policy.primary_local_interface = native_desktop` without Web UI fallback or retired-interface metadata.
 
 ## MCP Interface Architecture
@@ -113,9 +135,10 @@ The MCP interface is a shallow transport adapter over existing deep modules. It 
 ```text
 MCP client
   -> stdio JSON-RPC initialize / tools/list / tools/call
-  -> mcp.py dispatch
-  -> ArchiveStore
-  -> agent_interface / client_interface / diagnostics
+  -> mcp.py transport and dispatch
+  -> mcp_validation lifecycle/input checks
+  -> mcp_runtime read-only SQLite queries
+  -> agent/client-compatible payloads
   -> MCP content + structuredContent
 ```
 
@@ -131,22 +154,16 @@ First-version tools:
 Design decisions:
 
 - The MCP module does not parse transcript files.
-- The MCP module does not access SQLite tables directly.
+- The MCP runtime opens the existing database with SQLite read-only and `query_only` enforcement; it never creates or migrates a database.
+- JSON-RPC lifecycle, request IDs, and tool arguments are validated before dispatch.
 - Tool results preserve ThreadVault JSON contracts in `structuredContent`.
 - Export preview remains read-only and does not write Markdown, Obsidian, or Skill files.
 - Raw local paths remain hidden by default and require explicit `local_debug`.
-- Future write tools must reuse preview, privacy, governance, and confirmation gates rather than introducing a separate write path.
+- Future write tools must reuse preview, privacy, and confirmation gates rather than introducing a separate write path.
 
 ## Action Safety Model
 
-`ACTION_REGISTRY` classifies personal UI actions:
-
-- `preview_required`: export writes need a matching accepted preview.
-- `confirm_required`: dangerous writes need explicit confirmation.
-- `dangerous_action`: UI should visually distinguish and gate the action.
-- `dry_run_default`: actions default to read-only planning unless explicitly applied.
-
-Backend checks remain the final gate. Frontend locks, progress hints, and confirmation prompts exist to make the workflow understandable, not to replace backend validation.
+Personal write operations use explicit backend gates: exports require a matching accepted preview; backup/restore operations verify source and target state; destructive maintenance requires explicit confirmation. Desktop prompts make these boundaries visible but do not replace backend validation.
 
 ## Retrieval Architecture
 
@@ -180,19 +197,9 @@ selection + profile + privacy mode
 
 This flow prevents "click export and hope" behavior. Users see what will be written, where it will be written, and what privacy findings apply.
 
-## Governance Architecture
+## Personal-Only Boundary
 
-Governance is optional and local-first by default. It provides:
-
-- Status and readiness diagnostics.
-- Permission and enforcement preflight.
-- Identity actor binding from local static config.
-- Central policy and backup policy readiness/runtime previews.
-- Local and central audit store helpers.
-- Business command instrumentation.
-- Optional read-only shared server manifests and smoke checks.
-
-Governance diagnostics do not make cloud sync mandatory and do not replace the personal local archive path.
+The active 2.x package has no team mode, central policy/audit runtime, identity/permission contracts, or shared HTTP server. The archived v3 records remain historical evidence only. Personal safety is provided by privacy scanning, preview/confirmation gates, backup verification, conservative restore rules, and a read-only MCP stdio seam.
 
 ## Schema Contracts
 

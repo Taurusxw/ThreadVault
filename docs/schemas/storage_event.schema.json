@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "event_id",
+    "payload",
+    "text_content"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "integer"
+    },
+    "storage_class": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "payload_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "payload": {},
+    "text_content": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .importer import import_codex_home
+from .importer import import_codex_file, import_codex_home
 
 ACTIVE_STATUSES = {"pending", "processing"}
 VALID_STATUSES = {"pending", "processing", "completed", "failed", "skipped"}
@@ -84,21 +84,50 @@ def process_ingestion_queue(
     processed: list[dict[str, Any]] = []
     ok = True
     for row in pending:
-        request_id = int(row["request_id"])
-        request_codex_home = codex_home or (Path(row["codex_home"]) if row["codex_home"] else None)
-        _mark_processing(conn, request_id)
-        try:
-            stats = import_codex_home(conn, request_codex_home)
-            message = json.dumps(stats.__dict__, ensure_ascii=False, sort_keys=True)
-            _mark_finished(conn, request_id, status="completed", message=message)
-            finished = _get_request(conn, request_id)
-            processed.append(_row_to_request(finished) | {"import_stats": stats.__dict__})
-        except Exception as exc:  # noqa: BLE001 - queue processing records failures and continues.
-            ok = False
-            _mark_finished(conn, request_id, status="failed", message=str(exc))
-            finished = _get_request(conn, request_id)
-            processed.append(_row_to_request(finished) | {"error": str(exc)})
+        result = process_ingestion_request(
+            conn,
+            int(row["request_id"]),
+            codex_home=codex_home,
+        )
+        ok = ok and result["status"] == "completed"
+        processed.append(result)
     return {"ok": ok, "apply": True, "processed": len(processed), "requests": processed}
+
+
+def process_ingestion_request(
+    conn: sqlite3.Connection,
+    request_id: int,
+    *,
+    codex_home: Path | None = None,
+    transcript_path: Path | None = None,
+) -> dict[str, Any]:
+    """Process one queue item, optionally importing only the hook transcript."""
+    row = _get_request(conn, request_id)
+    request_codex_home = codex_home or (Path(row["codex_home"]) if row["codex_home"] else None)
+    if row["status"] != "pending":
+        return _row_to_request(row) | {"error": f"Request is not pending: {row['status']}"}
+    _mark_processing(conn, request_id)
+    try:
+        if transcript_path is not None:
+            stats = import_codex_file(
+                conn,
+                transcript_path,
+                codex_home=request_codex_home,
+            )
+        else:
+            stats = import_codex_home(conn, request_codex_home)
+        status = "failed" if stats.failed else "completed"
+        message = json.dumps(stats.__dict__, ensure_ascii=False, sort_keys=True)
+        _mark_finished(conn, request_id, status=status, message=message)
+        finished = _get_request(conn, request_id)
+        result = _row_to_request(finished) | {"import_stats": stats.__dict__}
+        if status == "failed":
+            result["error"] = "One or more transcript imports failed."
+        return result
+    except Exception as exc:  # noqa: BLE001 - hooks must record failures and let Codex continue.
+        _mark_finished(conn, request_id, status="failed", message=str(exc))
+        finished = _get_request(conn, request_id)
+        return _row_to_request(finished) | {"error": str(exc)}
 
 
 def _clean_value(value: str | None, default: str) -> str:

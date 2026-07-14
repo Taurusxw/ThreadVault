@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from collections.abc import Iterable
@@ -7,9 +8,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .cold_store import ColdBlobStore, database_path, default_cold_root
 from .models import ParsedSession, SearchResult, SessionRow
+from .storage_policy import prepare_event_content
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 8
 REQUIRED_TABLES = {
     "meta",
     "sessions",
@@ -21,6 +24,7 @@ REQUIRED_TABLES = {
     "ingestion_queue",
     "vector_index_meta",
     "vector_chunks",
+    "cold_blobs",
 }
 REQUIRED_INDEXES = {
     "idx_events_session",
@@ -33,6 +37,8 @@ REQUIRED_INDEXES = {
     "idx_sessions_cwd",
     "idx_vector_chunks_session",
     "idx_vector_chunks_adapter",
+    "idx_events_storage_class",
+    "idx_events_payload_ref",
 }
 REQUIRED_TRIGGERS = {"events_ai", "events_ad", "events_au"}
 LOW_VALUE_EVENT_TYPES = {
@@ -272,6 +278,11 @@ def init_db(conn: sqlite3.Connection) -> None:
           index_policy TEXT NOT NULL DEFAULT 'full',
           value_level TEXT NOT NULL DEFAULT 'core',
           payload_json TEXT NOT NULL,
+          payload_ref TEXT NULL,
+          payload_original_bytes INTEGER NOT NULL DEFAULT 0,
+          text_original_chars INTEGER NOT NULL DEFAULT 0,
+          storage_class TEXT NOT NULL DEFAULT 'core',
+          content_flags_json TEXT NOT NULL DEFAULT '{}',
           line_no INTEGER NULL,
           FOREIGN KEY(session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
         );
@@ -295,6 +306,17 @@ def init_db(conn: sqlite3.Connection) -> None:
           code TEXT NOT NULL,
           message TEXT NOT NULL,
           raw_excerpt TEXT NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS cold_blobs (
+          blob_id TEXT PRIMARY KEY,
+          relative_path TEXT NOT NULL,
+          codec TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          original_bytes INTEGER NOT NULL,
+          stored_bytes INTEGER NOT NULL,
+          sha256 TEXT NOT NULL,
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -337,6 +359,9 @@ def init_db(conn: sqlite3.Connection) -> None:
     _migrate_v3(conn)
     _migrate_v4(conn)
     _migrate_v5(conn)
+    _migrate_v6(conn)
+    _migrate_v7(conn)
+    _migrate_v8(conn)
     conn.execute(
         "INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', ?)",
         (str(SCHEMA_VERSION),),
@@ -457,6 +482,140 @@ def _migrate_v5(conn: sqlite3.Connection) -> None:
         recreate_clean_fts(conn)
 
 
+def _migrate_v6(conn: sqlite3.Connection) -> None:
+    """Normalize compacted records imported before they became a supported event type."""
+    rows = conn.execute(
+        """
+        SELECT e.event_id, e.sub_type, e.tool_name, e.file_path, e.payload_json, w.warning_id
+        FROM events AS e
+        JOIN parse_warnings AS w
+          ON w.session_id = e.session_id
+         AND w.line_no = e.line_no
+        WHERE e.top_type = 'unknown'
+          AND w.code = 'unknown_current_type'
+          AND w.message = 'Unknown current rollout type: compacted'
+        """
+    ).fetchall()
+    migrated_warning_ids: list[int] = []
+    for row in rows:
+        try:
+            payload = json.loads(row["payload_json"])
+        except (TypeError, json.JSONDecodeError):
+            continue
+        message = payload.get("message") if isinstance(payload, dict) else None
+        if not isinstance(message, str):
+            continue
+        event = {
+            "top_type": "compacted",
+            "sub_type": row["sub_type"],
+            "tool_name": row["tool_name"],
+            "file_path": row["file_path"],
+            "text_content": message,
+        }
+        classification = classify_index_text(event)
+        conn.execute(
+            """
+            UPDATE events
+            SET top_type = 'compacted',
+                role = COALESCE(role, 'assistant'),
+                text_content = ?,
+                indexed_text = ?,
+                index_policy = ?,
+                value_level = ?
+            WHERE event_id = ?
+            """,
+            (
+                message,
+                classification["indexed_text"],
+                classification["index_policy"],
+                classification["value_level"],
+                row["event_id"],
+            ),
+        )
+        migrated_warning_ids.append(row["warning_id"])
+    if migrated_warning_ids:
+        conn.executemany(
+            "DELETE FROM parse_warnings WHERE warning_id = ?",
+            [(warning_id,) for warning_id in migrated_warning_ids],
+        )
+
+
+def _migrate_v7(conn: sqlite3.Connection) -> None:
+    """Repair current metadata types and retire obsolete duplicate-meta warnings."""
+    supported_metadata = {
+        "Unknown current rollout type: world_state": "world_state",
+        "Unknown current rollout type: inter_agent_communication_metadata": "inter_agent_communication_metadata",
+    }
+    rows = conn.execute(
+        """
+        SELECT e.event_id, w.warning_id, w.message
+        FROM events AS e
+        JOIN parse_warnings AS w
+          ON w.session_id = e.session_id
+         AND w.line_no = e.line_no
+        WHERE e.top_type = 'unknown'
+          AND w.code = 'unknown_current_type'
+          AND w.message IN (
+            'Unknown current rollout type: world_state',
+            'Unknown current rollout type: inter_agent_communication_metadata'
+          )
+        """
+    ).fetchall()
+    for row in rows:
+        conn.execute(
+            """
+            UPDATE events
+            SET top_type = ?,
+                indexed_text = NULL,
+                index_policy = 'skip_empty',
+                value_level = 'noise'
+            WHERE event_id = ?
+            """,
+            (supported_metadata[row["message"]], row["event_id"]),
+        )
+        conn.execute("DELETE FROM parse_warnings WHERE warning_id = ?", (row["warning_id"],))
+    conn.execute("DELETE FROM parse_warnings WHERE code = 'duplicate_session_meta'")
+
+
+def _migrate_v8(conn: sqlite3.Connection) -> None:
+    """Add hot/cold storage metadata without rewriting existing event payloads."""
+    event_cols = {row["name"] for row in conn.execute("PRAGMA table_info(events)").fetchall()}
+    additions = {
+        "payload_ref": "TEXT NULL",
+        "payload_original_bytes": "INTEGER NOT NULL DEFAULT 0",
+        "text_original_chars": "INTEGER NOT NULL DEFAULT 0",
+        "storage_class": "TEXT NOT NULL DEFAULT 'legacy'",
+        "content_flags_json": "TEXT NOT NULL DEFAULT '{}'",
+    }
+    for column, declaration in additions.items():
+        if column not in event_cols:
+            conn.execute(f"ALTER TABLE events ADD COLUMN {column} {declaration}")
+    conn.execute(
+        """
+        UPDATE events
+        SET payload_original_bytes = LENGTH(CAST(payload_json AS BLOB)),
+            text_original_chars = LENGTH(COALESCE(text_content, ''))
+        WHERE payload_original_bytes = 0
+        """
+    )
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS cold_blobs (
+          blob_id TEXT PRIMARY KEY,
+          relative_path TEXT NOT NULL,
+          codec TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          original_bytes INTEGER NOT NULL,
+          stored_bytes INTEGER NOT NULL,
+          sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_events_storage_class ON events(storage_class);
+        CREATE INDEX IF NOT EXISTS idx_events_payload_ref ON events(payload_ref);
+        """
+    )
+
+
 def _fts_uses_legacy_text_content(conn: sqlite3.Connection) -> bool:
     row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'events_fts'").fetchone()
     return bool(row and "text_content" in (row["sql"] or ""))
@@ -506,8 +665,16 @@ def recreate_clean_fts(conn: sqlite3.Connection) -> None:
 
 def has_imported(conn: sqlite3.Connection, raw_path: Path, raw_sha256: str) -> bool:
     row = conn.execute(
-        "SELECT 1 FROM import_logs WHERE raw_path = ? AND raw_sha256 = ? AND status = 'imported'",
-        (str(raw_path), raw_sha256),
+        """
+        SELECT 1
+        FROM import_logs AS l
+        JOIN sessions AS s ON s.session_id = l.session_id
+        WHERE l.raw_path = ?
+          AND l.raw_sha256 = ?
+          AND l.status = 'imported'
+          AND s.parse_version = ?
+        """,
+        (str(raw_path), raw_sha256, SCHEMA_VERSION),
     ).fetchone()
     return row is not None
 
@@ -543,6 +710,7 @@ class SessionWriter:
         self.warning_count = 0
         self.current_turn: dict[str, Any] | None = None
         self.turn_count = 0
+        self.blob_store = ColdBlobStore(default_cold_root(database_path(conn)))
         delete_session_data(conn, parsed.session_id)
         self._insert_session_row()
         for warning in parsed.warnings:
@@ -575,6 +743,7 @@ class SessionWriter:
 
     def finish(self) -> int:
         self._flush_events()
+        deduplicate_agent_messages(self.conn, self.parsed.session_id)
         self._flush_turn()
         self.conn.execute(
             """
@@ -682,10 +851,10 @@ class SessionWriter:
                 turn["effort"],
                 turn["approval_policy"],
                 turn["collaboration_mode_json"],
-                turn["user_message_text"],
-                turn["assistant_message_text"],
-                turn["summary_text"],
-                turn["token_usage_json"],
+                None,
+                None,
+                None,
+                None,
                 turn["event_count"],
             ),
         )
@@ -694,39 +863,146 @@ class SessionWriter:
     def _flush_events(self) -> None:
         if not self.event_batch:
             return
+        rows = []
+        blob_rows: dict[str, tuple[Any, ...]] = {}
+        for event in self.event_batch:
+            prepared = prepare_event_content(event, self.blob_store)
+            classification = classify_index_text({
+                "top_type": event.top_type,
+                "sub_type": event.sub_type,
+                "tool_name": event.tool_name,
+                "file_path": event.file_path,
+                "text_content": prepared.text_content,
+            })
+            rows.append((
+                self.parsed.session_id,
+                event.timestamp,
+                event.top_type,
+                event.sub_type,
+                event.role,
+                event.call_id,
+                event.tool_name,
+                event.file_path,
+                prepared.text_content,
+                classification["indexed_text"],
+                classification["index_policy"],
+                classification["value_level"],
+                prepared.payload_json,
+                prepared.payload_ref,
+                prepared.payload_original_bytes,
+                prepared.text_original_chars,
+                prepared.storage_class,
+                prepared.content_flags_json,
+                event.line_no,
+                event.turn_id,
+                event.turn_index,
+            ))
+            for record in prepared.blob_records:
+                blob_rows[record.blob_id] = (
+                    record.blob_id,
+                    record.relative_path,
+                    record.codec,
+                    record.kind,
+                    record.original_bytes,
+                    record.stored_bytes,
+                    record.sha256,
+                )
         self.conn.executemany(
             """
             INSERT INTO events (
               session_id, timestamp, top_type, sub_type, role, call_id,
               tool_name, file_path, text_content, indexed_text, index_policy,
-              value_level, payload_json, line_no,
+              value_level, payload_json, payload_ref, payload_original_bytes,
+              text_original_chars, storage_class, content_flags_json, line_no,
               turn_id, turn_index
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            [
-                (
-                    self.parsed.session_id,
-                    event.timestamp,
-                    event.top_type,
-                    event.sub_type,
-                    event.role,
-                    event.call_id,
-                    event.tool_name,
-                    event.file_path,
-                    event.text_content,
-                    classification["indexed_text"],
-                    classification["index_policy"],
-                    classification["value_level"],
-                    json.dumps(event.payload, ensure_ascii=False, sort_keys=True),
-                    event.line_no,
-                    event.turn_id,
-                    event.turn_index,
-                )
-                for event in self.event_batch
-                for classification in [classify_index_text(event)]
-            ],
+            rows,
+        )
+        self.conn.executemany(
+            """
+            INSERT OR IGNORE INTO cold_blobs (
+              blob_id, relative_path, codec, kind, original_bytes, stored_bytes, sha256
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            blob_rows.values(),
         )
         self.event_batch = []
+
+
+def deduplicate_agent_messages(conn: sqlite3.Connection, session_id: str | None = None) -> int:
+    """Replace exact duplicate agent-message bodies with auditable hash stubs."""
+    params: list[Any] = []
+    duplicate_filter = ""
+    canonical_filter = ""
+    if session_id is not None:
+        duplicate_filter = "AND session_id = ?"
+        canonical_filter = "AND session_id = ?"
+        params.append(session_id)
+    canonical_rows = conn.execute(
+        f"""
+        SELECT session_id, text_content
+        FROM events
+        WHERE top_type = 'response_item'
+          AND sub_type = 'message'
+          AND role IN ('assistant', 'developer')
+          AND COALESCE(text_content, '') != ''
+          {canonical_filter}
+        """,
+        params,
+    ).fetchall()
+    canonical_hashes = {
+        (row["session_id"], hashlib.sha256(row["text_content"].encode("utf-8")).digest())
+        for row in canonical_rows
+    }
+    rows = conn.execute(
+        f"""
+        SELECT event_id, session_id, payload_json, text_content
+        FROM events
+        WHERE top_type = 'event_msg'
+          AND sub_type = 'agent_message'
+          AND COALESCE(text_content, '') != ''
+          {duplicate_filter}
+        """,
+        params,
+    ).fetchall()
+    updates = []
+    for row in rows:
+        payload_bytes = str(row["payload_json"] or "{}").encode("utf-8")
+        body = str(row["text_content"] or "")
+        body_digest = hashlib.sha256(body.encode("utf-8"))
+        if (row["session_id"], body_digest.digest()) not in canonical_hashes:
+            continue
+        stub = {
+            "threadvault_storage": "deduplicated",
+            "reason": "duplicate_agent_message_body",
+            "original_bytes": len(payload_bytes),
+            "original_sha256": hashlib.sha256(payload_bytes).hexdigest(),
+            "text_chars": len(body),
+            "text_sha256": body_digest.hexdigest(),
+        }
+        updates.append((
+            json.dumps(stub, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            json.dumps({"flags": ["duplicate_body_removed", "payload_dropped", "text_dropped"]}),
+            row["event_id"],
+        ))
+    if updates:
+        conn.executemany(
+            """
+            UPDATE events
+            SET text_content = NULL,
+                indexed_text = NULL,
+                index_policy = 'skip_duplicate',
+                value_level = 'noise',
+                payload_json = ?,
+                payload_ref = NULL,
+                storage_class = 'noise',
+                content_flags_json = ?
+            WHERE event_id = ?
+            """,
+            updates,
+        )
+    return len(updates)
 
 
 def _append_text(existing: str | None, text: str | None) -> str | None:

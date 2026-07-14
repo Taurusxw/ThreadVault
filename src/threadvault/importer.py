@@ -49,30 +49,53 @@ def import_codex_home(conn, codex_home: Path | None = None) -> ImportStats:
     stats = ImportStats()
     state_threads = load_state_threads(codex_home)
     for path, archived in discover_jsonl_files(codex_home):
-        stats.discovered += 1
-        raw_hash: str | None = None
-        try:
-            raw_hash = sha256_file(path)
-            if has_imported(conn, path, raw_hash):
-                log_skipped(conn, path, raw_hash, "File already imported with same hash.")
-                stats.skipped += 1
-                continue
-            parsed = scan_session_file(path, archived=archived)
-            enrich_from_state(parsed, state_threads.get(path.resolve()))
-            with conn:
-                writer = SessionWriter(conn, parsed)
-                for event, warning in iter_normalized_events(path, fallback_session_id=parsed.session_id):
-                    if warning is not None:
-                        writer.add_warning(warning)
-                        stats.warnings += 1
-                    elif event is not None:
-                        writer.add_event(event)
-                stats.events += writer.finish()
-            stats.imported += 1
-        except Exception as exc:  # noqa: BLE001 - import must keep going.
-            log_failed(conn, path, raw_hash, str(exc))
-            stats.failed += 1
+        _import_file(conn, path, archived, state_threads.get(path.resolve()), stats)
     return stats
+
+
+def import_codex_file(
+    conn,
+    path: Path,
+    *,
+    archived: bool | None = None,
+    codex_home: Path | None = None,
+) -> ImportStats:
+    """Import one transcript file, primarily for turn-scoped Codex hooks."""
+    path = path.expanduser().resolve()
+    stats = ImportStats()
+    if archived is None:
+        archived = "archived_sessions" in path.parts
+    state_threads = load_state_threads(codex_home)
+    _import_file(conn, path, archived, state_threads.get(path), stats)
+    return stats
+
+
+def _import_file(conn, path: Path, archived: bool, state: dict[str, Any] | None, stats: ImportStats) -> None:
+    stats.discovered += 1
+    raw_hash: str | None = None
+    try:
+        if not path.is_file() or path.suffix.lower() != ".jsonl":
+            raise FileNotFoundError(f"Codex transcript JSONL not found: {path}")
+        raw_hash = sha256_file(path)
+        if has_imported(conn, path, raw_hash):
+            log_skipped(conn, path, raw_hash, "File already imported with same hash.")
+            stats.skipped += 1
+            return
+        parsed = scan_session_file(path, archived=archived)
+        enrich_from_state(parsed, state)
+        with conn:
+            writer = SessionWriter(conn, parsed)
+            for event, warning in iter_normalized_events(path, fallback_session_id=parsed.session_id):
+                if warning is not None:
+                    writer.add_warning(warning)
+                    stats.warnings += 1
+                elif event is not None:
+                    writer.add_event(event)
+            stats.events += writer.finish()
+        stats.imported += 1
+    except Exception as exc:  # noqa: BLE001 - import must record failure without breaking Codex.
+        log_failed(conn, path, raw_hash, str(exc))
+        stats.failed += 1
 
 
 def enrich_from_state(parsed, state: dict[str, Any] | None) -> None:

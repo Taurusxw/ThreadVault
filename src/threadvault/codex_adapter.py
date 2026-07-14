@@ -10,7 +10,15 @@ from typing import Any
 
 from .models import NormalizedEvent, ParsedSession, ParseWarning
 
-CURRENT_TYPES = {"session_meta", "turn_context", "response_item", "event_msg"}
+CURRENT_TYPES = {
+    "session_meta",
+    "turn_context",
+    "response_item",
+    "event_msg",
+    "compacted",
+    "world_state",
+    "inter_agent_communication_metadata",
+}
 
 
 @dataclass
@@ -161,7 +169,6 @@ class CodexJsonlAdapter:
         fallback_session_id: str | None = None,
     ) -> Iterator[tuple[NormalizedEvent | None, ParseWarning | None]]:
         session_id = fallback_session_id
-        seen_session_meta = False
         calls: dict[str, int] = {}
         outputs: dict[str, int] = {}
         for line_no, record, warning in self.iter_jsonl_records(path):
@@ -170,15 +177,6 @@ class CodexJsonlAdapter:
                 continue
             assert record is not None
             event, event_warnings = self.normalize_record(record, path, line_no, session_id)
-            if event.top_type == "session_meta":
-                if seen_session_meta:
-                    event_warnings.append(ParseWarning(
-                        path=path,
-                        line_no=line_no,
-                        code="duplicate_session_meta",
-                        message="Multiple session_meta records found; keeping canonical session id.",
-                    ))
-                seen_session_meta = True
             if event.session_id and not session_id:
                 session_id = event.session_id
             if not event.session_id and session_id:
@@ -232,7 +230,7 @@ class CodexJsonlAdapter:
                 timestamp=timestamp or _string_or_none(payload.get("timestamp")),
                 top_type=top_type,
                 sub_type=sub_type,
-                role=_string_or_none(payload.get("role")),
+                role=_string_or_none(payload.get("role")) or ("assistant" if top_type == "compacted" else None),
                 call_id=_string_or_none(payload.get("call_id")),
                 tool_name=_string_or_none(payload.get("name") or payload.get("tool_name")),
                 file_path=_extract_file_path(payload),
@@ -241,7 +239,9 @@ class CodexJsonlAdapter:
                 line_no=line_no,
             )
             if top_type == "session_meta":
-                event.session_id = _string_or_none(payload.get("session_id") or payload.get("id")) or fallback_session_id
+                # Collaborative rollouts use `id` for this transcript and may use
+                # `session_id` for the parent thread. Archive by the transcript id.
+                event.session_id = _string_or_none(payload.get("id") or payload.get("session_id")) or fallback_session_id
             if top_type not in CURRENT_TYPES:
                 event.top_type = "unknown"
                 warnings.append(ParseWarning(
@@ -362,6 +362,8 @@ class CodexJsonlAdapter:
 
 
 def _extract_current_text(top_type: str, payload: dict[str, Any]) -> str | None:
+    if top_type == "compacted":
+        return _first_text(payload, ["message"])
     if top_type == "event_msg":
         return _first_text(payload, ["message", "text", "delta"])
     if top_type == "turn_context":
@@ -383,6 +385,11 @@ def _extract_current_text(top_type: str, payload: dict[str, Any]) -> str | None:
     if sub_type == "function_call_output":
         return _first_text(payload, ["output", "text"])
     return _content_parts_text(payload.get("content")) or _first_text(payload, ["text", "output", "arguments"])
+
+
+def extract_current_text(top_type: str, payload: dict[str, Any]) -> str | None:
+    """Re-extract searchable/display text when hydrating cold event payloads."""
+    return _extract_current_text(top_type, payload)
 
 
 def _extract_legacy_text(record: dict[str, Any]) -> str | None:

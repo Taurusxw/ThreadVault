@@ -36,7 +36,9 @@ flowchart LR
 - `threadvault_export_preview` 不写文件。
 - 真正写 Markdown、Obsidian vault 或 Skill candidate 仍走显式 CLI/UI 导出。
 - 默认输出不包含 raw path metadata；只有传入 `local_debug=true` 才返回本地调试元数据。
-- MCP 不能绕过 privacy scan、preview gate、confirmation gate 或 governance preflight。
+- MCP 不能绕过 privacy scan、preview gate 或 confirmation gate。
+- MCP 使用只读 SQLite URI 和 `PRAGMA query_only`；数据库缺失时会报错，不会创建或迁移数据库。
+- 服务端校验 JSON-RPC 2.0 envelope、请求 ID、初始化生命周期和工具输入 Schema。
 
 ## 2. 先验证 ThreadVault
 
@@ -54,6 +56,8 @@ manifest 应包含：
 - `contract_version = "threadvault_mcp_manifest.v1"`
 - `privacy.writes_files = false`
 - `privacy.external_model_calls = false`
+
+协议实现以 MCP `2025-06-18` 的 [基础协议](https://modelcontextprotocol.io/specification/2025-06-18/basic/index)、[生命周期](https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle)和[工具](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)规范为准。
 
 当前工具集：
 
@@ -95,13 +99,28 @@ enabled = true
 也可以用 Codex CLI 添加：
 
 ```powershell
-codex mcp add threadvault -- threadvault mcp serve
+codex mcp add threadvault -- <threadvault-exe> mcp serve --db <repo-root>\data\threadvault.db
+codex mcp list
 ```
+
+建议使用 `.venv\Scripts\threadvault.exe` 的绝对路径，避免 Codex Desktop 启动 MCP 子进程时找不到项目虚拟环境。配置后，新建一个 Codex task 让 MCP 工具列表刷新。
+
+MCP 只负责“以后找回”。要让每天的新对话自动进入数据库，还要安装 Codex `Stop` hook：
+
+```powershell
+$threadvaultExe = (Resolve-Path <repo-root>\.venv\Scripts\threadvault.exe).Path
+$archiveDb = (Resolve-Path <repo-root>\data\threadvault.db).Path
+$hookCommand = '"' + $threadvaultExe + '" codex-hook ingest --apply --db "' + $archiveDb + '"'
+
+& $threadvaultExe codex-hook install --command $hookCommand --apply --json
+```
+
+该命令写入用户级 `~/.codex/hooks.json`，保留其他 hook，不修改现有 `notify`。之后在 Codex 输入 `/hooks`，检查并信任一次新 hook；这是 Codex 对非托管命令 hook 的安全要求。每次 turn 停止时，ThreadVault 会记录队列请求并仅导入 hook 提供的 `transcript_path`，不会扫描全部历史。
 
 检查方式：
 
 ```text
-在 Codex TUI 输入 /mcp，确认 threadvault server 和 tools 可见。
+在 Codex 输入 /mcp，确认 threadvault server 和 tools 可见；输入 /hooks，确认 ThreadVault Stop hook 已 trusted。
 ```
 
 建议给 Codex 的使用提示：

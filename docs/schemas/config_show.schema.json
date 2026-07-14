@@ -60,9 +60,6 @@
     },
     "restore_history": {
       "type": "object"
-    },
-    "governance": {
-      "type": "object"
     }
   }
 }

@@ -20,16 +20,11 @@ def test_client_manifest_cli_contract_and_defaults() -> None:
     assert validate_payload("client_interface_manifest", payload)["ok"] is True
     assert payload["contract_version"] == "client_interface.v1"
     assert payload["interface"]["module"] == "threadvault.client_interface"
-    assert payload["interface"]["client_families"] == ["desktop", "ide", "web", "tui", "server"]
-    assert {family["name"] for family in payload["client_families"]} == {"desktop", "ide", "web", "tui", "server"}
-    server_family = next(family for family in payload["client_families"] if family["name"] == "server")
-    assert server_family["opt_in"] is True
-    assert server_family["server_required"] is False
+    assert payload["interface"]["client_families"] == ["desktop", "ide", "tui"]
+    assert {family["name"] for family in payload["client_families"]} == {"desktop", "ide", "tui"}
     defaults = payload["defaults"]
     assert defaults["local_first"] is True
     assert defaults["server_required"] is False
-    assert defaults["server_available"] is False
-    assert defaults["server_opt_in"] is True
     assert defaults["cloud_sync"] is False
     assert defaults["external_model_calls"] is False
     assert defaults["raw_paths_in_default_output"] is False
@@ -55,10 +50,7 @@ def test_client_manifest_points_to_existing_interfaces() -> None:
     assert manifest["integration_policy"]["do_not_reparse_codex_transcripts"] is True
     assert manifest["integration_policy"]["do_not_bypass_privacy_scan_for_export"] is True
     assert manifest["integration_policy"]["prefer_agent_retrieval_for_search"] is True
-    assert manifest["governance"]["contract_version"] == "governance_status.v1"
-    assert manifest["governance"]["diagnostics"]["team_permissions_implemented"] is False
-    assert manifest["governance"]["diagnostics"]["shared_server_implemented"] is False
-    assert manifest["governance"]["defaults"]["server_required"] is False
+    assert "governance" not in manifest
 
 
 def test_client_manifest_discovery_and_schema_registry() -> None:
@@ -79,7 +71,7 @@ def test_client_manifest_discovery_and_schema_registry() -> None:
         "client_warnings",
     ]
     assert guide["client_interface"]["server_required"] is False
-    assert guide["client_interface"]["server_opt_in"] is True
+    assert "server_opt_in" not in guide["client_interface"]
     assert "threadvault client manifest --json" in guide["recommended_commands"]
 
     schemas = robot_schemas()

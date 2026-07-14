@@ -52,6 +52,25 @@ def inspect_state(codex_home: Path | None = None) -> dict[str, Any]:
 
 
 def load_state_threads(codex_home: Path | None = None) -> dict[Path, dict[str, Any]]:
+    rows = _load_state_thread_rows(codex_home)
+    result: dict[Path, dict[str, Any]] = {}
+    for data in rows:
+        rollout_path = data.get("rollout_path")
+        if rollout_path:
+            result[Path(rollout_path).expanduser().resolve()] = data
+    return result
+
+
+def load_state_thread_index(codex_home: Path | None = None) -> dict[str, dict[str, Any]]:
+    """Return Codex thread metadata keyed by stable thread id for local clients."""
+    return {
+        str(data["id"]): data
+        for data in _load_state_thread_rows(codex_home)
+        if data.get("id")
+    }
+
+
+def _load_state_thread_rows(codex_home: Path | None = None) -> list[dict[str, Any]]:
     for candidate in state_candidates(codex_home):
         if not candidate.exists():
             continue
@@ -66,16 +85,10 @@ def load_state_threads(codex_home: Path | None = None) -> dict[Path, dict[str, A
                 selected = [column for column in THREAD_COLUMNS if column in columns]
                 quoted = ", ".join(f'"{_quote_identifier(column)}"' for column in selected)
                 rows = conn.execute(f"SELECT {quoted} FROM threads WHERE rollout_path IS NOT NULL").fetchall()
-                result: dict[Path, dict[str, Any]] = {}
-                for row in rows:
-                    data = dict(row)
-                    rollout_path = data.get("rollout_path")
-                    if rollout_path:
-                        result[Path(rollout_path).expanduser().resolve()] = data
-                return result
+                return [dict(row) for row in rows]
         except (OSError, sqlite3.DatabaseError):
-            return {}
-    return {}
+            return []
+    return []
 
 
 def _connect_readonly(path: Path) -> sqlite3.Connection:

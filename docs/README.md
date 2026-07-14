@@ -9,13 +9,16 @@ This directory is the Markdown source of truth for ThreadVault planning, usage, 
 - `RULES.md` - code, documentation, UI, privacy, and validation guardrails.
 - `ARCHITECTURE.md` - module ownership and runtime architecture.
 - `API.md` - JSON contracts, MCP stdio interface, and capability discovery.
-- `DATABASE.md` - SQLite archive storage, table map, and path boundaries.
+- `DATABASE.md` - hot SQLite archive, cold evidence storage, table map, and path boundaries.
 - `MCP_INTEGRATION.md` - MCP setup guide for Codex, OpenCode, ZCode, Obsidian, and AI self-configuration.
 - `KNOWLEDGE_GRAPH.md` - entity relationship map and safety boundary model.
+- `adr/0001-personal-only-runtime.md` - decision record for the personal-only 2.x boundary.
+- `adr/0002-hot-cold-archive-storage.md` - decision record for hot/cold persistence and backup profiles.
 - `CHANGELOG.md` - change history.
 - `TODO.md` - active follow-up items and known risks.
 - `PROGRESS.md` - current progress overview and latest validation.
 - `THREADVAULT_USAGE_MANUAL.md` - detailed Chinese CLI/UI usage manual.
+- `../README.zh-CN.md` - standalone Simplified Chinese project homepage and quick-start manual.
 - `progress/` - standard development trace records.
 - `progress/releases/` - release notes, acceptance, and release risk records.
 - `roadmap/` - major-version planning records and historical planning context.
@@ -55,6 +58,7 @@ For path confusion:
 - `progress/archive/legacy-v4/` - archived v4 Personal Web UI records.
 - `progress/releases/v0.34.0/` - v0.34.0 release notes and acceptance.
 - `progress/releases/v1.0.0/` - v1.0.0 release notes and acceptance.
+- `progress/releases/v2.4.0/` - v2.4.0 release notes, acceptance, and artifact boundary.
 - `archive/` - related research appendices that are not part of the active ThreadVault product plan.
 - `roadmap/v3-clients-and-team-governance.md` - historical v3 richer clients and team governance roadmap.
 
@@ -70,5 +74,6 @@ The historical roadmap split ThreadVault development into:
 - v3: richer clients and governance surfaces.
 - v4: personal local Web UI.
 - v1.0.x: native desktop primary interface with active Web UI runtime, launcher, schemas, tests, and active discovery metadata removed.
+- v2.x: personal-only native desktop and read-only MCP runtime; team/governance/shared-server work retained only as historical evidence.
 
 The current standard documents describe the integrated present state. The roadmap and archived records remain useful historical context, but they may describe goals that have since been implemented.

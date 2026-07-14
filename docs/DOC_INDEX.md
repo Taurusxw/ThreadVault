@@ -7,15 +7,18 @@ This index lists the current ThreadVault documentation entrypoints and when to u
 | Path | Purpose | Use When | Status |
 |---|---|---|---|
 | `README.md` | Project overview, key paths, quick start, and current capabilities. | You need the shortest accurate orientation. | Active |
+| `README.zh-CN.md` | 独立简体中文项目说明、安装、桌面、自动入库、MCP、存储和备份指南。 | 需要中文项目主页和日常操作说明。 | Active |
 | `AGENTS.md` | Project-specific Codex rules. | You are about to modify the repo with Codex. | Active |
-| `CONTEXT.md` | Canonical domain vocabulary. | Terms such as archive, export, preview, retrieval, or governance feel ambiguous. | Active |
+| `CONTEXT.md` | Canonical domain vocabulary. | Terms such as archive, export, preview, retrieval, or personal safety feel ambiguous. | Active |
 | `CONTRIBUTING.md` | Contribution workflow and privacy expectations. | You are preparing a change or pull request. | Active |
 | `SECURITY.md` | Vulnerability reporting and local data boundary. | You need to report or assess a security issue. | Active |
 | `docs/README.md` | Documentation map and starting points. | You need to know where docs live. | Active |
 | `docs/DEVELOPMENT.md` | Development, test, native desktop, release, and documentation workflow. | You are implementing or validating changes. | Active |
 | `docs/RULES.md` | Code, documentation, UI, privacy, and validation rules. | You need project guardrails. | Active |
 | `docs/ARCHITECTURE.md` | Architecture and module overview. | You need to know which module owns behavior. | Active |
-| `docs/API.md` | JSON contracts, MCP stdio interface, capability discovery, and retired interface metadata. | You are debugging or extending local contracts, UI, API, or MCP surfaces. | Active |
+| `docs/API.md` | JSON contracts, MCP stdio interface, and capability discovery. | You are debugging or extending local contracts, desktop, CLI, or MCP surfaces. | Active |
+| `docs/adr/0001-personal-only-runtime.md` | Decision record for the personal-only 2.x runtime boundary. | You need to understand why team/governance/shared-server code was removed. | Active |
+| `docs/adr/0002-hot-cold-archive-storage.md` | Decision record for canonical hot data, reversible cold evidence, and backup profiles. | You are changing persistence, compaction, backup, or migration behavior. | Active |
 | `docs/DATABASE.md` | SQLite storage overview and path distinction. | You need to understand archive DB, exports, backups, and tables. | Active |
 | `docs/MCP_INTEGRATION.md` | MCP setup guide for Codex, OpenCode, ZCode, Obsidian, and AI self-configuration. | You need to connect ThreadVault to an MCP-capable agent or generate client config. | Active |
 | `docs/KNOWLEDGE_GRAPH.md` | Entity, relationship, flow, and safety-boundary map. | You are adding a capability or clarifying domain relationships. | Active |
@@ -35,6 +38,10 @@ This index lists the current ThreadVault documentation entrypoints and when to u
 | `docs/progress/rounds/2026-07-06-round-002-clean-knowledge-index.md` | Clean knowledge index, schema 5 migration, and validation round record. | Active |
 | `docs/progress/rounds/2026-07-06-round-003-mcp-stdio-server.md` | MCP stdio server and cross-agent联动 round record. | Active |
 | `docs/progress/rounds/2026-07-06-round-004-mcp-integration-guide.md` | MCP integration guide round record. | Active |
+| `docs/progress/rounds/2026-07-13-round-002-automatic-ingestion-and-codex-integration.md` | Automatic Codex ingestion, current parser compatibility, and live MCP registration round record. | Active |
+| `docs/progress/rounds/2026-07-14-round-001-hot-cold-storage-and-minimal-backups.md` | Schema v8 hot/cold storage, live migration, and backup-profile acceptance record. | Active |
+| `docs/progress/rounds/2026-07-14-round-002-smart-backup-automation.md` | Smart backup policy, retention, validation, and local scheduling acceptance record. | Active |
+| `docs/progress/rounds/2026-07-14-round-003-desktop-workflow-usability.md` | Desktop Backup Center, confirmed export, friendly browsing, safe restore defaults, and rendered QA record. | Active |
 | `docs/progress/rounds/2026-07-06-round-005-open-source-v034-release.md` | Open-source v0.34.0 release preparation round record. | Active |
 | `docs/progress/rounds/2026-07-06-round-006-lightweight-skill-export.md` | Lightweight Skill candidate export optimization round record. | Active |
 | `docs/progress/rounds/2026-07-06-round-007-personal-ui-ia-refresh.md` | Personal UI information architecture refresh round record. | Active |
@@ -54,9 +61,11 @@ This index lists the current ThreadVault documentation entrypoints and when to u
 | `docs/progress/rounds/2026-07-06-round-021-web-ui-command-retirement.md` | Web UI CLI/launcher retirement round record. | Active |
 | `docs/progress/rounds/2026-07-06-round-022-v100-native-desktop-release.md` | v1.0.0 native desktop release round record. | Active |
 | `docs/progress/rounds/2026-07-06-round-023-remove-web-ui-residue.md` | Web UI residue removal round record. | Active |
+| `docs/progress/rounds/2026-07-13-round-001-personal-only-modularization.md` | Personal-only 2.0 modularization, parser migration, MCP hardening, and environment cleanup. | Active |
 | `docs/progress/releases/v0.34.0/` | v0.34.0 release notes, acceptance, and artifact guidance. | Active |
 | `docs/progress/releases/v1.0.0/` | v1.0.0 release notes, acceptance, and artifact guidance. | Active |
 | `docs/progress/releases/v1.0.1/` | v1.0.1 Web UI residue cleanup release notes and acceptance. | Active |
+| `docs/progress/releases/v2.4.0/` | v2.4.0 personal-only runtime, hot/cold storage, smart backup, desktop workflow, and bilingual manual release records. | Active |
 
 ## Existing Historical Records
 

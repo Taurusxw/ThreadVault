@@ -39,7 +39,7 @@ def test_parser_warning_snapshot_for_fixture_shapes() -> None:
     fork = parse_session_file(FIXTURES / "sessions" / "fork.jsonl")
     legacy = parse_session_file(FIXTURES / "archived_sessions" / "legacy.jsonl", archived=True)
     assert Counter(warning.code for warning in current.warnings) == Counter({"unknown_current_type": 1, "invalid_json": 1})
-    assert Counter(warning.code for warning in fork.warnings) == Counter({"duplicate_session_meta": 1})
+    assert Counter(warning.code for warning in fork.warnings) == Counter()
     assert Counter(warning.code for warning in legacy.warnings) == Counter({"missing_function_call_output": 1})
     assert fork.session_id == "sess-fork"
     assert legacy.session_id == "sess-legacy"

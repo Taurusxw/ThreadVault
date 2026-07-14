@@ -2,28 +2,31 @@
 
 ## Current Stage
 
-ThreadVault is on the 1.0.x native desktop release line. The native Tkinter app is the discoverable primary local interface, and the former browser Web UI runtime, launcher, active schemas, active tests, and active discovery metadata have been removed from the package.
-The archive database default has been moved from the Windows AppData location to the project-local `data/threadvault.db`, with custom path support through `--db`, `THREADVAULT_DB`, and `[storage].archive_db`. The active package version is now `1.0.1`.
+ThreadVault is now on the personal-only `2.4.0` line. The native Tkinter app is the primary local interface; MCP is a local read-only stdio interface. Active team mode, governance/identity/policy contracts, the shared HTTP server prototype, and former browser UI runtime are absent from the package. Their v3/v4 records remain archived historical evidence.
 
-The local knowledge base now keeps raw archive evidence intact while default search/retrieval uses a clean knowledge index over `events.indexed_text`. Low-value empty/machine events are skipped, binary/image blobs are metadata-only, and large tool outputs are truncated for indexing.
+The project-local hot archive remains `data/threadvault.db`, with overrides through `--db`, `THREADVAULT_DB`, and `[storage].archive_db`. Bulky reversible evidence now lives in sibling `data/threadvault-cold`; FTS continues to use cleaned `events.indexed_text`.
 
-ThreadVault now exposes a read-only MCP stdio server for Codex, ZCode, OpenCode, and other MCP-capable local agents. The first tool set covers capabilities, stats, doctor, retrieval, session detail, and export preview without writing files.
-The MCP integration guide now documents Codex, OpenCode, ZCode, Obsidian, and AI self-configuration workflows without changing runtime behavior.
-The public `0.34.0` release preparation is in progress: MIT licensing is present, GitHub visibility is already public, community/security files were added, and local data/export/backup artifacts are ignored.
-Skill candidate exports are now lightweight progressive packets: `SKILL.md` routes through `references/index.md`, compact session summaries, per-session detail files, and a short-snippet evidence index instead of forcing a raw transcript-style evidence dump.
-ThreadVault now has a minimal native Tkinter desktop app launched by `threadvault desktop launch`. The first native migration slice covers browse/search/session summary, export preview, privacy warnings, MCP integration, health diagnostics, and advanced command references without adding Electron, React, Tauri, WebView, or a frontend build pipeline.
-The native desktop app now also covers data-safety and maintenance actions: backup, backup verification, read-only restore planning, FTS reindex, and SQLite vacuum. Write-like native desktop actions use confirmation prompts before running.
-The native desktop Advanced tab now has read-only panels for JSON Schemas, robot docs, and governance status, reducing the remaining need for the browser workbench during development and audits.
-The native desktop Safety tab now supports restore apply for verified backups into new non-overwrite target databases, with a native confirmation prompt and an explicit refusal when the target already exists.
-The native desktop Advanced tab now supports schema write with an explicit output directory and native confirmation prompt.
-The native desktop Advanced tab now also has a read-only governance diagnostics aggregation for status, readiness, gaps, identity, backup/policy readiness, and v3 completion checks.
-Native desktop runtime QA found and fixed a Tk thread-safety issue: Tk variables are now read on the UI thread before background worker dispatch, and initial refresh is scheduled after Tk startup. Follow-up hwnd screenshot QA captured the native window, confirmed the empty search state renders a clear prompt, and fixed Advanced-tab button overflow at `860x520`.
-The desktop CLI now has a non-window `threadvault desktop smoke --json` command for automated verification of Tkinter availability, desktop gateway loading, and no-browser/no-server boundaries.
-The repo now includes `启动ThreadVault桌面版.cmd`, a double-click native desktop launcher that runs desktop smoke before starting the Tkinter app and does not start a browser/Web UI server.
-Capabilities and robot docs now expose `interface_policy.primary_local_interface = native_desktop`, keep `threadvault desktop launch` and `threadvault desktop smoke --json` in recommended commands, and no longer include Web UI fallback or retired-interface metadata.
+Core structure has been reduced and clarified: the former governance/shared-server modules were deleted, `store.py` is about 1,266 lines, `cli.py` about 1,927, and `schemas.py` about 1,803. MCP is split into transport/dispatch (`mcp.py`), read-only execution (`mcp_runtime.py`), and validation (`mcp_validation.py`).
+
+Database schema v8 adds hot/cold event metadata, content-addressed blobs, exact assistant-body deduplication, and copy-on-write migration. The real archive was rebuilt with equal source/target counts and an identical canonical conversation digest, then incrementally caught up to 342 sessions and 835,177 events with seven genuine incomplete function-call warnings.
+
+Automatic ingestion is now a supported, targeted path: a user-level Codex `Stop` hook records a queue item and imports only the transcript named by the hook payload. The hook installer is dry-run-first and preserves unrelated user hooks. The read-only ThreadVault MCP server is registered separately through Codex's MCP configuration.
+
+Development now uses an isolated `.venv`. The project environment passes `pip check`; unrelated missing dependencies in the global Selenium/Trio installation are outside ThreadVault's dependency graph.
 
 ## Recently Completed
 
+- Prepared the public `v2.4.0` release with standalone switchable English/Chinese manuals, cumulative 2.x release notes, acceptance evidence, and explicit private-artifact boundaries.
+- Bumped package version to `2.4.0` and completed the foolproof desktop workflow: friendly session tables, smart Backup Center, confirmed export, safe restore defaults, automatic health summaries, path pickers, scrolling, focus, and Chinese labels.
+- Bumped package version to `2.3.0` and added one-command smart backup selection, verification, disk guards, last-run status, and bounded automatic retention.
+- Bumped package version to `2.2.0`, implemented the hot/cold lifecycle, migrated the live archive, and verified Core/Evidence backups.
+- Bumped package version to `2.1.0` and connected targeted per-turn Codex archiving plus MCP registration.
+- Added supported parsing for current Codex world/inter-agent metadata without polluting the clean search index.
+- Reclassified repeated `session_meta` records as valid collaborative provenance rather than parser warnings.
+- Bumped package version to `2.0.0`, removed active team/governance/shared-server surfaces, and retained personal safety gates.
+- Split and hardened MCP transport, validation, and read-only query execution.
+- Added compacted-event parsing plus schema v6 repair of 89 stale warnings in the real local archive.
+- Removed stale `~hreadvault-*` metadata and established a clean project `.venv` workflow.
 - Improved Chinese personal UI interaction quality.
 - Fixed session detail event preview rendering.
 - Added readable timestamps and role labels in session detail tables.
@@ -63,121 +66,20 @@ Capabilities and robot docs now expose `interface_policy.primary_local_interface
 
 ## Current Validation
 
-Latest validation for the current `1.0.1` native desktop release:
+Latest validation for the current `2.4.0` native-desktop workflow baseline:
 
 ```powershell
-py -3.12 -m pytest tests\test_v28_capabilities_schema_contract.py tests\test_v407_desktop_app.py tests\test_v105_codex_skill_target.py -q
-py -3.12 -m ruff check src\threadvault\store.py src\threadvault\schemas.py src\threadvault\cli.py src\threadvault\desktop_data.py src\threadvault\desktop_app.py tests\test_v28_capabilities_schema_contract.py tests\test_v407_desktop_app.py tests\test_v105_codex_skill_target.py
-threadvault capabilities --json
-threadvault robot-docs guide --json
-py -3.12 -c "import importlib.metadata as m, importlib.util, threadvault; print(threadvault.__version__); print(m.version('threadvault')); print(importlib.util.find_spec('threadvault.personal_ui'))"
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\threadvault.exe desktop smoke --json
+.\.venv\Scripts\threadvault.exe mcp manifest --json
+.\.venv\Scripts\threadvault.exe doctor --db data\threadvault.db --json
 ```
 
-Current release result: focused pytest passed with `24 passed`, final full pytest passed with `396 passed in 67.12s`, focused and full ruff passed, desktop smoke returned `ok: true`, CLI discovery reported `native_desktop` without Web UI retired metadata, version metadata reported `1.0.1`, and `threadvault.personal_ui` import spec was `None`.
-Current v1.0.1 acceptance is recorded in `docs/progress/releases/v1.0.1/ACCEPTANCE.md`; previous v1.0.0 acceptance remains under its release directory.
+Current result: `295 passed`, full-project ruff passed, and `pip check` found no broken requirements. Source and installed metadata both report `2.4.0`; desktop smoke reports `desktop_smoke.v2`; MCP manifest reports 2.4.0 and six read-only tools; the live schema-v8/FTS doctor passed at 342 sessions and 835,177 events with seven known warnings. Rendered Windows QA confirmed friendly title/project rows without thread URI labels, the Backup Center status/schedule/disk view, disabled-before-preview and enabled-after-preview export confirmation, and automatic health diagnosis. Tk's Windows accessibility tree still exposes panes more reliably than child control names, so full NVDA narration remains an explicit residual risk. Public release acceptance is recorded under `docs/progress/releases/v2.4.0/`.
 
-Previous focused validation for the `0.48.0` native-first capability alignment:
-
-- Expanded related capabilities/Web UI/desktop/Skill regression passed with `51 passed`.
-- Focused ruff passed.
-- CLI smoke confirmed the then-current `native_desktop` primary interface and legacy fallback handling for the 0.48.0 migration.
-- Source and installed metadata both reported `0.48.0`.
-
-Previous focused validation for the `0.47.0` desktop-first launcher guidance change:
-
-- Expanded related regression: `46 passed`.
-- Focused ruff passed for the touched desktop/CLI/store/Web UI compatibility/test surface.
-
-Previous focused validation for the `0.46.0` native desktop launcher change:
-
-- Desktop smoke CLI returned `ok: true`.
-- Expanded related regression: `46 passed`.
-- Focused ruff passed.
-
-Previous focused validation for the `0.45.0` native desktop smoke command change:
-
-- Desktop smoke CLI returned `ok: true`.
-- Expanded related regression: `45 passed`.
-- Focused ruff passed.
-
-Previous focused validation for the `0.44.0` native desktop thread-safety change:
-
-- Expanded related regression: `44 passed`.
-- Focused ruff passed.
-Runtime QA launched the Tk window, exposed the original worker issue, and then captured native Windows hwnd screenshots after the fix. The screenshots confirmed the compact window renders, the empty search-results state shows a clear prompt, and the Advanced tab controls fit after splitting governance controls onto their own row.
-
-Previous focused validation for the `0.43.0` native desktop governance diagnostics change:
-
-- Expanded related regression: `43 passed`.
-- Focused ruff passed.
-
-Previous focused validation for the `0.42.0` native desktop schema write change:
-
-- Expanded related regression: `43 passed`.
-- Focused ruff passed.
-
-Previous focused validation for the `0.41.0` native desktop restore apply change:
-
-- Expanded related regression: `42 passed`.
-- Focused ruff passed.
-
-Previous focused validation for the `0.40.0` native desktop advanced read-panel change:
-
-- Expanded related regression: `42 passed`.
-- Focused ruff passed.
-
-Previous focused validation for the `0.39.0` native desktop data-safety action change:
-
-- Expanded related regression: `41 passed`.
-- Focused ruff passed.
-
-Previous focused validation for the `0.38.0` native desktop app shell:
-
-- Focused desktop/local UI discovery: `10 passed`.
-- Expanded related regression: `40 passed`.
-
-Latest focused validation for the previous `0.37.0` compact UI density change:
-
-```powershell
-python -m ruff check src\threadvault\personal_ui.py tests\test_v403_personal_ui_workbench.py tests\test_v406_ui_chinese_localization.py
-node -e "<extract APP_JS from personal_ui.py and compile with new Function(...)>"
-rg -n -- "--control-height: 32px|--radius: 4px|0\.37\.0" src tests README.md docs pyproject.toml
-```
-
-Current compact-UI result: ruff passed, `APP_JS` syntax passed, and static CSS/version checks passed.
-Focused pytest was attempted but blocked in the current restricted runtime because `py` is unavailable, the bundled Python lacks `attrs`, the default Conda Python lacks `attrs`, and the project Python executable is denied by the sandbox.
-
-MCP validation:
-
-- `threadvault mcp manifest --json` emitted a `threadvault_mcp_manifest.v1` payload with 6 read-only tools.
-- `threadvault validate-json --schema mcp_manifest --input <user-temp>\threadvault-mcp-manifest.json --json` passed.
-- Stdio smoke for `threadvault mcp serve` returned MCP `initialize` and `tools/list` JSON-RPC responses.
-- `threadvault robot-docs schemas --json` lists `mcp_manifest`.
-- `threadvault agent manifest --json` reports `mcp_runtime_included = true`.
-
-Real archive migration validation:
-
-- `data/threadvault.db` is schema version `5`.
-- `events_fts` uses `indexed_text` and remains aligned with `events`: 56,680 rows each.
-- Clean index diagnostics: 35,618 searchable events, 21,062 skipped events, 4,603 truncated events, 12 metadata-only events.
-- Indexed characters reduced from 54,625,653 raw characters to 18,340,385 indexed characters.
-
-Legacy Web UI documentation tests were removed from the active suite in `1.0.1`; historical validation evidence remains in archived progress and release records.
-
-Additional checks:
-
-- Previous full validation before the compact-density CSS change passed with `422 passed` and full ruff passed.
-- `py -3.12 -m pytest tests\test_v403_personal_ui_workbench.py tests\test_v406_ui_chinese_localization.py tests\test_v404_ui_action_coverage.py tests\test_v105_codex_skill_target.py -q` passed with `31 passed`.
-- `py -3.12 -m ruff check src\threadvault\personal_ui.py tests\test_v403_personal_ui_workbench.py tests\test_v406_ui_chinese_localization.py tests\test_v404_ui_action_coverage.py` passed.
-- Source files now report `0.37.0`.
-- Browser QA using local Chrome confirmed the `0.36.0` information-architecture UI had no horizontal overflow at desktop or 390px mobile width; compact `0.37.0` browser QA is still pending due current runtime browser tooling limits.
-- `/api/health` reports the archive DB path and default export directory separately.
-- Browser QA confirmed a real export write reaches completed state with spinner animation stopped.
-- Browser QA generated a real local Skill export under `<repo-root>\threadvault-ui-output`.
-- Archive DB relocation validation passed for project-local default, environment override, and config override.
-- Existing AppData archive DB was copied to `<repo-root>\data\threadvault.db`; direct SQLite verification found 11 sessions, 56,680 events, 244 turns, 91 warnings, and 5 projects.
-- Python 3.12 `py_compile` passed for touched config, CLI, UI, schema, version, and focused test files.
-- `pytest` and `ruff` are now runnable through the upgraded Anaconda Python 3.12 environment.
+Detailed pre-2.x validation remains in the corresponding round and release records. Those historical snapshots describe the state at their original version and are not the current runtime baseline.
 
 ## Recent Development Trace
 
@@ -206,25 +108,20 @@ Additional checks:
 - `docs/progress/rounds/2026-07-06-round-021-web-ui-command-retirement.md`
 - `docs/progress/rounds/2026-07-06-round-022-v100-native-desktop-release.md`
 - `docs/progress/rounds/2026-07-06-round-023-remove-web-ui-residue.md`
+- `docs/progress/rounds/2026-07-13-round-001-personal-only-modularization.md`
 - `docs/progress/releases/v0.34.0/`
 - `docs/progress/releases/v1.0.0/`
 - `docs/progress/releases/v1.0.1/`
 
 ## Risks
 
-- Archived legacy documentation still contains older lowercase phase filenames as historical evidence.
-- Historical roadmap files describe goals from before v1-v4 completion and may read like future tense.
-- Local generated output directories may contain private data and should be treated as local-only artifacts.
-- Historical Git commits may still contain a legacy DOCX planning artifact; current release prep removes it from the current tree but does not rewrite history.
-- Some low-frequency governance/audit write operations remain command-based until they get full native confirmation and target-path gates.
-- Native screenshot QA is now possible through the Tk hwnd path; broader manual workflow review is still required before declaring the Web UI fully replaceable.
-- Existing private archive data previously stored under AppData must be copied or intentionally migrated into `data/threadvault.db` before the new default shows the same archived sessions.
-- Clean-index classification thresholds are conservative and may need tuning after more real corpus review.
-- `<python-env>` has an unrelated existing dependency warning: `selenium` requires `websocket-client~=1.8`.
+- Archived legacy documentation intentionally preserves older architecture and terminology as historical evidence.
+- Local databases, cold blobs, exports, backups, and generated output can contain private data and must remain ignored local artifacts.
+- Long-running Codex MCP processes must be restarted after upgrading ThreadVault so they load the v2.4.0 runtime.
+- Tkinter keyboard and visible-label accessibility passed rendered QA, but a full NVDA narration pass remains a non-blocking follow-up.
 
 ## Next Steps
 
-- Continue migrating any remaining low-frequency operations that belong in the native desktop UI, adding explicit native confirmation gates before enabling destructive actions.
+- Keep the personal-only boundary explicit when adding future commands or contracts.
 - Consider adding an "open export directory" helper after designing a safe local-only route.
-- Consider exposing clean-index diagnostics in the UI maintenance panel.
-- Consider adding dry-run integration installers for Codex, ZCode, OpenCode, and Obsidian after MCP usage stabilizes.
+- Consider extending the proven dry-run/apply installer pattern to ZCode, OpenCode, and Obsidian after their client configuration surfaces stabilize.

@@ -49,7 +49,7 @@ Focused validation:
 py -3.12 -m pytest tests\test_v105_codex_skill_target.py tests\test_v305_client_export_preview.py -q
 py -3.12 -m ruff check src\threadvault\export_targets.py tests\test_v105_codex_skill_target.py
 threadvault export-target skill --db <temp>\threadvault.db --session sess-current --out <temp>\skill --skill-name project-memory --json
-python C:\Users\Administrator\.codex\skills\.system\skill-creator\scripts\quick_validate.py <temp>\skill
+python <user-home>\.codex\skills\.system\skill-creator\scripts\quick_validate.py <temp>\skill
 py -3.12 -c "import threadvault, importlib.metadata as m; print(threadvault.__version__); print(m.version('threadvault'))"
 ```
 
