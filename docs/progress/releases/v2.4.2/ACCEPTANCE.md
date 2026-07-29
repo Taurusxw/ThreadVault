@@ -17,8 +17,10 @@ This patch accepts deterministic CLI content assertions under GitHub Actions whi
 - Local reproduction with `GITHUB_ACTIONS=true`: four failures reproduced before the fixture fix; the same four tests pass after isolation.
 - Full local CI-mode suite with Typer 0.27.0: `313 passed`, `79.33%` branch coverage; `pip check` and ruff passed.
 - Restricted `cp1252` stdout desktop smoke: `desktop_smoke.v2`, `ok=true`, and the emitted JSON parsed successfully.
-- Remote matrix: pending final green run.
+- Remote Windows matrix: [GitHub Actions run 30425979086](https://github.com/Taurusxw/ThreadVault/actions/runs/30425979086) succeeded.
+- Python 3.11 job: completed successfully in 4m33s; coverage, desktop smoke, and MCP manifest all passed.
+- Python 3.12 job: completed successfully in 9m37s; coverage, desktop smoke, and MCP manifest all passed.
 
 ## Status
 
-pending remote CI
+completed
