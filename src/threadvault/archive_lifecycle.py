@@ -6,6 +6,7 @@ import json
 import shutil
 import sqlite3
 import string
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -76,7 +77,7 @@ def hydrate_event_rows(
 
 def read_cold_event(db_path: Path, event_id: int, cold_root: Path | None = None) -> dict[str, Any]:
     db_path = db_path.expanduser().resolve()
-    with connect_readonly(db_path) as conn:
+    with closing(connect_readonly(db_path)) as conn:
         row = conn.execute("SELECT * FROM events WHERE event_id = ?", (event_id,)).fetchone()
         if row is None:
             raise KeyError(event_id)
@@ -93,7 +94,7 @@ def read_cold_event(db_path: Path, event_id: int, cold_root: Path | None = None)
 def storage_audit(db_path: Path, cold_root: Path | None = None) -> dict[str, Any]:
     db_path = db_path.expanduser().resolve()
     root = (cold_root or default_cold_root(db_path)).expanduser().resolve()
-    with connect_readonly(db_path) as conn:
+    with closing(connect_readonly(db_path)) as conn:
         event_totals = dict(conn.execute(
             """
             SELECT COUNT(*) AS events,
@@ -175,7 +176,7 @@ def rebuild_archive(
 
     target_db.parent.mkdir(parents=True, exist_ok=True)
     blob_store = ColdBlobStore(root)
-    with connect_readonly(source_db) as source, connect(target_db) as target:
+    with closing(connect_readonly(source_db)) as source, closing(connect(target_db)) as target:
         init_db(target)
         target.execute("PRAGMA synchronous = NORMAL")
         target.execute("PRAGMA foreign_keys = OFF")
@@ -236,7 +237,7 @@ def verify_cold_storage(db_path: Path, cold_root: Path | None = None, *, deep: b
     original_bytes = 0
     stored_bytes = 0
     errors: list[dict[str, Any]] = []
-    with connect_readonly(db_path) as conn:
+    with closing(connect_readonly(db_path)) as conn:
         if not _table_exists(conn, "cold_blobs"):
             return {
                 "ok": True,
@@ -412,7 +413,7 @@ def archive_storage_state(
     """Return a cheap logical fingerprint for smart backup decisions."""
     db_path = db_path.expanduser().resolve()
     root = (cold_root or default_cold_root(db_path)).expanduser().resolve()
-    with connect_readonly(db_path) as conn:
+    with closing(connect_readonly(db_path)) as conn:
         database = dict(conn.execute(
             """
             SELECT

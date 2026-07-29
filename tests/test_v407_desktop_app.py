@@ -99,6 +99,8 @@ def test_desktop_gateway_surfaces_privacy_integrations_and_advanced_help(tmp_pat
     assert "解析警告：" in warnings.text
     assert "Codex MCP：" in integrations.text
     assert "threadvault_export_preview" in integrations.text
+    install_preview = gateway.install_codex(apply=False)
+    assert "配置模式：仅预览" in install_preview.text
     assert "日常归档、检索和备份不需要使用本页" in advanced.text
 
 
@@ -126,6 +128,7 @@ def test_desktop_gateway_runs_safe_data_operations(tmp_path: Path) -> None:
     assert "Mode: applied" in restore_apply.text
     assert target.exists()
     assert restore_apply.status == "恢复已执行"
+    assert (tmp_path / "restore-history.jsonl").exists()
     assert restore_refuse_overwrite.status == "恢复未执行：目标已存在"
     assert reindex_result.status == "索引已重建"
     assert vacuum_result.status == "数据库压缩完成"

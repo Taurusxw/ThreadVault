@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-07-29 - 2.4.1 Foolproof Archive Integration And Native Desktop Polish
+
+- Added read-only source freshness inspection and targeted catch-up for missing, changed, stale-parser, or newly touched Codex transcripts across active and archived session directories.
+- Changed smart backup to catch up sources before tier selection and block when catch-up fails, preventing a verified but known-stale database backup.
+- Added dry-run-first `threadvault codex status/install` commands that pin and diagnose the supported user Stop hook and read-only Codex MCP registration together.
+- Added a confirmed one-click Codex integration action and source-freshness status to the native desktop workbench and Backup Center.
+- Added a Windows GitHub Actions matrix with ruff, branch coverage (70% gate), isolated desktop smoke, and MCP manifest checks.
+- Fixed a real rendered-startup regression where Treeview widgets were treated as stateful inputs, leaving the window empty, and added a live Tk initial-refresh regression test.
+- Fixed SQLite read-only connection lifetimes so Windows retention and verified-backup cleanup do not leave database files locked.
+
+- Reframed the native desktop app around the daily archive/search/open/export/backup path with a compact identity header, one primary action per work area, and a discoverable secondary-actions menu.
+- Added one semantic Tk visual system for ttk controls, `Text` surfaces, popup menus, confirmation dialogs, tree selections, scrollbars, disabled states, and progress feedback; native OS file pickers remain platform-owned.
+- Replaced full Treeview teardown/rebuild refreshes with in-place reconciliation that preserves selection, focus, and scroll position and visibly reports whether rows changed.
+- Reused friendly Codex state titles only while the local state SQLite database and WAL/SHM signatures are unchanged; archive snapshots remain fresh and no persistent cache was added.
+- Avoided rewriting the current `schema_version` metadata on every `init_db()` call while preserving missing/stale-version repair behavior.
+- Explicitly close SQLite backup connections so automatic retention can remove superseded temporary backups reliably on Windows.
+- Isolated default archive DB, Codex home, config, and restore-history paths for the test suite in pytest temporary directories so routine verification does not touch ignored live runtime data.
+
 ## 2026-07-14 - 2.4.0 Foolproof Native Desktop Workflows
 
 - Replaced raw session identifiers with scrollable title/project/time tables and warning badges, using read-only Codex state only for friendly title enrichment.

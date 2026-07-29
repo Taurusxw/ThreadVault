@@ -12,6 +12,7 @@
     "db_path",
     "out_root",
     "policy",
+    "source_sync",
     "archive_state",
     "latest",
     "disk"
@@ -45,6 +46,9 @@
       "type": "string"
     },
     "policy": {
+      "type": "object"
+    },
+    "source_sync": {
       "type": "object"
     },
     "archive_state": {

@@ -6,7 +6,7 @@ ThreadVault 是面向个人本机 Codex 会话的本地优先、隐私优先归�
 
 ThreadVault 会发现本机 Codex `sessions` 与 `archived_sessions` 目录中的 JSONL 会话，将当前及历史事件格式规范化到 SQLite，使用 FTS5 建立干净知识索引，并通过桌面端、命令行和本地 agent 接口重新利用这些历史工作。
 
-当前软件包版本：`2.4.0`。
+当前软件包版本：`2.4.1`。
 
 ## 适合解决什么问题
 
@@ -38,8 +38,9 @@ ThreadVault 主要回答一个问题：以前让 Codex 做过什么、关键证�
 - 原生 Tkinter 桌面端，不需要浏览器或前端构建环境。
 - 只读 MCP stdio 服务，可供 Codex、ZCode、OpenCode 等本地客户端使用。
 - Schema v8 冷热存储、重复正文消除、冷库垃圾回收和 Core/Evidence/Forensic 备份档位。
-- 傻瓜式智能备份：自动选档、磁盘守卫、创建后验证和自动旧代保留。
-- 桌面“智能备份中心”：显示运行状态、自动计划、下次执行、磁盘空间并支持立即备份。
+- 傻瓜式智能备份：先自动追平 Codex 源会话，再选档、检查磁盘、创建后验证并保留有限旧代。
+- Codex 一键联动：一次安装 Stop hook 与只读 MCP，并提供可机器读取的状态诊断。
+- 桌面“智能备份中心”：显示待入库来源、运行状态、自动计划、下次执行、磁盘空间并支持立即备份。
 - 桌面安全导出：预览、隐私检查、参数一致性验证和最终确认后才写入。
 
 以下能力有意不作为默认：
@@ -56,6 +57,7 @@ ThreadVault 主要回答一个问题：以前让 Codex 做过什么、关键证�
 
 | 版本 | 重点 |
 |---|---|
+| `2.4.1` | 自动追平源会话、Codex 一键联动、CI 覆盖率门禁和原生桌面工作台完善。 |
 | `2.4.0` | 智能备份中心、完整确认导出、友好会话列表、安全恢复目标和自动健康诊断。 |
 | `2.3.0` | 智能备份选档、验证、磁盘守卫和有界自动保留。 |
 | `2.2.0` | 冷热归档、最小化备份、重复正文消除和写时复制迁移。 |
@@ -116,8 +118,8 @@ threadvault desktop launch
 |---|---|
 | 会话 | 按标题、项目、更新时间、事件数和警告浏览或搜索历史会话。 |
 | 导出 | 选择格式、隐私处理和输出目录，先生成预览，再确认写入。 |
-| 备份 | 查看智能备份状态、计划、磁盘和保留策略；高级区域提供手动备份与恢复。 |
-| Codex 联动 | 查看 MCP、Stop hook 和每日智能备份是否接通。 |
+| 备份 | 查看待入库来源、智能备份状态、计划、磁盘和保留策略；高级区域提供手动备份与恢复。 |
+| Codex 联动 | 查看并一键安装 MCP、Stop hook，检查最近 hook 活动和每日智能备份。 |
 | 健康 | 自动运行只读诊断，把重建索引和压缩数据库放在独立维护区域。 |
 | 高级 | 查看 Schema 和机器人说明；普通使用通常无需进入。 |
 
@@ -129,29 +131,27 @@ threadvault desktop smoke --json
 
 ## 第一次归档与自动入库
 
-首次安装后做一次完整回填，然后让 Codex `Stop` hook 每轮只导入发生变化的 transcript：
+先用一个 dry-run-first 命令安装两项 Codex 联动，再追平初始归档；以后由 `Stop` hook 每轮只导入发生变化的 transcript：
 
 ```powershell
-$threadvaultExe = (Resolve-Path .\.venv\Scripts\threadvault.exe).Path
 $archiveDb = (Resolve-Path .\data\threadvault.db).Path
-$hookCommand = '"' + $threadvaultExe + '" codex-hook ingest --apply --db "' + $archiveDb + '"'
-
-& $threadvaultExe import --db $archiveDb
-& $threadvaultExe codex-hook install --command $hookCommand --apply --json
-codex mcp add threadvault -- $threadvaultExe mcp serve --db $archiveDb
+threadvault codex install --db $archiveDb --json
+threadvault codex install --db $archiveDb --apply --json
+threadvault storage sync --db $archiveDb --apply --json
+threadvault codex status --db $archiveDb --json
 ```
 
-随后在 Codex 打开一次 `/hooks`，检查并信任新增的用户级 hook。安装器写入 `~/.codex/hooks.json`，会保留其他 hook，也不会替换已有 `notify` 命令。
+随后在 Codex 打开一次 `/hooks`，检查用户级 hook；若 Codex 要求，则信任它。非托管命令 hook 按精确命令哈希审核。安装器会固定当前 ThreadVault 可执行文件和数据库路径，保留其他 hook，不替换已有 `notify`，并更新 Codex 共用的 `~/.codex/config.toml` MCP 配置。MCP 新建或改变后需要重启 Codex。
 
 检查联动：
 
 ```powershell
-Get-Content "$HOME\.codex\hooks.json"
+threadvault codex status --db $archiveDb --json
 codex mcp list
-& $threadvaultExe ingest-queue list --db $archiveDb --json
+threadvault storage sync --db $archiveDb --json
 ```
 
-正常情况下，以后不需要每天手动执行全量 `threadvault import`。只有首次回填、hook 被禁用或故障恢复时才需要手动导入。
+正常情况下，以后不需要每天手动执行全量 `threadvault import`。每日智能备份会先检查源会话新鲜度并只补导缺失、变化、旧解析器或新触碰的文件；任何补导失败都会阻止备份，避免把旧数据库当成完整备份。
 
 ## 搜索和重新利用旧会话
 
@@ -198,11 +198,13 @@ ThreadVault 把人类对话和干净全文索引保留在热 SQLite 中，将大
 日常只需要一个命令：
 
 ```powershell
+threadvault storage sync --json
 threadvault storage auto --apply --json
 ```
 
 策略如下：
 
+- 先自动追平 Codex 源会话；失败则停止备份并明确报错。
 - 首次创建 Evidence 基线。
 - 归档有变化时，最多执行一个到期档位：每日 Core、每周 Evidence、历史满 30 天后的每月 Forensic。
 - 没有变化时跳过，不重复复制大型数据库。

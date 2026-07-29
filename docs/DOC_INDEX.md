@@ -42,6 +42,8 @@ This index lists the current ThreadVault documentation entrypoints and when to u
 | `docs/progress/rounds/2026-07-14-round-001-hot-cold-storage-and-minimal-backups.md` | Schema v8 hot/cold storage, live migration, and backup-profile acceptance record. | Active |
 | `docs/progress/rounds/2026-07-14-round-002-smart-backup-automation.md` | Smart backup policy, retention, validation, and local scheduling acceptance record. | Active |
 | `docs/progress/rounds/2026-07-14-round-003-desktop-workflow-usability.md` | Desktop Backup Center, confirmed export, friendly browsing, safe restore defaults, and rendered QA record. | Active |
+| `docs/progress/rounds/2026-07/2026-07-28-round-001-native-desktop-workbench.md` | Native desktop workbench styling, stable refresh performance, schema-init write avoidance, and runtime-isolation record. | Active |
+| `docs/progress/rounds/2026-07/2026-07-29-round-001-foolproof-archive-integration.md` | Source freshness, catch-up-first backup, one-command Codex integration, CI, and rendered desktop acceptance record. | Active |
 | `docs/progress/rounds/2026-07-06-round-005-open-source-v034-release.md` | Open-source v0.34.0 release preparation round record. | Active |
 | `docs/progress/rounds/2026-07-06-round-006-lightweight-skill-export.md` | Lightweight Skill candidate export optimization round record. | Active |
 | `docs/progress/rounds/2026-07-06-round-007-personal-ui-ia-refresh.md` | Personal UI information architecture refresh round record. | Active |
@@ -66,6 +68,7 @@ This index lists the current ThreadVault documentation entrypoints and when to u
 | `docs/progress/releases/v1.0.0/` | v1.0.0 release notes, acceptance, and artifact guidance. | Active |
 | `docs/progress/releases/v1.0.1/` | v1.0.1 Web UI residue cleanup release notes and acceptance. | Active |
 | `docs/progress/releases/v2.4.0/` | v2.4.0 personal-only runtime, hot/cold storage, smart backup, desktop workflow, and bilingual manual release records. | Active |
+| `docs/progress/releases/v2.4.1/` | v2.4.1 foolproof source catch-up, Codex integration, desktop polish, CI, and acceptance records. | Active |
 
 ## Existing Historical Records
 

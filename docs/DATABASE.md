@@ -88,8 +88,10 @@ Import behavior:
 
 - Already imported files can be skipped based on path/hash provenance.
 - A matching path/hash is skipped only when the stored session `parse_version` matches the current schema/parser version, so compatibility releases can safely reprocess unchanged source files.
+- A same-hash skip refreshes `import_logs.imported_at`; this records that the source was observed again and lets source freshness distinguish an untouched archive from a newly touched/moved source without duplicating content.
 - Unknown or malformed transcript shapes should become warnings rather than aborting the whole corpus import.
 - The Codex `Stop` hook imports only the hook-provided `transcript_path`; first-time backfill and manual recovery still scan the full Codex home.
+- `storage sync` compares all discoverable sources with import provenance and targets only missing, changed, stale-parser, or newly touched transcripts. `storage auto --apply` runs this catch-up before backing up.
 - `world_state` and other bulky metadata payloads move to cold evidence while small scalar stubs remain in SQLite.
 - Exact duplicate `event_msg/agent_message` bodies become auditable hash stubs when the canonical assistant response exists; unique agent messages remain intact.
 - `delete_session` style operations remove session-linked rows through database relationships and cleanup logic.
@@ -168,10 +170,11 @@ Treat all operational artifacts as local/private unless reviewed.
 | `threadvault vacuum --json` | Runs SQLite VACUUM. |
 | `threadvault backup --out DIR --json` | Copies the archive DB to a local backup file. |
 | `threadvault storage audit --json` | Reports hot/cold size, storage classes, and largest event categories. |
+| `threadvault storage sync --json` | Reports source freshness without writing; add `--apply` to import only stale sources. |
 | `threadvault storage rebuild --target-db DB --apply --json` | Builds a compact copy and validates it without overwriting the source. |
 | `threadvault storage verify --deep --json` | Checks cold presence/size and optionally decompresses and hashes every blob. |
 | `threadvault storage prune --json` | Dry-runs reference-aware cold garbage collection; add `--apply` to delete. |
-| `threadvault storage auto --apply --json` | Automatically selects at most one due backup tier, verifies it, and retains bounded automatic generations. |
+| `threadvault storage auto --apply --json` | Catches up stale sources, then selects at most one due backup tier, verifies it, and retains bounded automatic generations. |
 | `threadvault storage backup --profile core|evidence|forensic --out DIR --json` | Creates a minimal, recoverable, or source-complete backup profile. |
 | `threadvault restore-plan --backup DB --target-db DB --json` | Plans a restore without writing target data. |
 

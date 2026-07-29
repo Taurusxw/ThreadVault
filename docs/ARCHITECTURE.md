@@ -21,15 +21,16 @@ ThreadVault is a personal, local-first archive, retrieval, export, native deskto
 |---|---|---|
 | CLI | `src/threadvault/cli.py` | Typer command surface, argument parsing, user-facing command orchestration. |
 | Configuration | `config.py`, `app_config.py`, `privacy_config.py` | Default paths, `threadvault.toml`, privacy allowlist, vector config, and retention settings. |
-| Parser/import | `parser.py`, `importer.py`, `codex_adapter.py`, `database.py` | Codex JSONL discovery, parsing, normalization, imports, FTS triggers. |
-| Storage lifecycle | `storage_policy.py`, `cold_store.py`, `archive_lifecycle.py`, `smart_backup.py` | Event value classification, content-addressed cold blobs, hydration, rebuild, verification, garbage collection, backup profiles, and one-entrypoint automatic backup policy. |
+| Parser/import | `parser.py`, `importer.py`, `codex_adapter.py`, `database.py` | Codex JSONL discovery, parsing, normalization, full or targeted imports, FTS triggers. |
+| Source freshness | `source_sync.py` | Read-only source/import-log comparison plus targeted catch-up for missing, changed, stale-parser, or newly touched transcripts. |
+| Storage lifecycle | `storage_policy.py`, `cold_store.py`, `archive_lifecycle.py`, `smart_backup.py` | Event value classification, content-addressed cold blobs, hydration, rebuild, verification, garbage collection, backup profiles, and catch-up-first automatic backup policy. |
 | Store | `src/threadvault/store.py` | High-level archive workflows and reusable business entrypoint for CLI/UI. |
-| Ingestion automation | `ingestion.py`, `codex_hooks.py` | Hook-safe queue history, targeted transcript import, user hook installation, and fallback queue processing. |
+| Ingestion automation | `ingestion.py`, `codex_hooks.py`, `codex_integration.py` | Hook-safe queue history, targeted transcript import, one-command Hook/MCP setup, status diagnostics, and fallback queue processing. |
 | Retrieval | `retrieval.py`, `hybrid_retrieval.py`, `agent_interface.py` | Stable query contracts, FTS retrieval, hybrid ranking, agent-facing output. |
 | Summary/vector | `summarizer.py`, `summary_pipeline.py`, `vector_adapter.py` | Evidence-backed summaries, summary/evidence chunks, optional local deterministic vectors. |
 | Client interface | `client_interface.py`, `client_runtime.py` | Client manifest, overview, session detail, export preview, warnings, local TUI runtime. |
 | MCP interface | `mcp.py`, `mcp_runtime.py`, `mcp_validation.py`, `mcp_contracts.py` | MCP stdio transport/dispatch, read-only queries, input and lifecycle validation, and stable contracts. |
-| Desktop app | `desktop_app.py`, `desktop_data.py` | Primary minimal Tkinter native window and desktop-facing data interface over existing client/export/safety contracts. |
+| Desktop app | `desktop_app.py`, `desktop_theme.py`, `desktop_data.py` | Primary Tkinter workbench, centralized native visual system, and desktop-facing data interface over existing client/export/safety contracts. |
 | Export | `export_targets.py`, `exporter.py` | Single-session export, batch target preview/write, Markdown/Obsidian/Skill layouts, manifests. |
 | Privacy | `privacy.py` | Sensitive content scanning, effective findings, redaction/fail decisions. |
 | Backup/restore | `backup_manifest.py`, `backup_history.py`, `restore_plan.py`, `restore.py`, `restore_history.py` | Local backup verification, history, restore preflight, restore apply. |
@@ -43,7 +44,8 @@ flowchart TD
   CodexHome["CODEX_HOME / .codex"] --> TranscriptFiles["sessions + archived_sessions JSONL"]
   CodexStop["Codex Stop Hook"] --> HookAdapter["Hook Adapter + Queue Record"]
   HookAdapter --> TranscriptFiles
-  TranscriptFiles --> Parser["Parser / Importer"]
+  TranscriptFiles --> Freshness["Source Freshness Guard"]
+  Freshness --> Parser["Parser / Targeted Importer"]
   Parser --> DB["SQLite Archive DB"]
   DB --> Store["ArchiveStore"]
 
@@ -87,13 +89,13 @@ Codex JSONL
 
 Reads that need full evidence hydrate through `ArchiveStore`; ordinary search and MCP retrieval stay on the hot database. Rebuilds are copy-on-write. Activation is permitted only when source/target counts and canonical conversation digests agree and doctor/cold verification pass.
 
-Backup profiles are deliberately layered: Core is the daily searchable archive, Evidence adds cold blobs, and Forensic additionally snapshots source JSONL as content-addressed gzip files. `smart_backup.py` owns the automatic decision: bootstrap Evidence, then highest-due monthly/weekly/daily tier, skip unchanged data, verify before retention, and retain only automatic 3/2/1 generations. Manual backups remain outside that deletion scope.
+Backup profiles are deliberately layered: Core is the daily searchable archive, Evidence adds cold blobs, and Forensic additionally snapshots source JSONL as content-addressed gzip files. `smart_backup.py` first delegates source catch-up to `source_sync.py`; a catch-up failure blocks backup creation. It then owns the backup decision: bootstrap Evidence, select the highest-due monthly/weekly/daily tier, skip unchanged data, verify before retention, and retain only automatic 3/2/1 generations. Manual backups remain outside that deletion scope.
 
 The database is useful because search/retrieval can query it. The export directory is useful because the user, Codex, Obsidian, or editors can read the generated files directly.
 
 The archive database keeps raw event text and payloads, but the default FTS surface indexes `indexed_text`, a cleaned knowledge field derived from raw events. This preserves auditability while reducing low-value search noise such as empty events, token counts, screenshots/base64 blobs, and oversized tool outputs.
 
-The normal automatic path is intentionally narrow: Codex passes `transcript_path` to the `Stop` hook, ThreadVault records the queue request, and the same short-lived hook process imports only that one JSONL file. Manual `threadvault import` remains the first-time backfill and recovery path. The user-level hook lives in `~/.codex/hooks.json`; MCP registration remains separate because it is a read-only retrieval interface, not an ingestion trigger.
+The normal automatic path is intentionally narrow: Codex passes `transcript_path` to the `Stop` hook, ThreadVault records the queue request, and the same short-lived hook process imports only that one JSONL file. `storage sync` and the catch-up step inside `storage auto` are the safety net: they compare all currently discoverable sources with import provenance and target only stale files. `codex install` configures the user hook and read-only MCP entry together but does not merge their responsibilities. The hook lives in `~/.codex/hooks.json`; MCP uses Codex's shared `~/.codex/config.toml` and never triggers ingestion.
 
 ## Historical Personal UI Archive
 
@@ -109,18 +111,22 @@ Tkinter window
   -> desktop_app event handlers
   -> background worker thread
   -> desktop_data DesktopDataGateway
-  -> ArchiveStore client_overview / client_session / client_export_preview / export_target / client_warnings / storage_auto_backup / backup / restore_plan / restore / reindex / vacuum / schemas / robot docs
+  -> ArchiveStore client_overview / client_session / client_export_preview / export_target / client_warnings / storage_sync / storage_auto_backup / codex integration / backup / restore_plan / restore / reindex / vacuum / schemas / robot docs
 ```
 
 Key desktop rules:
 
 - No Electron, React, Tauri, WebView, or frontend build pipeline is required.
-- The window is intentionally compact: friendly session/search tables, confirmed export, Backup Center, Codex integration, health, and advanced references live in ordered tabs.
+- The window is intentionally compact: a header and action bar make archive/search/open/export/backup obvious, while friendly session/search tables, confirmed export, Backup Center, Codex integration, health, and advanced references live in ordered tabs.
+- `desktop_theme.py` owns semantic colors and Tk/ttk state styling for controls, native text surfaces, popup menus, scrollbars, and confirmation dialogs; feature handlers do not own raw cosmetic values.
 - Long archive/search/export/safety operations run off the Tk main thread.
 - Tkinter state is read on the UI thread before dispatch; background workers receive plain values and post results back to the UI thread.
+- Archive snapshots remain fresh on every refresh. The desktop gateway only reuses friendly title metadata while the local Codex state SQLite database plus WAL/SHM signature is unchanged, and table reconciliation preserves selection, focus, and scroll without rebuilding unchanged rows.
+- Ordinary initialization does not rewrite already-current schema metadata; missing or stale versions still take the existing migration/update path.
 - The desktop smoke command verifies Tkinter availability, desktop gateway loading, and no-browser/no-server boundaries without opening a window.
 - `DesktopExportPlan` is the immutable desktop write token: changing the selected session, target, profile, or privacy mode invalidates it; export requires an executable plan and native confirmation.
-- The Backup Center reuses `ArchiveStore.storage_auto_backup` for automatic tier choice, disk guard, verification, and bounded retention; the Tk layer does not duplicate storage policy.
+- The Backup Center reuses `ArchiveStore.storage_auto_backup` for source catch-up, automatic tier choice, disk guard, verification, and bounded retention; the Tk layer does not duplicate storage policy.
+- The Codex Integration page reuses `codex_integration.py` for exact pinned Hook/MCP status and one confirmed install action. Hook trust remains visible because Codex owns that security decision.
 - Backup, reindex, and vacuum use native confirmation prompts before writing locally.
 - Desktop restore apply is limited to verified backups restored into new non-overwrite target databases.
 - Schema and robot docs are available as native advanced panels.

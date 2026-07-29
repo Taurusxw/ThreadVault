@@ -11,8 +11,9 @@ from pathlib import Path
 from typing import Any
 
 from .archive_lifecycle import archive_storage_state, backup_storage_profile, verify_storage_backup
+from .source_sync import sync_codex_sources
 
-SMART_BACKUP_CONTRACT_VERSION = "smart-backup.v1"
+SMART_BACKUP_CONTRACT_VERSION = "smart-backup.v2"
 CORE_INTERVAL = timedelta(days=1)
 EVIDENCE_INTERVAL = timedelta(days=7)
 FORENSIC_INTERVAL = timedelta(days=30)
@@ -49,13 +50,23 @@ def run_smart_backup(
     root = (out_root or db_path.parent / "storage-backups").expanduser().resolve()
     current_time = (now or datetime.now(UTC)).astimezone(UTC)
     history = _load_history(root)
+    source_sync = sync_codex_sources(
+        db_path,
+        codex_home=codex_home,
+        apply=apply,
+    )
     state = archive_storage_state(
         db_path,
         cold_root=cold_root,
         codex_home=codex_home,
         include_source=include_forensic,
     )
-    decision = _choose_profile(history, state, current_time, include_forensic=include_forensic)
+    if apply and not source_sync["ok"]:
+        decision: dict[str, str | None] = {"action": "blocked", "profile": None, "reason": "source_sync_failed"}
+    elif not apply and source_sync["pending_files"]:
+        decision = {"action": "sync", "profile": None, "reason": "source_sync_required"}
+    else:
+        decision = _choose_profile(history, state, current_time, include_forensic=include_forensic)
     estimate = _estimate_required_bytes(decision["profile"], state, root)
     disk = _disk_state(root, estimate)
     base = {
@@ -74,6 +85,7 @@ def run_smart_backup(
             "keep": AUTO_KEEP,
             "forensic_enabled": include_forensic,
         },
+        "source_sync": source_sync,
         "archive_state": state,
         "latest": _latest_summary(history),
         "disk": disk,
@@ -81,6 +93,10 @@ def run_smart_backup(
         "verification": None,
         "retention": None,
     }
+    if decision["action"] == "blocked":
+        return {**base, "ok": False}
+    if decision["action"] == "sync":
+        return base
     if decision["action"] == "skip":
         if apply:
             auto_root = root / "auto"

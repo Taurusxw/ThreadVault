@@ -40,20 +40,24 @@ MCP clients should use `threadvault_export_preview` to inspect planned output an
 
 For concrete Codex, OpenCode, ZCode, Obsidian, and AI self-configuration guidance, see `docs/MCP_INTEGRATION.md`.
 
-Codex registration uses the supported CLI surface:
+ThreadVault wraps Codex's supported registration surface in one dry-run-first command:
 
 ```powershell
-codex mcp add threadvault -- <threadvault-exe> mcp serve --db <archive-db>
+threadvault codex install --db <archive-db> --json
+threadvault codex install --db <archive-db> --apply --json
+threadvault codex status --db <archive-db> --json
 codex mcp list
 ```
 
-MCP startup may require a new Codex task after configuration changes. It remains independent from automatic ingestion: MCP reads the existing database, while a user-level `Stop` hook updates that database.
+`codex install` pins the current ThreadVault executable and archive database in both the user Stop hook and the `threadvault` MCP entry. MCP startup requires restarting Codex after a new or changed registration. MCP remains independent from automatic ingestion: it reads the existing database, while the user-level `Stop` hook updates that database.
 
 ## Codex Hook And Ingestion Contracts
 
 `threadvault codex-hook ingest --apply` consumes the Codex hook JSON object from stdin. It records an `ingestion_queue` request and imports only `transcript_path`; the normal hook response remains `{"continue": true}` so archive failures do not interrupt the Codex turn.
 
 `threadvault codex-hook install` is dry-run-first. With `--apply`, it idempotently adds one ThreadVault `Stop` handler to `~/.codex/hooks.json`, preserves unrelated hook handlers, and reports that Codex trust review is required. The generated/installed hook uses the supported `Stop` input fields `session_id`, `transcript_path`, `cwd`, and `hook_event_name`.
+
+`threadvault storage sync` is also dry-run-first. It discovers both active and archived transcripts, compares source path/hash/mtime and parser version with import provenance, and with `--apply` imports only stale sources. Matching sources update their observed import timestamp without duplicating sessions or events. `storage auto --apply` always performs the same catch-up before deciding whether a backup is due; catch-up failure returns a blocked backup decision.
 
 ### MCP联动计划书
 
@@ -66,7 +70,7 @@ MCP startup may require a new Codex task after configuration changes. It remains
 3. `2.2.0` 新增 `storage` 命令组；MCP 仍保持只读，普通检索不直接暴露冷库文件路径。
 4. `2.3.0` 新增 `storage auto --apply`，由单一策略自动选择、验证和保留备份档位。
 5. `2.4.0` 的桌面 `desktop_app.v2` 把智能备份状态和预览后确认导出接入同一个 `DesktopDataGateway`；MCP 仍只读。
-6. 后续可增加统一的 `threadvault integrations doctor`，检查 Codex/ZCode/OpenCode/Obsidian 是否能看到 MCP、hook 或导出目录。
+6. `2.4.1` 新增 `threadvault codex status/install`、源新鲜度诊断和备份前自动追平，并把一键安装接入桌面 Codex 联动页。
 7. 后续若考虑受控 MCP 写工具，必须保留 preview、privacy 和 confirm gate；2.x 默认仍为只读 MCP。
 
 各工具建议：
@@ -103,7 +107,8 @@ Common query parameters:
 | Export | `client_export_preview`, `export_preview`, `export_session`, `export_target_*` | Preview first, then write. |
 | Config/maintenance | `config_*`, `stats`, `doctor`, `self_test`, `reindex`, `vacuum` | Reindex/vacuum mutate derived DB state. |
 | Backup/restore | `backup`, `backup_verify`, `backup_history_*`, `restore_plan`, `restore_apply`, `restore_history_*` | Restore apply changes the target database. |
-| Storage lifecycle | `storage audit`, `storage rebuild`, `storage verify`, `storage event`, `storage prune`, `storage backup`, `storage verify-backup`, `storage auto` | Rebuild/prune/manual backup require explicit apply or targets; smart backup writes only with `--apply`. |
+| Storage lifecycle | `storage audit`, `storage sync`, `storage rebuild`, `storage verify`, `storage event`, `storage prune`, `storage backup`, `storage verify-backup`, `storage auto` | Sync/rebuild/prune/manual backup require explicit apply or targets; smart backup catches up then writes only with `--apply`. |
+| Codex integration | `codex status`, `codex install` | Reports or installs the exact user Stop hook and read-only MCP registration; install is dry-run-first. |
 | Audit/schema/docs | `audit_*`, `schemas_*`, `validate_json`, `robot_docs_*`, `capabilities` | Schema writes create/update local schema files. |
 
 ### Storage JSON contracts
@@ -114,7 +119,9 @@ Common query parameters:
 - `storage_event`: one event with its original cold payload hydrated.
 - `storage_prune`: dry-run/apply result for unreferenced metadata and files.
 - `storage_backup` / `storage_backup_verify`: Core/Evidence/Forensic manifest and verification results.
-- `storage_auto`: dry-run or applied smart decision with `action`, selected `profile`, reason, logical archive state, disk guard, verification, and retention results. `action` is `backup`, `created`, `skip`, `blocked`, or a verification failure state.
+- `storage_sync`: dry-run or applied source freshness result with discovered/pending counts, reason counts, targeted import result, and final freshness state. Source paths are hidden unless explicitly requested.
+- `storage_auto` (`smart-backup.v2`): dry-run or applied smart decision with `source_sync`, `action`, selected `profile`, reason, logical archive state, disk guard, verification, and retention results. Dry-run can return `sync`; apply can return `created`, `skip`, or `blocked` when catch-up or storage safety fails.
+- `codex_integration_status` / `codex_integration_install`: exact Hook/MCP match state, recent hook activity, source freshness, recommended actions, apply result, and restart/trust flags.
 
 ## Export Workflow API
 

@@ -6,7 +6,7 @@ ThreadVault is a local-first, privacy-first archive, retrieval, export, native d
 
 It discovers Codex transcript JSONL files from local `sessions` and `archived_sessions` directories, normalizes current and legacy event shapes into SQLite, indexes searchable text with SQLite FTS5, and exposes the archive through CLI commands, JSON contracts, agent-facing retrieval, export targets, MCP, and a minimal native desktop app.
 
-Current package version: `2.4.0`.
+Current package version: `2.4.1`.
 
 ## What It Is For
 
@@ -41,8 +41,9 @@ The stable baseline now includes:
 - The former personal Web UI runtime, launcher, active schemas, tests, and active discovery metadata have been removed from the active package; v4 evidence remains in `docs/progress/archive/legacy-v4/`.
 - A read-only MCP stdio server for Codex, ZCode, OpenCode, and other MCP-capable local agents.
 - Schema v8 hot/cold storage, exact assistant-body deduplication, cold garbage collection, and Core/Evidence/Forensic backup profiles.
-- One-command smart backup selection with verification, disk guards, and bounded automatic retention.
-- A desktop Backup Center with automatic status/next-run/disk visibility, one-click smart backup, friendly session titles, and a confirmed export workflow.
+- One-command smart backup selection with source catch-up, verification, disk guards, and bounded automatic retention.
+- One-command Codex integration setup for the supported Stop hook and read-only MCP server, plus machine-readable status diagnostics.
+- A desktop Backup Center with source freshness/status/next-run/disk visibility, one-click smart backup, friendly session titles, and a confirmed export workflow.
 
 Still intentionally not default:
 
@@ -62,6 +63,7 @@ Current and historical version line:
 
 | Version | Focus |
 |---|---|
+| `2.4.1` | Foolproof source catch-up, one-command Codex integration, CI coverage gates, and a polished native desktop workbench. |
 | `2.4.0` | Foolproof native desktop workflows for smart backup, confirmed export, friendly browsing, safe restore targets, and clearer diagnostics. |
 | `2.3.0` | Foolproof smart backup selection, verification, disk guards, and bounded automatic retention. |
 | `2.2.0` | Hot/cold storage lifecycle, minimal backups, exact duplicate-body removal, and copy-on-write migration. |
@@ -115,6 +117,8 @@ ThreadVault keeps human conversation text and the clean FTS index in the hot SQL
 
 ```powershell
 threadvault storage audit --json
+threadvault storage sync --json
+threadvault storage sync --apply --json
 threadvault storage verify --deep --json
 threadvault storage prune --json
 threadvault storage auto --apply --json
@@ -122,7 +126,7 @@ threadvault storage backup --profile core --out backups\core --json
 threadvault storage backup --profile evidence --out backups\evidence --json
 ```
 
-`storage auto --apply` is the normal hands-off entrypoint. It creates an initial Evidence backup, then chooses at most one due tier: daily Core, weekly Evidence, or monthly Forensic after 30 days of history. It skips unchanged archives, verifies every created backup, keeps only the newest 3/2/1 automatic Core/Evidence/Forensic generations, never deletes manually created backups, and blocks before writing when the configured disk reserve would be crossed.
+`storage auto --apply` is the normal hands-off entrypoint. Before selecting a backup tier, it compares every discovered Codex transcript with the import log and imports only missing, changed, stale-parser, or newly touched sources. A failed catch-up blocks the backup instead of silently preserving an out-of-date database. It then creates an initial Evidence backup or chooses at most one due tier: daily Core, weekly Evidence, or monthly Forensic after 30 days of history. It skips unchanged archives, verifies every created backup, keeps only the newest 3/2/1 automatic Core/Evidence/Forensic generations, never deletes manually created backups, and blocks before writing when the configured disk reserve would be crossed.
 
 Use `storage rebuild --target-db ...` for copy-on-write migrations. It never overwrites the source database and accepts the target only after count, conversation digest, doctor, and cold-reference checks pass.
 
@@ -159,7 +163,7 @@ Or run the CLI directly:
 threadvault desktop launch
 ```
 
-The desktop app uses Python stdlib Tkinter, opens without a browser, and keeps archive/search/export/backup/safety/maintenance checks on background worker threads so the window stays responsive. The Backup Center automatically explains the selected backup tier, last/next run, disk guard, and retention policy. Export writes require a current preview plus native confirmation. Restore defaults to a new database filename and refuses overwrite.
+The desktop app uses Python stdlib Tkinter, opens without a browser, and keeps archive/search/export/backup/safety/maintenance checks on background worker threads so the window stays responsive. The Backup Center explains pending source catch-up, selected tier, last/next run, disk guard, and retention policy. The Codex Integration page can install the pinned Stop hook and MCP registration with one confirmed action. Export writes require a current preview plus native confirmation. Restore defaults to a new database filename and refuses overwrite.
 
 Run a non-window desktop smoke check:
 
@@ -183,34 +187,32 @@ threadvault import
 
 ## Daily Codex Archive Workflow
 
-Run one full backfill after installation, then let the Codex `Stop` hook import only the transcript that changed after each turn:
+Install both Codex integrations with one dry-run-first command, catch up the initial archive, then let the Codex `Stop` hook import only the transcript that changed after each turn:
 
 ```powershell
-$threadvaultExe = (Resolve-Path .\.venv\Scripts\threadvault.exe).Path
 $archiveDb = (Resolve-Path .\data\threadvault.db).Path
-$hookCommand = '"' + $threadvaultExe + '" codex-hook ingest --apply --db "' + $archiveDb + '"'
-
-& $threadvaultExe import --db $archiveDb
-& $threadvaultExe codex-hook install --command $hookCommand --apply --json
-codex mcp add threadvault -- $threadvaultExe mcp serve --db $archiveDb
+threadvault codex install --db $archiveDb --json
+threadvault codex install --db $archiveDb --apply --json
+threadvault storage sync --db $archiveDb --apply --json
+threadvault codex status --db $archiveDb --json
 ```
 
-Open `/hooks` once in Codex, review the new user-level hook, and trust it. Codex requires this one-time trust review for non-managed command hooks. The installer writes `~/.codex/hooks.json`, preserves unrelated hooks, and does not replace the existing `notify` command.
+Open `/hooks` once in Codex, review the user-level hook, and trust it if Codex asks. Non-managed command hooks use an exact command hash for review. The installer writes `~/.codex/hooks.json`, preserves unrelated hooks, does not replace `notify`, pins the active ThreadVault executable and database, and updates Codex's shared `~/.codex/config.toml` MCP entry. Restart Codex after a newly created or changed MCP registration.
 
 Check that both integrations are present:
 
 ```powershell
-Get-Content "$HOME\.codex\hooks.json"
+threadvault codex status --db $archiveDb --json
 codex mcp list
-& $threadvaultExe ingest-queue list --db $archiveDb --json
+threadvault storage sync --db $archiveDb --json
 ```
 
 Later, retrieve an old conversation in whichever surface is most convenient:
 
 ```powershell
-& $threadvaultExe search "关键词" --db $archiveDb
-& $threadvaultExe agent retrieve "关键词" --db $archiveDb --json
-& $threadvaultExe client session SESSION_ID --db $archiveDb --json
+threadvault search "keyword" --db $archiveDb
+threadvault agent retrieve "keyword" --db $archiveDb --json
+threadvault client session SESSION_ID --db $archiveDb --json
 ```
 
 The native desktop app provides the same search-and-open flow. In a new Codex task, the registered read-only MCP tools let Codex search the archive and open session evidence directly.

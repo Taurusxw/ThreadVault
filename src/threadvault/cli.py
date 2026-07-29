@@ -23,6 +23,7 @@ from .audit import (
 from .backup_history import latest_backup_file, list_backup_files, prune_backup_history, verify_latest_backup
 from .client_runtime import render_client_tui
 from .codex_hooks import hook_continue_response, invalid_hook_payload_result
+from .codex_integration import codex_integration_status, install_codex_integration
 from .config import default_codex_home, default_db_path
 from .importer import sample_codex_home
 from .mcp import McpRuntimeConfig, mcp_manifest, serve_mcp
@@ -305,6 +306,9 @@ app.add_typer(ingest_queue_app, name="ingest-queue")
 codex_hook_app = typer.Typer(help="Codex Hook adapter utilities.")
 app.add_typer(codex_hook_app, name="codex-hook")
 
+codex_app = typer.Typer(help="Install and diagnose the complete Codex integration.")
+app.add_typer(codex_app, name="codex")
+
 export_target_app = typer.Typer(help="Batch export target utilities.")
 app.add_typer(export_target_app, name="export-target")
 
@@ -347,6 +351,8 @@ def storage_audit_command(
         console.print(f"[green]Database:[/green] {payload['db_path']}")
         console.print(f"[green]Hot bytes:[/green] {payload['db_bytes']}")
         console.print(f"[green]Cold blobs:[/green] {payload['cold']['blobs']}")
+    if not payload.get("ok"):
+        raise typer.Exit(code=2)
 
 
 @storage_app.command("rebuild")
@@ -364,7 +370,27 @@ def storage_rebuild_command(
         _print_json(payload)
     else:
         console.print(payload)
-    if not payload.get("ok"):
+
+
+@storage_app.command("sync")
+def storage_sync_command(
+    db: Annotated[Path | None, typer.Option("--db", help="SQLite database path.")] = None,
+    codex_home: Annotated[Path | None, typer.Option("--codex-home", help="Codex home containing transcript JSONL files.")] = None,
+    apply: Annotated[bool, typer.Option("--apply", help="Import only transcripts missing or newer than the archive.")] = False,
+    include_paths: Annotated[bool, typer.Option("--include-paths", help="Include local pending paths in JSON output.")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Check source freshness or catch the archive up before backup."""
+    payload = _store(db).storage_sync(codex_home=codex_home, apply=apply, include_paths=include_paths)
+    if json_output:
+        _print_json(payload)
+    else:
+        if apply and payload["ok"]:
+            action = "Archive synchronized"
+        else:
+            action = "Archive is current" if payload["fresh"] else "Source catch-up required"
+        console.print(f"[green]{action}:[/green] pending={payload['pending_files']} source={payload['source_files']}")
+    if apply and not payload.get("ok"):
         raise typer.Exit(code=2)
 
 
@@ -1394,6 +1420,66 @@ def codex_hook_install_command(
     console.print(f"[green]{verb} Codex Stop hook:[/green] {escape(payload['path'])}")
     if payload["trust_required"]:
         console.print("Open /hooks in Codex once to review and trust the new hook.")
+
+
+@codex_app.command("status")
+def codex_status_command(
+    codex_home: Annotated[Path | None, typer.Option("--codex-home", help="Codex home containing config.toml and hooks.json.")] = None,
+    db: Annotated[Path | None, typer.Option("--db", help="ThreadVault SQLite database path.")] = None,
+    threadvault_executable: Annotated[
+        Path | None,
+        typer.Option("--threadvault-executable", help="Override the ThreadVault console executable."),
+    ] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Report Hook, MCP, observed-ingestion, and source-freshness status."""
+    payload = codex_integration_status(
+        codex_home or default_codex_home(),
+        _db_option(db),
+        threadvault_executable=threadvault_executable,
+    )
+    if json_output:
+        _print_json(payload)
+        return
+    console.print(f"[green]Configured:[/green] {payload['ok']}")
+    console.print(f"[green]Healthy:[/green] {payload['healthy']}")
+    console.print(f"[green]Pending transcripts:[/green] {payload['source_freshness']['pending_files']}")
+    for action in payload["recommended_actions"]:
+        console.print(f"- {escape(action)}")
+
+
+@codex_app.command("install")
+def codex_install_command(
+    codex_home: Annotated[Path | None, typer.Option("--codex-home", help="Codex home to configure.")] = None,
+    db: Annotated[Path | None, typer.Option("--db", help="ThreadVault SQLite database path.")] = None,
+    threadvault_executable: Annotated[
+        Path | None,
+        typer.Option("--threadvault-executable", help="Override the ThreadVault console executable."),
+    ] = None,
+    codex_executable: Annotated[Path | None, typer.Option("--codex-executable", help="Override the Codex CLI executable.")] = None,
+    apply: Annotated[bool, typer.Option("--apply", help="Install the pinned Stop hook and MCP server.")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Plan or install the complete local Codex integration in one command."""
+    payload = install_codex_integration(
+        codex_home or default_codex_home(),
+        _db_option(db),
+        threadvault_executable=threadvault_executable,
+        codex_executable=codex_executable,
+        apply=apply,
+    )
+    if json_output:
+        _print_json(payload)
+    else:
+        verb = "Installed" if apply else "Would install"
+        console.print(f"[green]{verb} Codex integration.[/green]")
+        console.print(f"Hook: {payload['hook']['action']} · MCP: {payload['mcp']['action']}")
+        if payload["hook_trust_required"]:
+            console.print("Open /hooks in Codex and trust the ThreadVault Stop hook.")
+        if payload["restart_required"]:
+            console.print("Restart Codex so the MCP server is loaded.")
+    if not payload.get("ok"):
+        raise typer.Exit(code=2)
 
 
 @export_target_app.command("markdown")

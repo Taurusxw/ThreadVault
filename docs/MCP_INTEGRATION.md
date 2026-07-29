@@ -72,9 +72,21 @@ manifest 应包含：
 
 ## 3. Codex 配置
 
-Codex 使用 `config.toml` 配置 MCP。默认位置是 `~/.codex/config.toml`；受信任项目也可以使用项目级 `.codex/config.toml`。Codex CLI 和 IDE extension 共享这份配置。
+Codex Desktop、CLI 和 IDE extension 共享用户级 `~/.codex/config.toml` MCP 配置。ThreadVault 推荐使用组合安装器固定实际可执行文件和数据库路径，避免桌面启动的子进程找不到项目虚拟环境。
 
-推荐配置：
+推荐先预览，再应用：
+
+```powershell
+$archiveDb = (Resolve-Path <repo-root>\data\threadvault.db).Path
+threadvault codex install --db $archiveDb --json
+threadvault codex install --db $archiveDb --apply --json
+threadvault storage sync --db $archiveDb --apply --json
+threadvault codex status --db $archiveDb --json
+```
+
+该命令同时安装用户级 Stop hook 和只读 MCP。它保留无关 hook 与现有 `notify`，通过 Codex CLI 更新 MCP 配置，并在结果里明确是否需要重启或 hook 信任审核。之后在 Codex 输入 `/hooks` 进行一次检查；若 MCP 是新建或变更的，重启 Codex。
+
+等价的手工 MCP 配置形态如下，仅用于故障排查或其他客户端迁移：
 
 ```toml
 [mcp_servers.threadvault]
@@ -96,16 +108,16 @@ cwd = "<repo-root>"
 enabled = true
 ```
 
-也可以用 Codex CLI 添加：
+也可以只用 Codex CLI 添加 MCP：
 
 ```powershell
 codex mcp add threadvault -- <threadvault-exe> mcp serve --db <repo-root>\data\threadvault.db
 codex mcp list
 ```
 
-建议使用 `.venv\Scripts\threadvault.exe` 的绝对路径，避免 Codex Desktop 启动 MCP 子进程时找不到项目虚拟环境。配置后，新建一个 Codex task 让 MCP 工具列表刷新。
+建议使用 `.venv\Scripts\threadvault.exe` 的绝对路径。配置后重启 Codex，让 MCP 工具列表刷新。
 
-MCP 只负责“以后找回”。要让每天的新对话自动进入数据库，还要安装 Codex `Stop` hook：
+MCP 只负责“以后找回”。如果只手工安装了 MCP，还要另行安装 Codex `Stop` hook：
 
 ```powershell
 $threadvaultExe = (Resolve-Path <repo-root>\.venv\Scripts\threadvault.exe).Path
@@ -115,12 +127,12 @@ $hookCommand = '"' + $threadvaultExe + '" codex-hook ingest --apply --db "' + $a
 & $threadvaultExe codex-hook install --command $hookCommand --apply --json
 ```
 
-该命令写入用户级 `~/.codex/hooks.json`，保留其他 hook，不修改现有 `notify`。之后在 Codex 输入 `/hooks`，检查并信任一次新 hook；这是 Codex 对非托管命令 hook 的安全要求。每次 turn 停止时，ThreadVault 会记录队列请求并仅导入 hook 提供的 `transcript_path`，不会扫描全部历史。
+该命令写入用户级 `~/.codex/hooks.json`，保留其他 hook，不修改现有 `notify`。之后在 Codex 输入 `/hooks`，检查并在被要求时信任新 hook；Codex 对非托管命令 hook 按精确命令哈希审核。每次 turn 停止时，ThreadVault 会记录队列请求并仅导入 hook 提供的 `transcript_path`，不会扫描全部历史。每日 `storage auto --apply` 还会在备份前检查全部可发现来源并补导遗漏，形成兜底闭环。
 
 检查方式：
 
 ```text
-在 Codex 输入 /mcp，确认 threadvault server 和 tools 可见；输入 /hooks，确认 ThreadVault Stop hook 已 trusted。
+运行 threadvault codex status --db <archive-db> --json；在 Codex 输入 /mcp，确认 threadvault server 和 tools 可见；输入 /hooks，确认 ThreadVault Stop hook 已审核。
 ```
 
 建议给 Codex 的使用提示：
@@ -242,8 +254,8 @@ threadvault export-target obsidian --session SESSION_ID --out <repo-root>\thread
 5. 读取 `docs/KNOWLEDGE_GRAPH.md` 的 MCP cross-agent flow，确认数据流和边界。
 6. 运行 `threadvault mcp manifest --json`，用真实 manifest 覆盖记忆里的工具列表。
 7. 按目标客户端生成最小配置片段。
-8. 先输出 dry-run snippet，不直接写用户的全局 MCP 配置。
-9. 只有用户明确要求 apply/install，才修改客户端配置文件。
+8. 对 Codex 优先输出 `threadvault codex install --db ... --json` dry-run，不直接写用户的全局配置。
+9. 只有用户明确要求 apply/install，才运行 `threadvault codex install --db ... --apply --json`。
 
 生成配置时必须遵守：
 
@@ -264,9 +276,9 @@ threadvault export-target obsidian --session SESSION_ID --out <repo-root>\thread
    threadvault mcp manifest --json
    ```
 
-2. 确认 `threadvault` 在客户端启动环境的 PATH 中。
-3. 用完整路径或固定 Python 环境重写 `command`。
-4. 重启 MCP 客户端或新开会话。
+2. 运行 `threadvault codex status --db <archive-db> --json`，确认 MCP 指向预期的绝对可执行文件和数据库。
+3. 用 `threadvault codex install --db <archive-db> --apply --json` 修复不匹配配置。
+4. 重启 Codex 或其他 MCP 客户端。
 
 ### server 启动后没有数据
 
@@ -277,11 +289,10 @@ threadvault stats
 threadvault doctor
 ```
 
-如果没有导入过：
+如果数据库落后于源会话：
 
 ```powershell
-threadvault init
-threadvault import
+threadvault storage sync --apply --json
 ```
 
 ### 检索不到想要的旧内容
@@ -306,7 +317,8 @@ threadvault export-target skill --session SESSION_ID --out <repo-root>\threadvau
 
 ## 9. 已核实来源
 
-- Codex MCP 配置：`https://developers.openai.com/codex/mcp`
+- Codex MCP 配置：[OpenAI Codex MCP](https://learn.chatgpt.com/docs/extend/mcp)
+- Codex Hooks：[OpenAI Codex Hooks](https://learn.chatgpt.com/docs/hooks)
 - OpenCode MCP servers：`https://opencode.ai/docs/mcp-servers/`
 - Z.AI MCP integration docs：`https://docs.z.ai/devpack/mcp/vision-mcp-server`
 - ThreadVault 运行时 manifest：`threadvault mcp manifest --json`

@@ -200,6 +200,7 @@ def contract_schemas() -> dict[str, dict[str, Any]]:
                 "db_path": {"type": "string"},
                 "out_root": {"type": "string"},
                 "policy": {"type": "object"},
+                "source_sync": {"type": "object"},
                 "archive_state": {"type": "object"},
                 "latest": {"type": "object"},
                 "disk": {"type": "object"},
@@ -209,7 +210,26 @@ def contract_schemas() -> dict[str, dict[str, Any]]:
             },
             required=[
                 "contract_version", "ok", "applied", "action", "profile", "reason",
-                "db_path", "out_root", "policy", "archive_state", "latest", "disk",
+                "db_path", "out_root", "policy", "source_sync", "archive_state", "latest", "disk",
+            ],
+        ),
+        "storage_sync": object_schema(
+            {
+                "contract_version": {"type": "string"},
+                "ok": {"type": "boolean"},
+                "fresh": {"type": "boolean"},
+                "applied": {"type": "boolean"},
+                "db_path": {"type": "string"},
+                "codex_home": {"type": "string"},
+                "source_files": {"type": "integer"},
+                "pending_files": {"type": "integer"},
+                "pending_bytes": {"type": "integer"},
+                "pending_reasons": {"type": "object"},
+                "import_stats": {"type": ["object", "null"]},
+            },
+            required=[
+                "contract_version", "ok", "fresh", "applied", "db_path", "codex_home",
+                "source_files", "pending_files", "pending_bytes", "pending_reasons", "import_stats",
             ],
         ),
         "doctor": object_schema(
@@ -417,6 +437,40 @@ def contract_schemas() -> dict[str, dict[str, Any]]:
                 "trust_required": {"type": "boolean"},
             },
             required=["ok", "apply", "path", "action", "config", "trust_required"],
+        ),
+        "codex_integration_status": object_schema(
+            {
+                "contract_version": {"type": "string"},
+                "ok": {"type": "boolean"},
+                "healthy": {"type": "boolean"},
+                "codex_home": {"type": "string"},
+                "db_path": {"type": "string"},
+                "threadvault_executable": {"type": "string"},
+                "hook": {"type": "object"},
+                "mcp": {"type": "object"},
+                "source_freshness": {"type": "object"},
+                "recommended_actions": {"type": "array", "items": {"type": "string"}},
+            },
+            required=[
+                "contract_version", "ok", "healthy", "codex_home", "db_path",
+                "threadvault_executable", "hook", "mcp", "source_freshness", "recommended_actions",
+            ],
+        ),
+        "codex_integration_install": object_schema(
+            {
+                "contract_version": {"type": "string"},
+                "ok": {"type": "boolean"},
+                "applied": {"type": "boolean"},
+                "hook": {"type": "object"},
+                "mcp": {"type": "object"},
+                "status": {"type": "object"},
+                "restart_required": {"type": "boolean"},
+                "hook_trust_required": {"type": "boolean"},
+            },
+            required=[
+                "contract_version", "ok", "applied", "hook", "mcp", "status",
+                "restart_required", "hook_trust_required",
+            ],
         ),
         "export_target_manifest": object_schema(
             {

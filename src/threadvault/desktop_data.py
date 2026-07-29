@@ -9,10 +9,11 @@ from datetime import datetime, timedelta
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
+from .codex_integration import codex_integration_status, install_codex_integration
 from .config import default_codex_home, default_db_path
 from .mcp import mcp_manifest
 from .schemas import get_schema, schema_names, write_schema_files
-from .state import load_state_thread_index
+from .state import load_state_thread_index, state_candidates
 from .store import ArchiveStore, robot_guide, robot_schemas
 
 DESKTOP_APP_CONTRACT_VERSION = "desktop_app.v2"
@@ -133,10 +134,12 @@ class DesktopDataGateway:
     def __init__(self, store: ArchiveStore, config: DesktopAppConfig) -> None:
         self.store = store
         self.config = config
+        self._state_index_cache: dict[str, dict[str, Any]] = {}
+        self._state_index_signature: tuple[tuple[str, int | None, int | None], ...] | None = None
 
     def snapshot(self, query: str = "", session_id: str = "") -> DesktopSnapshot:
         overview = self.store.client_overview(query=query or None, limit=self.config.limit, local_debug=False)
-        thread_index = load_state_thread_index(self.config.resolved_codex_home)
+        thread_index = self._state_index()
         sessions = [_session_row(item, thread_index) for item in overview.get("sessions", [])]
         session_index = {row.session_id: row for row in sessions}
         search_rows = [_search_row(item, thread_index, session_index) for item in _search_results(overview)]
@@ -159,7 +162,7 @@ class DesktopDataGateway:
     def session_summary(self, session_id: str) -> str:
         payload = self.store.client_session(session_id=session_id, event_limit=12, local_debug=False)
         summary = payload.get("summary") or {}
-        state = load_state_thread_index(self.config.resolved_codex_home).get(session_id, {})
+        state = self._state_index().get(session_id, {})
         project = _project_name(payload.get("session", {}).get("cwd"))
         text = _friendly_title(state.get("title"), project)
         if not text:
@@ -287,11 +290,21 @@ class DesktopDataGateway:
     def integration_summary(self) -> DesktopTextResult:
         manifest = mcp_manifest()
         tools = manifest.get("tools", [])
-        integration = _codex_integration_status(self.config.resolved_codex_home, self.config.automation_id)
+        integration = codex_integration_status(
+            self.config.resolved_codex_home,
+            self.config.resolved_db_path,
+        )
+        hook = integration["hook"]
+        mcp = integration["mcp"]
+        freshness = integration["source_freshness"]
+        schedule = _automation_schedule(self.config.resolved_codex_home, self.config.automation_id)
+        freshness_text = "已同步" if freshness["fresh"] else f"待补导 {freshness['pending_files']} 个文件"
         lines = [
-            f"Codex MCP：{'已连接' if integration['mcp'] else '未检测到配置'}",
-            f"自动入库 Hook：{'已安装' if integration['hook'] else '未检测到'}",
-            f"每日智能备份：{'已启用' if integration['automation'] else '未启用'}",
+            f"Codex MCP：{'配置正确' if mcp['matches'] else ('配置已漂移' if mcp['configured'] else '未安装')}",
+            f"自动入库 Hook：{'配置正确' if hook['matches'] else ('配置已漂移' if hook['configured'] else '未安装')}",
+            f"Hook 实际记录：{'已覆盖最新源会话' if hook['activity']['current'] else '未覆盖最新源变化，请在 /hooks 检查信任'}",
+            f"归档新鲜度：{freshness_text}",
+            f"每日智能备份：{schedule['label']}",
             "",
             f"ThreadVault 提供 {len(tools)} 个只读 MCP 工具，可检索历史、查看会话、诊断和预览导出。",
             "MCP 不会修改归档，也不会自动上传会话。",
@@ -300,16 +313,49 @@ class DesktopDataGateway:
         ]
         for tool in tools:
             lines.append(f"- {tool.get('name', '')}")
-        status = "Codex 已连接 ThreadVault MCP" if integration["mcp"] else "未检测到 Codex MCP 配置"
+        if integration["healthy"]:
+            status = "Codex 联动与归档均正常"
+        elif integration["ok"]:
+            status = "Codex 已配置，但仍需完成信任或归档补导"
+        else:
+            status = "Codex 联动需要重新安装"
         return DesktopTextResult(title="MCP 联动", text="\n".join(lines), status=status)
+
+    def install_codex(self, *, apply: bool = True) -> DesktopTextResult:
+        payload = install_codex_integration(
+            self.config.resolved_codex_home,
+            self.config.resolved_db_path,
+            apply=apply,
+        )
+        hook = payload["hook"]
+        mcp = payload["mcp"]
+        lines = [
+            f"Hook：{hook['action']}",
+            f"MCP：{mcp['action']}",
+            f"配置模式：{'已应用' if apply else '仅预览'}",
+        ]
+        if payload["hook_trust_required"]:
+            lines.append("请在 Codex 中打开 /hooks，检查并信任 ThreadVault Stop Hook。")
+        elif not payload["status"]["hook"]["activity"]["observed"]:
+            lines.append("尚未观察到 Hook 运行记录；请在 /hooks 检查它是否已信任。")
+        if payload["restart_required"]:
+            lines.append("请重启 Codex，使新 MCP 配置生效。")
+        return DesktopTextResult(
+            title="Codex 一键联动",
+            text="\n".join(lines),
+            status="Codex 联动已安装" if payload["ok"] and apply else "Codex 联动安装预览",
+        )
 
     def health_summary(self) -> DesktopTextResult:
         stats = self.store.stats()
         doctor = self.store.doctor()
+        freshness = self.store.storage_sync(codex_home=self.config.resolved_codex_home, apply=False)
+        healthy = bool(doctor.get("ok") and freshness["fresh"])
         lines = [
-            f"总体状态：{'健康' if doctor.get('ok') else '需要处理'}",
+            f"总体状态：{'健康' if healthy else '需要处理'}",
             f"数据库：{self.config.resolved_db_path}",
             f"会话：{stats.get('sessions', 0)}　事件：{stats.get('events', 0)}　警告：{stats.get('warnings', 0)}",
+            f"源会话：{freshness['source_files']} 个　待补导：{freshness['pending_files']} 个",
             f"Python：{doctor.get('python', '')}",
             "",
             "检查项目：",
@@ -317,6 +363,8 @@ class DesktopDataGateway:
         for check in doctor.get("checks", []):
             lines.append(f"- {'通过' if check.get('ok') else '失败'}：{check.get('name', '')} — {check.get('message', '')}")
         suggestions = doctor.get("maintenance_suggestions", [])
+        if not freshness["fresh"]:
+            suggestions = [f"运行智能备份或 storage sync --apply，先补导 {freshness['pending_files']} 个源会话文件。", *suggestions]
         lines.extend(["", "维护建议："])
         lines.extend(f"- {item}" for item in suggestions)
         if not suggestions:
@@ -324,7 +372,7 @@ class DesktopDataGateway:
         return DesktopTextResult(
             title="健康诊断",
             text="\n".join(lines),
-            status="诊断通过" if doctor.get("ok") else "诊断发现问题",
+            status="诊断通过" if healthy else "诊断发现问题",
         )
 
     def backup_center_status(self, out_root: str | Path | None = None) -> DesktopBackupCenter:
@@ -339,7 +387,11 @@ class DesktopDataGateway:
         last_run = _last_backup_run(root)
         action = str(plan.get("action") or "unknown")
         profile = plan.get("profile")
-        if action == "skip":
+        if action == "sync":
+            pending = (plan.get("source_sync") or {}).get("pending_files", 0)
+            headline = f"有 {pending} 个会话文件等待入库"
+            detail = "点击立即智能备份后会先补齐归档，再重新判断是否需要创建并验证新备份。"
+        elif action == "skip":
             headline = "备份状态正常"
             detail = "当前备份仍新鲜，或归档内容没有需要创建新副本的变化。"
         elif action == "backup":
@@ -586,6 +638,15 @@ class DesktopDataGateway:
         ]
         return DesktopTextResult(title="高级", text="\n".join(lines), status="高级维护入口已就绪")
 
+    def _state_index(self) -> dict[str, dict[str, Any]]:
+        """Reuse friendly local titles only while their SQLite inputs are unchanged."""
+
+        signature = _state_index_signature(self.config.resolved_codex_home)
+        if signature != self._state_index_signature:
+            self._state_index_cache = load_state_thread_index(self.config.resolved_codex_home)
+            self._state_index_signature = signature
+        return self._state_index_cache
+
 
 def build_desktop_gateway(config: DesktopAppConfig) -> DesktopDataGateway:
     return DesktopDataGateway(ArchiveStore(config.resolved_db_path), config)
@@ -687,6 +748,21 @@ def _status_text(session_count: int, result_count: int, has_query: bool) -> str:
 
 def _tkinter_available() -> bool:
     return importlib.util.find_spec("tkinter") is not None
+
+
+def _state_index_signature(codex_home: Path) -> tuple[tuple[str, int | None, int | None], ...]:
+    """Return a cheap invalidation signature for Codex state SQLite and its WAL files."""
+
+    signatures: list[tuple[str, int | None, int | None]] = []
+    for database in state_candidates(codex_home):
+        for candidate in (database, database.with_name(f"{database.name}-wal"), database.with_name(f"{database.name}-shm")):
+            try:
+                stat = candidate.stat()
+            except OSError:
+                signatures.append((str(candidate), None, None))
+            else:
+                signatures.append((str(candidate), stat.st_mtime_ns, stat.st_size))
+    return tuple(signatures)
 
 
 def _manifest_status(manifest: Any) -> str:
@@ -791,6 +867,8 @@ def _backup_reason(value: Any) -> str:
         "weekly_evidence_due": "归档有变化，且每周证据备份已经到期。",
         "monthly_forensic_due": "归档有变化，且每月取证备份已经到期。",
         "fresh_or_unchanged": "已有备份仍新鲜，或归档内容没有变化。",
+        "source_sync_required": "源会话比归档更新，需要先自动补导。",
+        "source_sync_failed": "源会话补导没有完整通过，已阻止备份。",
         "insufficient_disk_space": "可用磁盘空间不足，系统已安全阻止写入。",
         "backup_already_running": "另一个智能备份正在运行。",
     }.get(str(value or ""), str(value or "未知原因"))
@@ -848,31 +926,3 @@ def _automation_schedule(codex_home: Path, automation_id: str) -> dict[str, str]
         }
     except (OSError, ValueError, tomllib.TOMLDecodeError):
         return {"label": "自动任务配置不可读取", "next_run": "未知"}
-
-
-def _codex_integration_status(codex_home: Path, automation_id: str) -> dict[str, bool]:
-    mcp = False
-    config_path = codex_home / "config.toml"
-    try:
-        if config_path.is_file():
-            with config_path.open("rb") as handle:
-                config = tomllib.load(handle)
-            mcp = "threadvault" in (config.get("mcp_servers") or {})
-    except (OSError, tomllib.TOMLDecodeError):
-        pass
-    hook = False
-    hooks_path = codex_home / "hooks.json"
-    try:
-        if hooks_path.is_file():
-            hook = "threadvault" in hooks_path.read_text(encoding="utf-8").lower()
-    except OSError:
-        pass
-    automation_path = codex_home / "automations" / automation_id / "automation.toml"
-    automation = False
-    try:
-        if automation_path.is_file():
-            with automation_path.open("rb") as handle:
-                automation = str(tomllib.load(handle).get("status", "")).upper() == "ACTIVE"
-    except (OSError, tomllib.TOMLDecodeError):
-        pass
-    return {"mcp": mcp, "hook": hook, "automation": automation}

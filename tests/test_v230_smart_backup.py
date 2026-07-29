@@ -98,6 +98,18 @@ def test_smart_backup_retains_only_three_automatic_core_backups(tmp_path: Path) 
     assert len(databases) == 3
 
 
+def test_verified_backup_releases_windows_file_handle_before_retention(tmp_path: Path) -> None:
+    db = tmp_path / "threadvault.db"
+    out = tmp_path / "backups"
+    _import_fixture(db)
+    payload = run_smart_backup(db, out_root=out, codex_home=FIXTURES, apply=True, include_forensic=False)
+    backup = Path(payload["backup"]["database"]["destination"])
+
+    backup.unlink()
+
+    assert not backup.exists()
+
+
 def test_smart_backup_blocks_before_writing_when_disk_is_insufficient(tmp_path: Path, monkeypatch) -> None:
     db = tmp_path / "threadvault.db"
     out = tmp_path / "backups"
@@ -134,3 +146,27 @@ def test_storage_auto_cli_and_schema_contract(tmp_path: Path) -> None:
     )
     assert validated.exit_code == 0, validated.output
     assert json.loads(validated.output)["ok"] is True
+
+
+def test_smart_backup_plans_and_applies_source_catch_up_before_backup(tmp_path: Path) -> None:
+    home = tmp_path / ".codex"
+    sessions = home / "sessions"
+    sessions.mkdir(parents=True)
+    shutil.copy2(FIXTURES / "sessions" / "current.jsonl", sessions / "current.jsonl")
+    db = tmp_path / "threadvault.db"
+    out = tmp_path / "backups"
+    runner = CliRunner()
+    imported = runner.invoke(app, ["import", "--db", str(db), "--codex-home", str(home), "--json"])
+    assert imported.exit_code == 0, imported.output
+    shutil.copy2(FIXTURES / "sessions" / "fork.jsonl", sessions / "fork.jsonl")
+
+    plan = run_smart_backup(db, out_root=out, codex_home=home)
+    applied = run_smart_backup(db, out_root=out, codex_home=home, apply=True)
+
+    assert plan["action"] == "sync"
+    assert plan["reason"] == "source_sync_required"
+    assert plan["source_sync"]["pending_files"] == 1
+    assert applied["ok"] is True
+    assert applied["source_sync"]["import_stats"]["imported"] == 1
+    assert applied["source_sync"]["pending_files"] == 0
+    assert applied["action"] == "created"

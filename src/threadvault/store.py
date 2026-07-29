@@ -77,6 +77,7 @@ from .restore_plan import build_restore_plan
 from .retrieval import RETRIEVAL_CONTRACT_VERSION, RETRIEVAL_MODES, RetrievalQuery, build_retrieval_diagnostics, retrieve, retrieve_response
 from .schemas import CONTRACT_VERSION, contract_schemas
 from .smart_backup import run_smart_backup
+from .source_sync import sync_codex_sources
 from .state import inspect_state
 from .summarizer import build_summary
 from .summary_pipeline import SUMMARY_CHUNKS_CONTRACT_VERSION, SummaryChunkRequest, build_summary_chunks
@@ -654,6 +655,20 @@ class ArchiveStore:
     def storage_verify(self, cold_root: Path | None = None, *, deep: bool = False) -> dict[str, Any]:
         return verify_cold_storage(self.db_path, cold_root=cold_root, deep=deep)
 
+    def storage_sync(
+        self,
+        *,
+        codex_home: Path | None = None,
+        apply: bool = False,
+        include_paths: bool = False,
+    ) -> dict[str, Any]:
+        return sync_codex_sources(
+            self.db_path,
+            codex_home=codex_home,
+            apply=apply,
+            include_paths=include_paths,
+        )
+
     def storage_prune(self, cold_root: Path | None = None, *, apply: bool = False) -> dict[str, Any]:
         return prune_cold_storage(self.db_path, cold_root=cold_root, apply=apply)
 
@@ -843,6 +858,7 @@ def capabilities() -> dict[str, Any]:
             "config",
             "ingest-queue",
             "codex-hook",
+            "codex",
             "export-target",
             "retrieval",
             "summary-pipeline",
@@ -900,6 +916,8 @@ def capabilities() -> dict[str, Any]:
             "codex-hook ingest",
             "codex-hook config",
             "codex-hook install",
+            "codex status",
+            "codex install",
             "export-target markdown",
             "export-target obsidian",
             "export-target skill",
@@ -922,6 +940,7 @@ def capabilities() -> dict[str, Any]:
             "mcp manifest",
             "mcp serve",
             "storage audit",
+            "storage sync",
             "storage rebuild",
             "storage verify",
             "storage event",
@@ -951,6 +970,7 @@ def capabilities() -> dict[str, Any]:
             "privacy_allowlist": True,
             "ingestion_queue": True,
             "codex_hook_adapter": True,
+            "codex_one_command_integration": True,
             "export_target_manifest": True,
             "obsidian_vault_target": True,
             "codex_skill_target": True,
@@ -975,6 +995,7 @@ def capabilities() -> dict[str, Any]:
             "content_addressed_cold_blobs": True,
             "storage_backup_profiles": list(STORAGE_PROFILES),
             "smart_backup": True,
+            "source_freshness_guard": True,
             "summary_evidence_chunks": True,
             "local_vector_adapter": True,
             "local_vector_enabled_by_default": False,

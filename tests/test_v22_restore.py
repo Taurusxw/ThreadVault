@@ -58,6 +58,7 @@ def test_restore_apply_to_new_target_writes_and_verifies(tmp_path: Path) -> None
     assert payload["restored_doctor"]["ok"] is True
     assert session_count(target) == session_count(backup)
     assert target.with_name(f"{target.name}.manifest.json").exists()
+    assert (tmp_path / "restore-history.jsonl").exists()
     result = runner.invoke(app, ["backup-manifest", "--backup", str(target), "--json"])
     assert result.exit_code == 0, result.output
 

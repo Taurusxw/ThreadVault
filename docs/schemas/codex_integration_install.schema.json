@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "ok",
+    "applied",
+    "hook",
+    "mcp",
+    "status",
+    "restart_required",
+    "hook_trust_required"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "applied": {
+      "type": "boolean"
+    },
+    "hook": {
+      "type": "object"
+    },
+    "mcp": {
+      "type": "object"
+    },
+    "status": {
+      "type": "object"
+    },
+    "restart_required": {
+      "type": "boolean"
+    },
+    "hook_trust_required": {
+      "type": "boolean"
+    }
+  }
+}

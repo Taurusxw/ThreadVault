@@ -60,7 +60,7 @@ flowchart LR
 | Export | Export Selection, Export Preview, Export Target, Export Manifest, Output File | `export_targets.py`, `exporter.py` | Write actions must follow preview acceptance and privacy handling. |
 | Safety | Privacy Finding, Export Preview, Backup Verification, Restore Plan, Confirmation Gate | `privacy.py`, `export_targets.py`, backup/restore modules | Personal safety controls wrap exports and local write operations. |
 | Operations | Backup, Backup Manifest, Restore Plan, Restore History, Audit History | `backup_manifest.py`, `backup_history.py`, `restore_plan.py`, `restore.py`, `restore_history.py`, `audit.py` | Local operational artifacts may contain private archive data and should be treated as private. |
-| Interface | CLI Command, Native Desktop View, Desktop Export Plan, Backup Center, MCP Tool, JSON Schema | `cli.py`, `desktop_app.py`, `desktop_data.py`, `mcp.py`, `schemas.py` | Active UI and agents should reuse existing store/client contracts instead of duplicating parser, database, export, or backup policy. |
+| Interface | CLI Command, Native Desktop View, Desktop Export Plan, Backup Center, Codex Integration Status, MCP Tool, JSON Schema | `cli.py`, `desktop_app.py`, `desktop_data.py`, `codex_integration.py`, `mcp.py`, `schemas.py` | Active UI and agents should reuse existing store/client contracts instead of duplicating parser, database, export, integration, or backup policy. |
 
 ## Core Entity Catalog
 
@@ -78,6 +78,7 @@ flowchart LR
 | Event | Normalized message, tool, system, or warning-related record. | Parser/importer | Search, session detail, summaries, exports | SQLite `events`, `events_fts` |
 | Clean Knowledge Field | Derived searchable text plus index policy/value level for one event. | Database migration/import | FTS retrieval, diagnostics | SQLite `events.indexed_text`, `index_policy`, `value_level` |
 | Import Log | Provenance and status record for a source import attempt. | Importer | Diagnostics, doctor, audit | SQLite `import_logs` |
+| Source Freshness | Comparison between discoverable transcripts and import provenance/parser state. | `source_sync.py` | CLI, smart backup, desktop, Codex diagnostics | JSON contract |
 | Parse Warning | Structured warning emitted while parsing/importing. | Parser/importer | Warning detail, client warnings, diagnostics | SQLite `parse_warnings` |
 | FTS Index | SQLite full-text index over cleaned event text and selected fields. | Database triggers / rebuild | Search, retrieval, hybrid retrieval | SQLite `events_fts` |
 | Summary | Local, rule-based, evidence-backed condensation of a session/project. | Summarizer | Client detail, export targets, summary chunks | Derived at read/export time |
@@ -100,12 +101,13 @@ flowchart LR
 | Output File | User-facing Markdown/Obsidian/Skill artifact. | Export writers | User, Codex, editors | Local filesystem |
 | Privacy Finding | Sensitive-content finding with warn/redact/fail behavior. | Privacy scanner | Export, client warnings, UI | Response payload; sometimes manifest metadata |
 | Backup | SQLite database copy for local recovery. | Backup workflow | Restore, verification, history | Local filesystem |
-| Backup Center | Native presentation of smart-backup status, schedule, disk guard, tier, and one-click execution. | Desktop data gateway | Local user | Runtime UI |
+| Backup Center | Native presentation of source freshness, smart-backup status, schedule, disk guard, tier, and one-click execution. | Desktop data gateway | Local user | Runtime UI |
 | Backup Manifest | Metadata/provenance file beside a backup. | Backup manifest writer | Backup verification | Local filesystem |
 | Restore Plan | Dry-run plan for applying a backup to a target DB. | Restore planner | Restore apply, UI review | JSON payload |
 | Restore History | Record of restore operations. | Restore workflow | Restore history UI/CLI | Local filesystem |
 | Corpus Audit Report | Anonymized corpus-level report over local files. | Audit module | Audit history, diff | Local filesystem |
 | Native Desktop App | Primary local Tkinter shell over desktop data gateway. | `desktop_app.py`, `desktop_data.py` | Local user | Runtime UI |
+| Codex Integration Status | Exact Hook/MCP match, hook activity, source freshness, and recommended actions. | `codex_integration.py` | CLI, desktop, local user | JSON contract / runtime UI |
 | MCP Tool | Read-only stdio tool exposed to MCP-capable local agents. | `mcp.py` | Codex, ZCode, OpenCode, other MCP clients | Runtime manifest / JSON-RPC |
 | JSON Schema | Packaged contract used to validate command/API payloads. | `schemas.py` | CLI, tests, agents, docs | `docs/schemas/` |
 
@@ -120,6 +122,8 @@ flowchart LR
 | Session | contains | Turn | `turns.session_id` |
 | Turn | groups | Event | `turns`, `events.turn_index` |
 | Import Log | records provenance for | Codex Transcript File | `import_logs.raw_path`, `raw_sha256` |
+| Source Freshness | compares | Codex Transcript File / Import Log | `source_sync.py`, `storage_sync` contract |
+| Source Freshness | targets stale inputs for | Importer | Missing, changed, stale-parser, and touched reasons only. |
 | Parse Warning | references | Session | `parse_warnings.session_id` |
 | Event | indexes into | FTS Index | `events_fts` triggers |
 | Event | derives | Clean Knowledge Field | `database.classify_index_text` |
@@ -143,10 +147,12 @@ flowchart LR
 | Backup Manifest | verifies | Backup | `backup_manifest.py` |
 | Event | references | Cold Blob | `events.payload_ref` or compact payload asset refs |
 | Storage Backup Manifest | binds | Hot DB, cold blobs, optional forensic JSONL | `archive_lifecycle.py` |
+| Smart Backup Decision | requires | Source Freshness | `smart_backup.py`, `smart-backup.v2`; catch-up failure blocks backup. |
 | Smart Backup Decision | selects and verifies | Core / Evidence / Forensic Backup | `smart_backup.py`, `storage_auto` contract |
 | Backup Center | presents and invokes | Smart Backup Decision | `desktop_data.py`, `desktop_app.py` |
 | Smart Backup Retention | prunes only | Superseded automatic backup generations | Automatic keep counts are Core 3, Evidence 2, Forensic 1; manual backups are out of scope. |
 | Native Desktop App | routes through | Desktop Data Gateway | `desktop_data.py`, `threadvault desktop launch` |
+| Codex Integration Status | describes and installs | Stop Hook / MCP Registration | `threadvault codex status/install`, `codex_integration.py` |
 | Desktop Data Gateway | routes to | ArchiveStore Method | `DesktopDataGateway` |
 | MCP Tool | routes to | Read-only MCP Runtime | `mcp.py`, `mcp_runtime.py`, `threadvault mcp serve` |
 | MCP Tool | returns | Agent Retrieval / Client Session / Client Export Preview Payload | `structuredContent` |
@@ -176,6 +182,8 @@ flowchart LR
 ```text
 Codex home
   -> discover sessions / archived_sessions
+  -> compare source path/hash/mtime/parser version with import log
+  -> select only stale sources
   -> parse JSONL records
   -> normalize sessions, turns, events, parse warnings
   -> derive clean indexed_text and value levels
@@ -189,6 +197,7 @@ Important boundaries:
 - The importer reads local files only.
 - Raw transcript text remains local.
 - Hook-triggered ingestion records queue history and imports only `transcript_path`; it must not perform a full Codex-home scan inside the hook process.
+- `storage sync` and smart backup perform full-home discovery but import only sources classified as stale; source paths are hidden from default JSON output.
 
 ### 2. Search, Retrieval, And Agent Use
 
@@ -289,6 +298,7 @@ The former browser UI runtime, launcher, active tests, and active discovery meta
 
 ```text
 Archive database
+  <- source freshness check + targeted catch-up
   -> backup copy + optional manifest
   -> verify backup
   -> restore plan
@@ -299,6 +309,7 @@ Archive database
 Important boundaries:
 
 - Backups may contain private transcript content.
+- Smart backup must catch up source transcripts first and block rather than verify a known-stale database.
 - Restore apply is intentionally separated from restore planning.
 - Destructive cleanup/prune operations require explicit apply/confirmation.
 

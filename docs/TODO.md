@@ -11,6 +11,11 @@
 
 ## Completed In Current Rounds
 
+- Added source freshness inspection and targeted catch-up for missing, changed, stale-parser, and newly touched Codex transcripts.
+- Made smart backup catch up sources first and block on catch-up failure, so automatic backups cannot silently preserve a known-stale archive.
+- Added dry-run-first `threadvault codex status/install` for exact Stop hook and read-only MCP setup, plus desktop one-click integration.
+- Added Windows CI with Python 3.11/3.12, ruff, 70% branch-coverage gate, isolated desktop smoke, and MCP manifest validation.
+- Fixed the rendered desktop startup Treeview state regression and Windows SQLite backup-retention file locks.
 - Reworked the native desktop into friendly session tables, a foolproof Backup Center, confirmed export, safe restore defaults, automatic health summaries, directory pickers, scrollbars, focusable controls, and Chinese labels.
 - Added one-command smart backup selection, verification, disk guard, last-run status, and bounded automatic retention.
 - Added schema v8 hot/cold storage with content-addressed immutable evidence.

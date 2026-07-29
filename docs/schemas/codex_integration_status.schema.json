@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "ok",
+    "healthy",
+    "codex_home",
+    "db_path",
+    "threadvault_executable",
+    "hook",
+    "mcp",
+    "source_freshness",
+    "recommended_actions"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "healthy": {
+      "type": "boolean"
+    },
+    "codex_home": {
+      "type": "string"
+    },
+    "db_path": {
+      "type": "string"
+    },
+    "threadvault_executable": {
+      "type": "string"
+    },
+    "hook": {
+      "type": "object"
+    },
+    "mcp": {
+      "type": "object"
+    },
+    "source_freshness": {
+      "type": "object"
+    },
+    "recommended_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

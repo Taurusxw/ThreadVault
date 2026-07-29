@@ -46,10 +46,22 @@ def sample_codex_home(codex_home: Path | None = None, limit: int | None = None, 
 
 
 def import_codex_home(conn, codex_home: Path | None = None) -> ImportStats:
+    return import_codex_files(conn, discover_jsonl_files(codex_home), codex_home=codex_home)
+
+
+def import_codex_files(
+    conn,
+    files: list[tuple[Path, bool]],
+    *,
+    codex_home: Path | None = None,
+) -> ImportStats:
+    """Import a known set of transcripts while loading Codex state metadata once."""
+
     stats = ImportStats()
     state_threads = load_state_threads(codex_home)
-    for path, archived in discover_jsonl_files(codex_home):
-        _import_file(conn, path, archived, state_threads.get(path.resolve()), stats)
+    for path, archived in files:
+        resolved = path.expanduser().resolve()
+        _import_file(conn, resolved, archived, state_threads.get(resolved), stats)
     return stats
 
 

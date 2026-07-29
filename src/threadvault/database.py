@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 from collections.abc import Iterable
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -163,10 +164,10 @@ def backup_database(db_path: Path, out: Path, force: bool = False) -> dict[str, 
     if existed:
         destination.unlink()
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with connect(db_path) as source, sqlite3.connect(destination) as target:
+    with closing(connect(db_path)) as source, closing(sqlite3.connect(destination)) as target:
         init_db(source)
         source.backup(target)
-    with connect(destination) as backup_conn:
+    with closing(connect(destination)) as backup_conn:
         schema_row = backup_conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
         backup_stats = stats(backup_conn)
     return {
@@ -200,7 +201,7 @@ def verify_database_backup(path: Path) -> dict[str, Any]:
         base["errors"].append({"code": "backup_missing", "message": "Backup file does not exist."})
         return base
     try:
-        with connect_readonly(backup_path) as conn:
+        with closing(connect_readonly(backup_path)) as conn:
             integrity = [row[0] for row in conn.execute("PRAGMA integrity_check").fetchall()]
             schema_row = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
             doctor_result = doctor(conn)
@@ -362,10 +363,11 @@ def init_db(conn: sqlite3.Connection) -> None:
     _migrate_v6(conn)
     _migrate_v7(conn)
     _migrate_v8(conn)
-    conn.execute(
-        "INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', ?)",
-        (str(SCHEMA_VERSION),),
-    )
+    schema_row = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
+    if schema_row is None:
+        conn.execute("INSERT INTO meta(key, value) VALUES ('schema_version', ?)", (str(SCHEMA_VERSION),))
+    elif str(schema_row[0]) != str(SCHEMA_VERSION):
+        conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_version'", (str(SCHEMA_VERSION),))
     conn.commit()
 
 
@@ -1015,6 +1017,17 @@ def _append_text(existing: str | None, text: str | None) -> str | None:
 
 def log_skipped(conn: sqlite3.Connection, raw_path: Path, raw_sha256: str, message: str) -> None:
     with conn:
+        cursor = conn.execute(
+            """
+            UPDATE import_logs
+            SET imported_at = CURRENT_TIMESTAMP,
+                message = ?
+            WHERE raw_path = ? AND raw_sha256 = ? AND status = 'imported'
+            """,
+            (message, str(raw_path), raw_sha256),
+        )
+        if cursor.rowcount:
+            return
         conn.execute(
             """
             INSERT OR IGNORE INTO import_logs(raw_path, raw_sha256, status, message)

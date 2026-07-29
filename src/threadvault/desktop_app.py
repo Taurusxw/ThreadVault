@@ -4,7 +4,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, StringVar, TclError, Text, Tk, filedialog, messagebox, ttk
+from tkinter import BOTH, END, LEFT, RIGHT, Menu, StringVar, Text, Tk, filedialog, ttk
 from typing import TypeVar
 
 from .desktop_data import (
@@ -16,6 +16,7 @@ from .desktop_data import (
     DesktopTextResult,
     build_desktop_gateway,
 )
+from .desktop_theme import DesktopAppTheme, ask_themed_confirmation, configure_desktop_theme, configure_popup_menu, configure_text_surface
 
 T = TypeVar("T")
 
@@ -32,11 +33,15 @@ PRIVACY_MODES = {
 
 
 @dataclass(frozen=True)
-class DesktopAppTheme:
-    font_family: str = "Segoe UI"
-    font_size: int = 10
-    window_width: int = 1080
-    window_height: int = 700
+class TreeReconcileStats:
+    inserted: int = 0
+    updated: int = 0
+    removed: int = 0
+    moved: int = 0
+
+    @property
+    def changed(self) -> int:
+        return self.inserted + self.updated + self.removed + self.moved
 
 
 class ThreadVaultDesktopApp:
@@ -66,9 +71,11 @@ class ThreadVaultDesktopApp:
         self.backup_disk = StringVar(value="—")
         self.health_headline = StringVar(value="打开本页后自动诊断")
         self.busy = False
-        self.buttons: list[ttk.Button] = []
+        self.buttons: list[ttk.Widget] = []
+        self.inputs: list[tuple[ttk.Widget, str]] = []
         self.session_rows: dict[str, object] = {}
         self.search_rows: dict[str, object] = {}
+        self.selected_tree: ttk.Treeview | None = None
         self.export_plan: DesktopExportPlan | None = None
         self.backup_loaded = False
         self.backup_can_run = True
@@ -86,12 +93,19 @@ class ThreadVaultDesktopApp:
 
     def refresh(self) -> None:
         query = self.query.get().strip()
-        self._load_async("正在刷新会话", lambda: self.gateway.snapshot(query=query), self._render_snapshot)
+        session_id = self.selected_session.get().strip()
+        self._load_async(
+            "正在刷新会话",
+            lambda: self.gateway.snapshot(query=query, session_id=session_id),
+            self._render_snapshot,
+        )
 
     def open_selected(self) -> None:
-        selection = self.session_tree.selection()
-        if selection:
-            self._open_session(selection[0])
+        session_id = self.selected_session.get().strip()
+        if session_id:
+            self._open_session(session_id)
+        else:
+            self.status.set("请先选择一个会话")
 
     def open_search_selected(self) -> None:
         selection = self.search_tree.selection()
@@ -220,6 +234,19 @@ class ThreadVaultDesktopApp:
             lambda result: self._render_text_result(result, self.integration_text),
         )
 
+    def install_codex_integration(self) -> None:
+        if not self._confirm(
+            "将更新当前用户的 Codex Hook 与 MCP 配置。现有无关配置会保留。是否继续？",
+            title="安装 Codex 联动",
+        ):
+            self.status.set("已取消安装 Codex 联动")
+            return
+        self._load_async(
+            "正在安装 Codex 联动",
+            self.gateway.install_codex,
+            lambda result: self._render_text_result(result, self.integration_text),
+        )
+
     def show_health(self) -> None:
         self._load_async("正在诊断", self.gateway.health_summary, self._render_health)
 
@@ -318,10 +345,12 @@ class ThreadVaultDesktopApp:
     def _select_session_from_tree(self, tree: ttk.Treeview) -> None:
         selection = tree.selection()
         if selection and selection[0] in {**self.session_rows, **self.search_rows}:
+            self.selected_tree = tree
             self._set_selected_session(selection[0])
 
     def _set_selected_session(self, session_id: str) -> None:
-        self.selected_session.set(session_id)
+        if self.selected_session.get() != session_id:
+            self.selected_session.set(session_id)
         row = self.session_rows.get(session_id) or self.search_rows.get(session_id)
         title = getattr(row, "title", "当前会话")
         project = getattr(row, "project", "未分类项目")
@@ -330,27 +359,48 @@ class ThreadVaultDesktopApp:
     def _render_snapshot(self, snapshot: DesktopSnapshot) -> None:
         self.session_rows = {row.session_id: row for row in snapshot.sessions}
         self.search_rows = {row.session_id: row for row in snapshot.search_rows}
-        self.session_tree.delete(*self.session_tree.get_children())
-        for row in snapshot.sessions:
-            self.session_tree.insert(
-                "",
-                END,
-                iid=row.session_id,
-                values=(row.title, row.project, _display_time(row.updated_at), row.event_count, row.warning_count or ""),
-            )
-        self.search_tree.delete(*self.search_tree.get_children())
-        for row in snapshot.search_rows:
-            preview = " ".join(row.preview.split())[:120]
-            self.search_tree.insert("", END, iid=row.session_id, values=(row.title, row.project, preview))
-        self.search_empty.set(
-            "" if snapshot.search_rows else ("没有找到匹配内容" if snapshot.has_query else "输入关键词后显示搜索结果")
+        session_stats = _reconcile_tree_rows(
+            self.session_tree,
+            [
+                (row.session_id, (row.title, row.project, _display_time(row.updated_at), row.event_count, row.warning_count or ""))
+                for row in snapshot.sessions
+            ],
         )
-        if snapshot.selected_session_id:
-            self._set_selected_session(snapshot.selected_session_id)
-            if snapshot.selected_session_id in self.session_rows:
-                self.session_tree.selection_set(snapshot.selected_session_id)
+        search_stats = _reconcile_tree_rows(
+            self.search_tree,
+            [(row.session_id, (row.title, row.project, " ".join(row.preview.split())[:120])) for row in snapshot.search_rows],
+        )
+        self.search_empty.set("" if snapshot.search_rows else ("没有找到匹配内容" if snapshot.has_query else "输入关键词后显示搜索结果"))
+        selected_session_id = self._current_snapshot_selection(snapshot)
+        if selected_session_id:
+            self._set_selected_session(selected_session_id)
+            self._ensure_tree_selection(selected_session_id)
+        else:
+            self.selected_session.set("")
+            self.selected_session_label.set("尚未选择会话")
         self._set_text(self.summary, snapshot.selected_summary or "选择会话后查看摘要")
-        self.status.set(f"{snapshot.status}　　数据库：{snapshot.db_path}")
+        changed_rows = session_stats.changed + search_stats.changed
+        render_status = "列表保持不变" if not changed_rows else f"列表已更新 {changed_rows} 项"
+        self.status.set(f"{snapshot.status}　·　{render_status}　·　{Path(snapshot.db_path).name}")
+
+    def _current_snapshot_selection(self, snapshot: DesktopSnapshot) -> str:
+        previous = self.selected_session.get().strip()
+        available = {**self.session_rows, **self.search_rows}
+        if previous in available:
+            return previous
+        return snapshot.selected_session_id if snapshot.selected_session_id in available else ""
+
+    def _ensure_tree_selection(self, session_id: str) -> None:
+        for tree in (self.session_tree, self.search_tree):
+            if session_id in tree.selection():
+                return
+        target = self.selected_tree
+        if target is None or session_id not in target.get_children():
+            target = self.session_tree if session_id in self.session_rows else self.search_tree
+        if session_id in target.get_children():
+            target.selection_set(session_id)
+            target.focus(session_id)
+            self.selected_tree = target
 
     def _render_summary(self, session_id: str, summary: str) -> None:
         self._set_text(self.summary, summary)
@@ -401,14 +451,19 @@ class ThreadVaultDesktopApp:
         self.status.set(result.status)
 
     @staticmethod
-    def _set_text(widget: Text, value: str) -> None:
+    def _set_text(widget: Text, value: str) -> bool:
+        if widget.get("1.0", "end-1c") == value:
+            return False
+        state = str(widget.cget("state"))
         widget.configure(state="normal")
         widget.delete("1.0", END)
         widget.insert(END, value)
-        widget.configure(state="disabled")
+        widget.configure(state=state)
+        widget.yview_moveto(0)
+        return True
 
     def _confirm(self, message: str, *, title: str = "ThreadVault") -> bool:
-        return bool(messagebox.askyesno(title, message, parent=self.root))
+        return ask_themed_confirmation(self.root, self.theme, message, title=title)
 
     def _load_async(self, label: str, work: Callable[[], T], apply_result: Callable[[T], None]) -> None:
         if self.busy:
@@ -441,6 +496,8 @@ class ThreadVaultDesktopApp:
         state = "disabled" if busy else "normal"
         for button in self.buttons:
             button.configure(state=state)
+        for widget, idle_state in self.inputs:
+            widget.configure(state="disabled" if busy else idle_state)
         if busy:
             self.progress.pack(side=RIGHT, padx=(8, 0))
             self.progress.start(12)
@@ -450,6 +507,9 @@ class ThreadVaultDesktopApp:
         if label:
             self.status.set(label)
         self._sync_guarded_buttons()
+
+    def _track_input(self, widget: ttk.Widget, *, idle_state: str = "normal") -> None:
+        self.inputs.append((widget, idle_state))
 
     def _sync_guarded_buttons(self) -> None:
         if hasattr(self, "export_button"):
@@ -482,19 +542,7 @@ class ThreadVaultDesktopApp:
         self.root.title("ThreadVault")
         self.root.geometry(f"{self.theme.window_width}x{self.theme.window_height}")
         self.root.minsize(880, 560)
-        self.root.option_add("*Font", (self.theme.font_family, self.theme.font_size))
-        style = ttk.Style(self.root)
-        try:
-            style.theme_use("clam")
-        except TclError:
-            pass
-        style.configure("TButton", padding=(9, 5))
-        style.configure("TEntry", padding=(5, 3))
-        style.configure("TLabelframe", padding=7)
-        style.configure("TNotebook.Tab", padding=(12, 6))
-        style.configure("Heading.TLabel", font=(self.theme.font_family, 14, "bold"))
-        style.configure("Hint.TLabel", foreground="#555555")
-        style.map("TButton", relief=[("focus", "solid")])
+        configure_desktop_theme(self.root, self.theme)
 
     def _build_widgets(self) -> None:
         self._build_topbar()
@@ -507,27 +555,52 @@ class ThreadVaultDesktopApp:
         self._build_health_tab()
         self._build_advanced_tab()
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
-        bottom = ttk.Frame(self.root, padding=(10, 0, 10, 8))
+        bottom = ttk.Frame(self.root, style="Status.TFrame", padding=(16, 7))
         bottom.pack(fill="x")
-        ttk.Label(bottom, textvariable=self.status).pack(side=LEFT, fill="x", expand=True)
+        self.status_label = ttk.Label(bottom, textvariable=self.status, style="Status.TLabel", anchor="w")
+        self.status_label.pack(side=LEFT, fill="x", expand=True)
         self.progress = ttk.Progressbar(bottom, mode="indeterminate", length=130)
 
     def _build_topbar(self) -> None:
-        top = ttk.Frame(self.root, padding=(10, 8))
+        header = ttk.Frame(self.root, style="Header.TFrame", padding=(16, 10, 16, 8))
+        header.pack(fill="x")
+        identity = ttk.Frame(header, style="Header.TFrame")
+        identity.pack(side=LEFT, fill="x", expand=True)
+        ttk.Label(identity, text="ThreadVault", style="AppTitle.TLabel").pack(anchor="w")
+        ttk.Label(identity, text="本地 Codex 会话档案 · 检索、导出与恢复都留在本机", style="AppSubtitle.TLabel").pack(
+            anchor="w", pady=(2, 0)
+        )
+        ttk.Label(header, text="本地优先 · 隐私保护", style="Badge.TLabel").pack(side=RIGHT, anchor="n")
+
+        top = ttk.Frame(self.root, style="Toolbar.TFrame", padding=(16, 8))
         top.pack(fill="x")
-        ttk.Label(top, text="搜索（Ctrl+F）").pack(side=LEFT)
+        ttk.Label(top, text="搜索归档（Ctrl+F）", style="Toolbar.TLabel").pack(side=LEFT)
         self.search_entry = ttk.Entry(top, textvariable=self.query, width=46, takefocus=True)
         self.search_entry.pack(side=LEFT, fill="x", expand=True, padx=(8, 8))
+        self._track_input(self.search_entry)
         self.search_entry.bind("<Return>", lambda _event: self.refresh())
-        search_button = ttk.Button(top, text="搜索", command=self.refresh, takefocus=True)
+        search_button = ttk.Button(top, text="搜索", style="Accent.TButton", command=self.refresh, takefocus=True)
         search_button.pack(side=LEFT)
-        refresh_button = ttk.Button(top, text="刷新（F5）", command=self.refresh, takefocus=True)
+        refresh_button = ttk.Button(top, text="刷新（F5）", style="Quiet.TButton", command=self.refresh, takefocus=True)
         refresh_button.pack(side=LEFT, padx=(8, 0))
-        self.buttons.extend([search_button, refresh_button])
+        more_actions = ttk.Menubutton(top, text="更多操作 ▾", style="TMenubutton", takefocus=True)
+        more_actions.pack(side=LEFT, padx=(8, 0))
+        self.more_menu = Menu(more_actions, tearoff=False)
+        configure_popup_menu(self.more_menu, self.theme)
+        self.more_menu.add_command(label="打开备份中心\tCtrl+B", command=lambda: self._select_workspace_tab(self.backup_tab))
+        self.more_menu.add_command(label="打开健康检查", command=lambda: self._select_workspace_tab(self.health_tab))
+        self.more_menu.add_command(label="查看 Codex 联动", command=lambda: self._select_workspace_tab(self.integration_tab))
+        self.more_menu.add_separator()
+        self.more_menu.add_command(label="高级维护参考", command=lambda: self._select_workspace_tab(self.advanced_tab))
+        more_actions.configure(menu=self.more_menu)
+        self.buttons.extend([search_button, refresh_button, more_actions])
+
+    def _select_workspace_tab(self, tab: ttk.Frame) -> None:
+        self.notebook.select(tab)
 
     def _build_browse_tab(self) -> None:
         self.browse_tab = ttk.Frame(self.notebook, padding=8)
-        self.notebook.add(self.browse_tab, text="会话")
+        self.notebook.add(self.browse_tab, text="会话与搜索")
         body = ttk.PanedWindow(self.browse_tab, orient="horizontal")
         body.pack(fill=BOTH, expand=True)
         sessions = ttk.Labelframe(body, text="最近会话")
@@ -556,52 +629,68 @@ class ThreadVaultDesktopApp:
         ttk.Label(search_frame, textvariable=self.search_empty, style="Hint.TLabel").pack(anchor="w", padx=7, pady=(0, 4))
         right.add(search_frame, weight=2)
         summary_frame = ttk.Labelframe(right, text="会话摘要")
-        self.summary = _scrolled_text(summary_frame, wrap="word", height=8)
+        self.summary = _scrolled_text(summary_frame, wrap="word", height=8, theme=self.theme)
         right.add(summary_frame, weight=1)
         body.add(right, weight=4)
         actions = ttk.Frame(self.browse_tab)
         actions.pack(fill="x", pady=(8, 0))
-        export_button = ttk.Button(actions, text="导出当前会话", command=self.use_selected_for_export, takefocus=True)
+        ttk.Label(actions, text="选择会话后按 Enter 查看详情，或转到安全导出。", style="Hint.TLabel").pack(side=LEFT)
+        export_button = ttk.Button(
+            actions, text="准备安全导出", style="Quiet.TButton", command=self.use_selected_for_export, takefocus=True
+        )
         export_button.pack(side=RIGHT)
-        open_button = ttk.Button(actions, text="查看详情", command=self.open_selected, takefocus=True)
+        open_button = ttk.Button(actions, text="查看详情", style="Accent.TButton", command=self.open_selected, takefocus=True)
         open_button.pack(side=RIGHT, padx=(0, 8))
         self.buttons.extend([open_button, export_button])
 
     def _build_export_tab(self) -> None:
         self.export_tab = ttk.Frame(self.notebook, padding=8)
-        self.notebook.add(self.export_tab, text="导出")
+        self.notebook.add(self.export_tab, text="安全导出")
         current = ttk.Labelframe(self.export_tab, text="当前会话")
         current.pack(fill="x", pady=(0, 8))
         ttk.Label(current, textvariable=self.selected_session_label).pack(anchor="w")
         controls = ttk.Frame(self.export_tab)
         controls.pack(fill="x", pady=(0, 8))
         ttk.Label(controls, text="格式").pack(side=LEFT)
-        ttk.Combobox(
+        profile = ttk.Combobox(
             controls,
             textvariable=self.export_profile,
             values=tuple(EXPORT_PROFILES),
             width=18,
             state="readonly",
             takefocus=True,
-        ).pack(side=LEFT, padx=(6, 14))
+        )
+        profile.pack(side=LEFT, padx=(6, 14))
+        self._track_input(profile, idle_state="readonly")
         ttk.Label(controls, text="隐私处理").pack(side=LEFT)
-        ttk.Combobox(
+        privacy = ttk.Combobox(
             controls,
             textvariable=self.privacy_mode,
             values=tuple(PRIVACY_MODES),
             width=18,
             state="readonly",
             takefocus=True,
-        ).pack(side=LEFT, padx=(6, 14))
-        self.export_button = ttk.Button(controls, text="确认导出", command=self.execute_export, takefocus=True, state="disabled")
+        )
+        privacy.pack(side=LEFT, padx=(6, 14))
+        self._track_input(privacy, idle_state="readonly")
+        self.export_button = ttk.Button(
+            controls,
+            text="确认导出",
+            style="Success.TButton",
+            command=self.execute_export,
+            takefocus=True,
+            state="disabled",
+        )
         self.export_button.pack(side=RIGHT)
-        preview_button = ttk.Button(controls, text="生成安全预览", command=self.preview_export, takefocus=True)
+        preview_button = ttk.Button(controls, text="生成安全预览", style="Accent.TButton", command=self.preview_export, takefocus=True)
         preview_button.pack(side=RIGHT, padx=(0, 8))
         self.buttons.extend([preview_button, self.export_button])
         out_row = ttk.Frame(self.export_tab)
         out_row.pack(fill="x", pady=(0, 6))
         ttk.Label(out_row, text="输出目录").pack(side=LEFT)
-        ttk.Entry(out_row, textvariable=self.export_out, takefocus=True).pack(side=LEFT, fill="x", expand=True, padx=(6, 8))
+        export_out = ttk.Entry(out_row, textvariable=self.export_out, takefocus=True)
+        export_out.pack(side=LEFT, fill="x", expand=True, padx=(6, 8))
+        self._track_input(export_out)
         choose = ttk.Button(out_row, text="选择目录…", command=self.choose_export_directory, takefocus=True)
         choose.pack(side=LEFT)
         self.buttons.append(choose)
@@ -610,11 +699,11 @@ class ThreadVaultDesktopApp:
             text="先预览文件和隐私结果；只有当前参数与预览一致时，“确认导出”才可用。",
             style="Hint.TLabel",
         ).pack(anchor="w", pady=(0, 6))
-        self.export_text = _scrolled_text(self.export_tab, wrap="word", height=18)
+        self.export_text = _scrolled_text(self.export_tab, wrap="word", height=18, theme=self.theme)
 
     def _build_backup_tab(self) -> None:
         self.backup_tab = ttk.Frame(self.notebook, padding=8)
-        self.notebook.add(self.backup_tab, text="备份")
+        self.notebook.add(self.backup_tab, text="备份中心")
         sections = ttk.Notebook(self.backup_tab, takefocus=True)
         sections.pack(fill=BOTH, expand=True)
         center = ttk.Frame(sections, padding=10)
@@ -632,18 +721,26 @@ class ThreadVaultDesktopApp:
         out = ttk.Frame(center)
         out.pack(fill="x", pady=(0, 8))
         ttk.Label(out, text="备份目录").pack(side=LEFT)
-        ttk.Entry(out, textvariable=self.smart_backup_out, takefocus=True).pack(side=LEFT, fill="x", expand=True, padx=(6, 8))
+        smart_backup_out = ttk.Entry(out, textvariable=self.smart_backup_out, takefocus=True)
+        smart_backup_out.pack(side=LEFT, fill="x", expand=True, padx=(6, 8))
+        self._track_input(smart_backup_out)
         choose_smart = ttk.Button(out, text="选择目录…", command=self.choose_smart_backup_directory, takefocus=True)
         choose_smart.pack(side=LEFT)
         actions = ttk.Frame(center)
         actions.pack(fill="x", pady=(0, 8))
-        self.smart_backup_button = ttk.Button(actions, text="立即智能备份", command=self.run_smart_backup, takefocus=True)
+        self.smart_backup_button = ttk.Button(
+            actions,
+            text="立即智能备份",
+            style="Accent.TButton",
+            command=self.run_smart_backup,
+            takefocus=True,
+        )
         self.smart_backup_button.pack(side=LEFT)
-        refresh = ttk.Button(actions, text="刷新状态", command=self.refresh_backup_center, takefocus=True)
+        refresh = ttk.Button(actions, text="刷新状态", style="Quiet.TButton", command=self.refresh_backup_center, takefocus=True)
         refresh.pack(side=LEFT, padx=(8, 0))
         ttk.Label(actions, text="系统自动判断核心 / 证据 / 取证档位", style="Hint.TLabel").pack(side=LEFT, padx=(12, 0))
         self.buttons.extend([choose_smart, self.smart_backup_button, refresh])
-        self.backup_text = _scrolled_text(center, wrap="word", height=14)
+        self.backup_text = _scrolled_text(center, wrap="word", height=14, theme=self.theme)
 
         privacy = ttk.Labelframe(expert, text="当前会话隐私检查")
         privacy.pack(fill="x", pady=(0, 8))
@@ -653,7 +750,9 @@ class ThreadVaultDesktopApp:
 
         manual = ttk.Labelframe(expert, text="高级：手动单库备份")
         manual.pack(fill="x", pady=(0, 8))
-        ttk.Entry(manual, textvariable=self.backup_out, takefocus=True).pack(side=LEFT, fill="x", expand=True)
+        backup_out = ttk.Entry(manual, textvariable=self.backup_out, takefocus=True)
+        backup_out.pack(side=LEFT, fill="x", expand=True)
+        self._track_input(backup_out)
         choose_manual = ttk.Button(manual, text="选择目录…", command=self.choose_manual_backup_directory, takefocus=True)
         choose_manual.pack(side=LEFT, padx=(8, 0))
         manual_button = ttk.Button(manual, text="创建手动备份", command=self.create_backup, takefocus=True)
@@ -664,13 +763,17 @@ class ThreadVaultDesktopApp:
         file_row = ttk.Frame(restore)
         file_row.pack(fill="x", pady=(0, 6))
         ttk.Label(file_row, text="备份文件").pack(side=LEFT)
-        ttk.Entry(file_row, textvariable=self.backup_file, takefocus=True).pack(side=LEFT, fill="x", expand=True, padx=(6, 8))
+        backup_file = ttk.Entry(file_row, textvariable=self.backup_file, takefocus=True)
+        backup_file.pack(side=LEFT, fill="x", expand=True, padx=(6, 8))
+        self._track_input(backup_file)
         choose_file = ttk.Button(file_row, text="选择文件…", command=self.choose_backup_file, takefocus=True)
         choose_file.pack(side=LEFT)
         target_row = ttk.Frame(restore)
         target_row.pack(fill="x", pady=(0, 6))
         ttk.Label(target_row, text="新数据库").pack(side=LEFT)
-        ttk.Entry(target_row, textvariable=self.restore_target, takefocus=True).pack(side=LEFT, fill="x", expand=True, padx=(6, 8))
+        restore_target = ttk.Entry(target_row, textvariable=self.restore_target, takefocus=True)
+        restore_target.pack(side=LEFT, fill="x", expand=True, padx=(6, 8))
+        self._track_input(restore_target)
         choose_target = ttk.Button(target_row, text="选择位置…", command=self.choose_restore_target, takefocus=True)
         choose_target.pack(side=LEFT)
         restore_actions = ttk.Frame(restore)
@@ -679,10 +782,16 @@ class ThreadVaultDesktopApp:
         verify.pack(side=LEFT)
         plan = ttk.Button(restore_actions, text="恢复预检", command=self.plan_restore, takefocus=True)
         plan.pack(side=LEFT, padx=(8, 0))
-        apply_button = ttk.Button(restore_actions, text="确认恢复", command=self.apply_restore, takefocus=True)
+        apply_button = ttk.Button(
+            restore_actions,
+            text="确认恢复",
+            style="Danger.TButton",
+            command=self.apply_restore,
+            takefocus=True,
+        )
         apply_button.pack(side=LEFT, padx=(8, 0))
         self.buttons.extend([scan, choose_manual, manual_button, choose_file, choose_target, verify, plan, apply_button])
-        self.safety_text = _scrolled_text(expert, wrap="word", height=8)
+        self.safety_text = _scrolled_text(expert, wrap="word", height=8, theme=self.theme)
 
     def _build_integration_tab(self) -> None:
         self.integration_tab = ttk.Frame(self.notebook, padding=8)
@@ -692,12 +801,20 @@ class ThreadVaultDesktopApp:
         ttk.Label(header, text="Codex 联动状态", style="Heading.TLabel").pack(side=LEFT)
         refresh = ttk.Button(header, text="重新检查", command=self.show_integrations, takefocus=True)
         refresh.pack(side=RIGHT)
-        self.buttons.append(refresh)
-        self.integration_text = _scrolled_text(self.integration_tab, wrap="word", height=20)
+        install = ttk.Button(
+            header,
+            text="一键安装联动",
+            style="Accent.TButton",
+            command=self.install_codex_integration,
+            takefocus=True,
+        )
+        install.pack(side=RIGHT, padx=(0, 8))
+        self.buttons.extend([refresh, install])
+        self.integration_text = _scrolled_text(self.integration_tab, wrap="word", height=20, theme=self.theme)
 
     def _build_health_tab(self) -> None:
         self.health_tab = ttk.Frame(self.notebook, padding=8)
-        self.notebook.add(self.health_tab, text="健康")
+        self.notebook.add(self.health_tab, text="健康检查")
         ttk.Label(self.health_tab, textvariable=self.health_headline, style="Heading.TLabel").pack(anchor="w", pady=(0, 8))
         diagnosis = ttk.Frame(self.health_tab)
         diagnosis.pack(fill="x", pady=(0, 8))
@@ -706,12 +823,12 @@ class ThreadVaultDesktopApp:
         ttk.Label(diagnosis, text="诊断不会修改数据库", style="Hint.TLabel").pack(side=LEFT, padx=(10, 0))
         maintenance = ttk.Labelframe(self.health_tab, text="维护（仅在诊断建议时使用）")
         maintenance.pack(fill="x", pady=(0, 8))
-        reindex = ttk.Button(maintenance, text="重建搜索索引", command=self.reindex_search, takefocus=True)
+        reindex = ttk.Button(maintenance, text="重建搜索索引", style="Danger.TButton", command=self.reindex_search, takefocus=True)
         reindex.pack(side=LEFT)
-        vacuum = ttk.Button(maintenance, text="压缩数据库", command=self.vacuum_database, takefocus=True)
+        vacuum = ttk.Button(maintenance, text="压缩数据库", style="Danger.TButton", command=self.vacuum_database, takefocus=True)
         vacuum.pack(side=LEFT, padx=(8, 0))
         self.buttons.extend([diagnose, reindex, vacuum])
-        self.health_text = _scrolled_text(self.health_tab, wrap="word", height=18)
+        self.health_text = _scrolled_text(self.health_tab, wrap="word", height=18, theme=self.theme)
 
     def _build_advanced_tab(self) -> None:
         self.advanced_tab = ttk.Frame(self.notebook, padding=8)
@@ -719,7 +836,9 @@ class ThreadVaultDesktopApp:
         controls = ttk.Frame(self.advanced_tab)
         controls.pack(fill="x", pady=(0, 8))
         ttk.Label(controls, text="结构定义名称").pack(side=LEFT)
-        ttk.Entry(controls, textvariable=self.schema_name, width=24, takefocus=True).pack(side=LEFT, padx=(6, 8))
+        schema_name = ttk.Entry(controls, textvariable=self.schema_name, width=24, takefocus=True)
+        schema_name.pack(side=LEFT, padx=(6, 8))
+        self._track_input(schema_name)
         schema = ttk.Button(controls, text="查看结构定义", command=self.show_schema, takefocus=True)
         schema.pack(side=LEFT)
         robot = ttk.Button(controls, text="查看机器人说明", command=self.show_robot_docs, takefocus=True)
@@ -727,13 +846,15 @@ class ThreadVaultDesktopApp:
         write_row = ttk.Frame(self.advanced_tab)
         write_row.pack(fill="x", pady=(0, 8))
         ttk.Label(write_row, text="输出目录").pack(side=LEFT)
-        ttk.Entry(write_row, textvariable=self.schema_out, takefocus=True).pack(side=LEFT, fill="x", expand=True, padx=(6, 8))
+        schema_out = ttk.Entry(write_row, textvariable=self.schema_out, takefocus=True)
+        schema_out.pack(side=LEFT, fill="x", expand=True, padx=(6, 8))
+        self._track_input(schema_out)
         choose = ttk.Button(write_row, text="选择目录…", command=self.choose_schema_directory, takefocus=True)
         choose.pack(side=LEFT)
         write = ttk.Button(write_row, text="导出全部结构定义", command=self.write_schemas, takefocus=True)
         write.pack(side=LEFT, padx=(8, 0))
         self.buttons.extend([schema, robot, choose, write])
-        self.advanced_text = _scrolled_text(self.advanced_tab, wrap="word", height=18)
+        self.advanced_text = _scrolled_text(self.advanced_tab, wrap="word", height=18, theme=self.theme)
 
     def _bind_shortcuts(self) -> None:
         self.root.bind_all("<Control-f>", lambda _event: self.search_entry.focus_set())
@@ -746,10 +867,13 @@ class ThreadVaultDesktopApp:
             variable.trace_add("write", self._invalidate_export_preview)
 
 
-def _scrolled_text(parent: object, *, wrap: str, height: int) -> Text:
+def _scrolled_text(parent: object, *, wrap: str, height: int, theme: DesktopAppTheme | None = None) -> Text:
     frame = ttk.Frame(parent)
     frame.pack(fill=BOTH, expand=True)
     widget = Text(frame, height=height, wrap=wrap, takefocus=True)
+    if theme is not None:
+        configure_text_surface(widget, theme)
+    widget.configure(state="disabled")
     vertical = ttk.Scrollbar(frame, orient="vertical", command=widget.yview, takefocus=False)
     widget.configure(yscrollcommand=vertical.set)
     widget.pack(side=LEFT, fill=BOTH, expand=True)
@@ -779,6 +903,52 @@ def _scrolled_tree(
     frame.rowconfigure(0, weight=1)
     frame.columnconfigure(0, weight=1)
     return tree
+
+
+def _reconcile_tree_rows(tree: ttk.Treeview, rows: list[tuple[str, tuple[object, ...]]]) -> TreeReconcileStats:
+    """Update a table in place and restore the operator's current view when possible."""
+
+    normalized_rows = [(session_id, tuple(str(value) for value in values)) for session_id, values in rows]
+    previous_selection = tuple(tree.selection())
+    previous_focus = tree.focus()
+    previous_yview = tree.yview()
+    previous_xview = tree.xview()
+    desired_ids = [session_id for session_id, _values in normalized_rows]
+    existing_ids = tuple(tree.get_children())
+    existing_set = set(existing_ids)
+    desired_set = set(desired_ids)
+    stale_ids = tuple(session_id for session_id in existing_ids if session_id not in desired_set)
+    if stale_ids:
+        tree.delete(*stale_ids)
+
+    inserted = 0
+    updated = 0
+    for session_id, values in normalized_rows:
+        if session_id not in existing_set:
+            tree.insert("", END, iid=session_id, values=values)
+            inserted += 1
+        elif tuple(tree.item(session_id, "values")) != values:
+            tree.item(session_id, values=values)
+            updated += 1
+
+    moved = 0
+    current_ids = tuple(tree.get_children())
+    if current_ids != tuple(desired_ids):
+        for index, session_id in enumerate(desired_ids):
+            if tree.get_children()[index] != session_id:
+                tree.move(session_id, "", index)
+                moved += 1
+
+    visible_selection = tuple(session_id for session_id in previous_selection if session_id in desired_set)
+    if visible_selection and tuple(tree.selection()) != visible_selection:
+        tree.selection_set(*visible_selection)
+    if previous_focus in desired_set and tree.focus() != previous_focus:
+        tree.focus(previous_focus)
+    if previous_yview and tree.yview() != previous_yview:
+        tree.yview_moveto(previous_yview[0])
+    if previous_xview and tree.xview() != previous_xview:
+        tree.xview_moveto(previous_xview[0])
+    return TreeReconcileStats(inserted=inserted, updated=updated, removed=len(stale_ids), moved=moved)
 
 
 def _info_row(parent: ttk.Frame, row: int, label: str, variable: StringVar) -> None:

@@ -105,14 +105,14 @@ threadvault desktop smoke --json
 |---|---|
 | 会话 | 以标题、项目、更新时间、事件数和警告徽标浏览/搜索旧会话；内部 UUID 不作为主标签。 |
 | 导出 | 选择目录和隐私处理，先生成安全预览，再通过“确认导出”真正写入文件和 manifest。 |
-| 备份 | “智能备份中心”显示最近检查、自动计划、下次运行、磁盘空间和档位，一键运行；高级子页提供隐私检查、手动单库备份和安全恢复。 |
-| Codex 联动 | 查看 MCP、Stop hook 和每日智能备份的本机连接状态。 |
+| 备份 | “智能备份中心”显示待入库来源、最近检查、自动计划、下次运行、磁盘空间和档位，一键运行；高级子页提供隐私检查、手动单库备份和安全恢复。 |
+| Codex 联动 | 查看并一键安装 MCP、Stop hook，检查最近 hook 覆盖和每日智能备份。 |
 | 健康 | 打开即运行只读诊断；重建索引和压缩数据库放在独立维护区域。 |
 | 高级 | 查看/写出 Schema 和机器人说明；普通使用无需进入。 |
 
 性能策略：窗口只负责显示、确认和选择路径；归档读取、搜索、导出、隐私检查、智能备份、恢复、诊断和高级面板都通过后台线程调用现有接口。导出参数一旦改变，旧预览立即失效；智能备份继续使用 CLI 同一套档位、空间、验证和保留策略。恢复目标默认生成 `threadvault-restored.db` 一类的新文件名，只允许写到不存在的新库。
 
-最省心的日常用法：打开“备份 → 智能备份中心”看顶部状态；需要时点“立即智能备份”。系统自动选择核心、证据或取证档位，无需手工判断。自动任务仍按计划运行，桌面按钮不会取代调度器。
+最省心的日常用法：打开“备份 → 智能备份中心”看顶部状态；需要时点“立即智能备份”。系统先补导遗漏会话，再自动选择核心、证据或取证档位，无需手工判断。补导失败会阻止备份并明确提示。自动任务仍按计划运行，桌面按钮不会取代调度器。
 
 | 按钮 | 用途 | 结果 |
 |---|---|---|
@@ -553,16 +553,17 @@ ThreadVault 2.x 不提供团队模式、中心策略/审计服务或共享 HTTP 
 
 Codex `Stop` hook 会把请求写入队列，并只导入本轮 payload 给出的 `transcript_path`。它不会在 Hook 进程里扫描全部历史；完整扫描只用于首次 backfill 或手动恢复。
 
-首次安装（默认 dry-run，必须加 `--apply` 才写 `~/.codex/hooks.json`）：
+首次安装推荐使用组合命令（默认 dry-run，必须加 `--apply` 才写 Hook/MCP 配置）：
 
 ```powershell
-$threadvaultExe = (Resolve-Path <repo-root>\.venv\Scripts\threadvault.exe).Path
 $archiveDb = (Resolve-Path <repo-root>\data\threadvault.db).Path
-$hookCommand = '"' + $threadvaultExe + '" codex-hook ingest --apply --db "' + $archiveDb + '"'
-& $threadvaultExe codex-hook install --command $hookCommand --apply --json
+threadvault codex install --db $archiveDb --json
+threadvault codex install --db $archiveDb --apply --json
+threadvault storage sync --db $archiveDb --apply --json
+threadvault codex status --db $archiveDb --json
 ```
 
-安装后，在 Codex 输入 `/hooks`，人工检查并信任一次新 hook。Codex 要求非托管命令 hook 经过这一步；ThreadVault 不会绕过该安全机制。
+安装后，在 Codex 输入 `/hooks`，人工检查并在被要求时信任 hook；ThreadVault 不会绕过 Codex 的命令哈希审核。MCP 新建或改变后重启 Codex。
 
 入队：
 
@@ -648,25 +649,26 @@ cd <repo-root>
 py -3.12 -m pip install -e ".[dev]"
 threadvault --help
 threadvault init
-threadvault import --json
+threadvault storage sync --apply --json
 threadvault stats --json
-threadvault codex-hook install --db <repo-root>\data\threadvault.db --json
-codex mcp add threadvault -- <threadvault-exe> mcp serve --db <repo-root>\data\threadvault.db
+threadvault codex install --db <repo-root>\data\threadvault.db --json
+threadvault codex install --db <repo-root>\data\threadvault.db --apply --json
 .\启动ThreadVault桌面版.cmd
 ```
 
-先检查 hook 安装计划，再使用前文的绝对 `--command` 加 `--apply` 安装；随后在 Codex `/hooks` 完成一次信任。
+先检查组合安装计划，再加 `--apply` 安装；随后在 Codex `/hooks` 完成审核，并在 MCP 变化后重启 Codex。
 
 ### 16.2 每天更新归档
 
-正常情况下无需每天手动运行 `threadvault import`。Codex 每轮结束时由 `Stop` hook 自动更新当前 transcript。可以用下面命令抽查：
+正常情况下无需每天手动运行 `threadvault import`。Codex 每轮结束时由 `Stop` hook 自动更新当前 transcript；智能备份还会先检查全部来源并补导遗漏。可以用下面命令抽查：
 
 ```powershell
-threadvault ingest-queue list --limit 10 --json
+threadvault codex status --json
+threadvault storage sync --json
 threadvault doctor --json
 ```
 
-只有 hook 被禁用、数据库离线或需要补历史时，才手动运行 `threadvault import --json`。
+只有明确需要传统全量扫描时才运行 `threadvault import --json`；普通补漏使用 `threadvault storage sync --apply --json`。
 
 ### 16.3 查找历史问题
 
@@ -797,6 +799,7 @@ threadvault restore --backup BACKUP.db --target-db RESTORED.db --apply --json
 
 ```powershell
 threadvault storage audit --json
+threadvault storage sync --json
 threadvault storage verify --deep --json
 threadvault storage prune --json
 threadvault storage prune --apply --json
@@ -808,7 +811,7 @@ threadvault storage prune --apply --json
 threadvault storage auto --db data\threadvault.db --cold-root data\threadvault-cold --codex-home $env:USERPROFILE\.codex --out data\storage-backups --apply --json
 ```
 
-自动策略会先建立一份 `evidence` 基线；以后有变化时按最高到期档位只做一份：每日 `core`、每周 `evidence`、累计运行满 30 天后每月 `forensic`。没有变化或仍在周期内就跳过。每份新备份会先校验，再只清理自动目录中的旧代，保留数量为 Core 3、Evidence 2、Forensic 1；手工备份不参与自动删除。磁盘空间不足（含 5 GiB 安全余量）时会阻止备份并报告，不会静默降级或删除唯一内容。
+自动策略先按来源路径、哈希、修改时间和解析器版本补导缺失或过期文件；任何补导失败都会阻止备份。随后建立 `evidence` 基线；以后有变化时按最高到期档位只做一份：每日 `core`、每周 `evidence`、累计运行满 30 天后每月 `forensic`。没有变化或仍在周期内就跳过。每份新备份会先校验，再只清理自动目录中的旧代，保留数量为 Core 3、Evidence 2、Forensic 1；手工备份不参与自动删除。磁盘空间不足（含 5 GiB 安全余量）时会阻止备份并报告，不会静默降级或删除唯一内容。
 
 不加 `--apply` 只查看本次会如何判断，不写备份。需要人工指定恢复级别时，仍可使用以下专家命令：
 

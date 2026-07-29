@@ -2,20 +2,27 @@
 
 ## Current Stage
 
-ThreadVault is now on the personal-only `2.4.0` line. The native Tkinter app is the primary local interface; MCP is a local read-only stdio interface. Active team mode, governance/identity/policy contracts, the shared HTTP server prototype, and former browser UI runtime are absent from the package. Their v3/v4 records remain archived historical evidence.
+ThreadVault is now on the personal-only `2.4.1` line. The native Tkinter app is the primary local interface; MCP is a local read-only stdio interface. Active team mode, governance/identity/policy contracts, the shared HTTP server prototype, and former browser UI runtime are absent from the package. Their v3/v4 records remain archived historical evidence.
 
 The project-local hot archive remains `data/threadvault.db`, with overrides through `--db`, `THREADVAULT_DB`, and `[storage].archive_db`. Bulky reversible evidence now lives in sibling `data/threadvault-cold`; FTS continues to use cleaned `events.indexed_text`.
 
-Core structure has been reduced and clarified: the former governance/shared-server modules were deleted, `store.py` is about 1,266 lines, `cli.py` about 1,927, and `schemas.py` about 1,803. MCP is split into transport/dispatch (`mcp.py`), read-only execution (`mcp_runtime.py`), and validation (`mcp_validation.py`).
+Core structure remains personal-only and modular. MCP is split into transport/dispatch (`mcp.py`), read-only execution (`mcp_runtime.py`), and validation (`mcp_validation.py`). New archive-freshness and Codex-configuration responsibilities live in `source_sync.py` and `codex_integration.py`; store, CLI, and desktop layers remain shallow adapters for those workflows.
 
-Database schema v8 adds hot/cold event metadata, content-addressed blobs, exact assistant-body deduplication, and copy-on-write migration. The real archive was rebuilt with equal source/target counts and an identical canonical conversation digest, then incrementally caught up to 342 sessions and 835,177 events with seven genuine incomplete function-call warnings.
+Database schema v8 adds hot/cold event metadata, content-addressed blobs, exact assistant-body deduplication, and copy-on-write migration. The real archive currently has 404 sessions, 939,614 events, 3,904 turns, seven genuine incomplete function-call warnings, and equal event/FTS counts. Deep verification found 98,913 cold blobs (3.681 GB stored) with zero missing or invalid references.
 
-Automatic ingestion is now a supported, targeted path: a user-level Codex `Stop` hook records a queue item and imports only the transcript named by the hook payload. The hook installer is dry-run-first and preserves unrelated user hooks. The read-only ThreadVault MCP server is registered separately through Codex's MCP configuration.
+Automatic ingestion now has two layers: a user-level Codex `Stop` hook imports only the transcript named by each event, while `storage sync` and smart backup compare the full discoverable source set with import provenance and target only stale files. Smart backup blocks if catch-up fails. `codex status/install` configures and diagnoses the exact Hook and read-only MCP registration together.
 
 Development now uses an isolated `.venv`. The project environment passes `pip check`; unrelated missing dependencies in the global Selenium/Trio installation are outside ThreadVault's dependency graph.
 
 ## Recently Completed
 
+- Added source freshness and targeted catch-up, catch-up-first smart backup, combined Codex Hook/MCP setup, generated contracts, and desktop one-click integration.
+- Registered the exact read-only ThreadVault MCP entry and caught the live archive up while Codex was active; created and deeply verified a new Evidence backup.
+- Added Windows Python 3.11/3.12 CI with ruff, 70% branch coverage, isolated desktop smoke, and MCP manifest gates.
+- Reproduced and fixed an empty rendered desktop caused by Treeview state handling; added live Tk and Windows file-lock regressions.
+- Bumped package version to `2.4.1` and turned the desktop shell into a restrained workbench: a clear archive/search/open/export/backup path, centralized Tk native styling, themed confirmation/menu surfaces, and stable in-place table refreshes.
+- Kept every archive snapshot fresh while caching only friendly Codex title metadata behind SQLite/WAL/SHM signatures; unchanged table refreshes retain selection, focus, and scroll without row mutations.
+- Stopped current-schema initialization from rewriting its metadata and isolated default archive DB, Codex home, config, and restore history across the test suite.
 - Prepared the public `v2.4.0` release with standalone switchable English/Chinese manuals, cumulative 2.x release notes, acceptance evidence, and explicit private-artifact boundaries.
 - Bumped package version to `2.4.0` and completed the foolproof desktop workflow: friendly session tables, smart Backup Center, confirmed export, safe restore defaults, automatic health summaries, path pickers, scrolling, focus, and Chinese labels.
 - Bumped package version to `2.3.0` and added one-command smart backup selection, verification, disk guards, last-run status, and bounded automatic retention.
@@ -66,18 +73,17 @@ Development now uses an isolated `.venv`. The project environment passes `pip ch
 
 ## Current Validation
 
-Latest validation for the current `2.4.0` native-desktop workflow baseline:
+Latest validation for the complete `2.4.1` release baseline:
 
 ```powershell
+.\.venv\Scripts\python.exe -m compileall -q src tests
+.\.venv\Scripts\python.exe -m ruff check src tests
+.\.venv\Scripts\python.exe -m pytest --cov=threadvault --cov-report=term-missing
 .\.venv\Scripts\python.exe -m pip check
-.\.venv\Scripts\python.exe -m ruff check .
-.\.venv\Scripts\python.exe -m pytest
-.\.venv\Scripts\threadvault.exe desktop smoke --json
-.\.venv\Scripts\threadvault.exe mcp manifest --json
-.\.venv\Scripts\threadvault.exe doctor --db data\threadvault.db --json
+.\.venv\Scripts\threadvault.exe desktop smoke --db <temporary-db> --json
 ```
 
-Current result: `295 passed`, full-project ruff passed, and `pip check` found no broken requirements. Source and installed metadata both report `2.4.0`; desktop smoke reports `desktop_smoke.v2`; MCP manifest reports 2.4.0 and six read-only tools; the live schema-v8/FTS doctor passed at 342 sessions and 835,177 events with seven known warnings. Rendered Windows QA confirmed friendly title/project rows without thread URI labels, the Backup Center status/schedule/disk view, disabled-before-preview and enabled-after-preview export confirmation, and automatic health diagnosis. Tk's Windows accessibility tree still exposes panes more reliably than child control names, so full NVDA narration remains an explicit residual risk. Public release acceptance is recorded under `docs/progress/releases/v2.4.0/`.
+Current result: `311 passed, 1 skipped` with `74.88%` branch coverage; source/test ruff, `compileall`, `pip check`, generated schemas, isolated `desktop_smoke.v2`, and the six-tool read-only MCP manifest passed. Rendered Windows QA covered real sessions, Backup Center, Codex Integration, focus/scroll/disabled states, and confirmed actions; the reproduced empty-window regression was fixed. Live doctor reports schema v8, 404 sessions, 939,614 events, seven warnings, FTS 939,614/939,614, and no maintenance suggestion. Deep cold verification reports 98,913 blobs with zero missing or invalid references. The exact Hook and MCP configs match; current Hook trust/coverage still requires Codex-owned `/hooks` review and the next Stop event.
 
 Detailed pre-2.x validation remains in the corresponding round and release records. Those historical snapshots describe the state at their original version and are not the current runtime baseline.
 
@@ -109,15 +115,20 @@ Detailed pre-2.x validation remains in the corresponding round and release recor
 - `docs/progress/rounds/2026-07-06-round-022-v100-native-desktop-release.md`
 - `docs/progress/rounds/2026-07-06-round-023-remove-web-ui-residue.md`
 - `docs/progress/rounds/2026-07-13-round-001-personal-only-modularization.md`
+- `docs/progress/rounds/2026-07/2026-07-28-round-001-native-desktop-workbench.md`
+- `docs/progress/rounds/2026-07/2026-07-29-round-001-foolproof-archive-integration.md`
 - `docs/progress/releases/v0.34.0/`
 - `docs/progress/releases/v1.0.0/`
 - `docs/progress/releases/v1.0.1/`
+- `docs/progress/releases/v2.4.1/`
 
 ## Risks
 
 - Archived legacy documentation intentionally preserves older architecture and terminology as historical evidence.
 - Local databases, cold blobs, exports, backups, and generated output can contain private data and must remain ignored local artifacts.
-- Long-running Codex MCP processes must be restarted after upgrading ThreadVault so they load the v2.4.0 runtime.
+- Codex must be restarted after a new/changed MCP registration, and non-managed Hook trust remains a Codex-owned exact-command review through `/hooks`.
+- The active transcript may appear pending between messages; its Stop hook or the next smart-backup catch-up closes that temporary gap.
+- Native OS file pickers remain platform-owned and therefore retain the operating system theme.
 - Tkinter keyboard and visible-label accessibility passed rendered QA, but a full NVDA narration pass remains a non-blocking follow-up.
 
 ## Next Steps

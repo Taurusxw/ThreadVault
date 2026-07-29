@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "contract_version",
+    "ok",
+    "fresh",
+    "applied",
+    "db_path",
+    "codex_home",
+    "source_files",
+    "pending_files",
+    "pending_bytes",
+    "pending_reasons",
+    "import_stats"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "fresh": {
+      "type": "boolean"
+    },
+    "applied": {
+      "type": "boolean"
+    },
+    "db_path": {
+      "type": "string"
+    },
+    "codex_home": {
+      "type": "string"
+    },
+    "source_files": {
+      "type": "integer"
+    },
+    "pending_files": {
+      "type": "integer"
+    },
+    "pending_bytes": {
+      "type": "integer"
+    },
+    "pending_reasons": {
+      "type": "object"
+    },
+    "import_stats": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}
