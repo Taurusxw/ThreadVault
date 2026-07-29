@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-07-29 - 2.4.2 Python 3.11 CLI Compatibility Hotfix
+
+- Bounded Typer below 0.27 after the newly released 0.27.0 changed ThreadVault CLI behavior on Python 3.11 in the first public release matrix.
+- Preserved the immutable v2.4.1 tag and published the compatibility correction as a separate patch release.
+
 ## 2026-07-29 - 2.4.1 Foolproof Archive Integration And Native Desktop Polish
 
 - Added read-only source freshness inspection and targeted catch-up for missing, changed, stale-parser, or newly touched Codex transcripts across active and archived session directories.

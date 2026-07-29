@@ -2,7 +2,7 @@
 
 ## Current Stage
 
-ThreadVault is now on the personal-only `2.4.1` line. The native Tkinter app is the primary local interface; MCP is a local read-only stdio interface. Active team mode, governance/identity/policy contracts, the shared HTTP server prototype, and former browser UI runtime are absent from the package. Their v3/v4 records remain archived historical evidence.
+ThreadVault is now on the personal-only `2.4.2` line. The native Tkinter app is the primary local interface; MCP is a local read-only stdio interface. Active team mode, governance/identity/policy contracts, the shared HTTP server prototype, and former browser UI runtime are absent from the package. Their v3/v4 records remain archived historical evidence.
 
 The project-local hot archive remains `data/threadvault.db`, with overrides through `--db`, `THREADVAULT_DB`, and `[storage].archive_db`. Bulky reversible evidence now lives in sibling `data/threadvault-cold`; FTS continues to use cleaned `events.indexed_text`.
 
@@ -16,6 +16,7 @@ Development now uses an isolated `.venv`. The project environment passes `pip ch
 
 ## Recently Completed
 
+- Bumped to `2.4.2` after the first public matrix exposed Typer 0.27.0/Python 3.11 CLI incompatibility; bounded Typer below 0.27 without rewriting the v2.4.1 tag.
 - Added source freshness and targeted catch-up, catch-up-first smart backup, combined Codex Hook/MCP setup, generated contracts, and desktop one-click integration.
 - Registered the exact read-only ThreadVault MCP entry and caught the live archive up while Codex was active; created and deeply verified a new Evidence backup.
 - Added Windows Python 3.11/3.12 CI with ruff, 70% branch coverage, isolated desktop smoke, and MCP manifest gates.
@@ -73,7 +74,7 @@ Development now uses an isolated `.venv`. The project environment passes `pip ch
 
 ## Current Validation
 
-Latest validation for the complete `2.4.1` release baseline:
+Latest validation for the complete `2.4.2` release baseline:
 
 ```powershell
 .\.venv\Scripts\python.exe -m compileall -q src tests
@@ -121,6 +122,7 @@ Detailed pre-2.x validation remains in the corresponding round and release recor
 - `docs/progress/releases/v1.0.0/`
 - `docs/progress/releases/v1.0.1/`
 - `docs/progress/releases/v2.4.1/`
+- `docs/progress/releases/v2.4.2/`
 
 ## Risks
 
