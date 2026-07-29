@@ -69,7 +69,7 @@ This index lists the current ThreadVault documentation entrypoints and when to u
 | `docs/progress/releases/v1.0.1/` | v1.0.1 Web UI residue cleanup release notes and acceptance. | Active |
 | `docs/progress/releases/v2.4.0/` | v2.4.0 personal-only runtime, hot/cold storage, smart backup, desktop workflow, and bilingual manual release records. | Active |
 | `docs/progress/releases/v2.4.1/` | v2.4.1 foolproof source catch-up, Codex integration, desktop polish, CI, and acceptance records. | Active |
-| `docs/progress/releases/v2.4.2/` | v2.4.2 Python 3.11 CLI dependency-compatibility hotfix and acceptance records. | Active |
+| `docs/progress/releases/v2.4.2/` | v2.4.2 deterministic GitHub Actions CLI-test hotfix and acceptance records. | Active |
 
 ## Existing Historical Records
 

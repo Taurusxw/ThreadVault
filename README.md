@@ -63,7 +63,7 @@ Current and historical version line:
 
 | Version | Focus |
 |---|---|
-| `2.4.2` | Python 3.11 CLI compatibility hotfix with a verified Typer upper bound. |
+| `2.4.2` | Deterministic GitHub Actions CLI tests and final Windows release-matrix hardening. |
 | `2.4.1` | Foolproof source catch-up, one-command Codex integration, CI coverage gates, and a polished native desktop workbench. |
 | `2.4.0` | Foolproof native desktop workflows for smart backup, confirmed export, friendly browsing, safe restore targets, and clearer diagnostics. |
 | `2.3.0` | Foolproof smart backup selection, verification, disk guards, and bounded automatic retention. |

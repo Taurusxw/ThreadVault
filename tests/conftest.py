@@ -20,4 +20,7 @@ def isolate_local_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("CODEX_HOME", str(codex_home))
     monkeypatch.delenv("CODEX_SQLITE_HOME", raising=False)
     monkeypatch.setenv("APPDATA", str(runtime_root / "appdata"))
+    # Rich forces ANSI styling when this host flag is present, which makes
+    # CliRunner content assertions depend on escape-code placement.
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.setattr(restore_history_module, "default_restore_history_path", lambda: tmp_path / "restore-history.jsonl")

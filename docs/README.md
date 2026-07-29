@@ -60,7 +60,7 @@ For path confusion:
 - `progress/releases/v1.0.0/` - v1.0.0 release notes and acceptance.
 - `progress/releases/v2.4.0/` - v2.4.0 release notes, acceptance, and artifact boundary.
 - `progress/releases/v2.4.1/` - v2.4.1 source-catch-up, Codex integration, desktop polish, CI, and acceptance records.
-- `progress/releases/v2.4.2/` - v2.4.2 Python 3.11 CLI dependency-compatibility hotfix and acceptance records.
+- `progress/releases/v2.4.2/` - v2.4.2 deterministic GitHub Actions CLI-test hotfix and acceptance records.
 - `archive/` - related research appendices that are not part of the active ThreadVault product plan.
 - `roadmap/v3-clients-and-team-governance.md` - historical v3 richer clients and team governance roadmap.
 

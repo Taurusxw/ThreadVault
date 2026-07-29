@@ -16,7 +16,7 @@ Development now uses an isolated `.venv`. The project environment passes `pip ch
 
 ## Recently Completed
 
-- Bumped to `2.4.2` after the first public matrix exposed Typer 0.27.0/Python 3.11 CLI incompatibility; bounded Typer below 0.27 without rewriting the v2.4.1 tag.
+- Bumped to `2.4.2` after the first public matrix exposed GitHub Actions forced-color interference in `CliRunner` content assertions; isolated those assertions from host styling without rewriting the v2.4.1 tag.
 - Added source freshness and targeted catch-up, catch-up-first smart backup, combined Codex Hook/MCP setup, generated contracts, and desktop one-click integration.
 - Registered the exact read-only ThreadVault MCP entry and caught the live archive up while Codex was active; created and deeply verified a new Evidence backup.
 - Added Windows Python 3.11/3.12 CI with ruff, 70% branch coverage, isolated desktop smoke, and MCP manifest gates.
@@ -84,7 +84,7 @@ Latest validation for the complete `2.4.2` release baseline:
 .\.venv\Scripts\threadvault.exe desktop smoke --db <temporary-db> --json
 ```
 
-Current result: `311 passed, 1 skipped` with `74.88%` branch coverage; source/test ruff, `compileall`, `pip check`, generated schemas, isolated `desktop_smoke.v2`, and the six-tool read-only MCP manifest passed. Rendered Windows QA covered real sessions, Backup Center, Codex Integration, focus/scroll/disabled states, and confirmed actions; the reproduced empty-window regression was fixed. Live doctor reports schema v8, 404 sessions, 939,614 events, seven warnings, FTS 939,614/939,614, and no maintenance suggestion. Deep cold verification reports 98,913 blobs with zero missing or invalid references. The exact Hook and MCP configs match; current Hook trust/coverage still requires Codex-owned `/hooks` review and the next Stop event.
+Current result: `312 passed` with `79.27%` branch coverage under a reproduced `GITHUB_ACTIONS=true` environment and Typer 0.27.0; source/test ruff, `compileall`, `pip check`, generated schemas, isolated `desktop_smoke.v2`, and the six-tool read-only MCP manifest passed. Rendered Windows QA covered real sessions, Backup Center, Codex Integration, focus/scroll/disabled states, and confirmed actions; the reproduced empty-window regression was fixed. Live doctor reports schema v8, 404 sessions, 939,614 events, seven warnings, FTS 939,614/939,614, and no maintenance suggestion. Deep cold verification reports 98,913 blobs with zero missing or invalid references. The exact Hook and MCP configs match; current Hook trust/coverage still requires Codex-owned `/hooks` review and the next Stop event.
 
 Detailed pre-2.x validation remains in the corresponding round and release records. Those historical snapshots describe the state at their original version and are not the current runtime baseline.
 
