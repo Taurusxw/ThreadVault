@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -206,6 +207,18 @@ def test_desktop_smoke_checks_non_window_runtime(tmp_path: Path) -> None:
     assert payload["desktop"]["directory_pickers"] is True
     assert payload["snapshot"]["session_count"] > 0
     assert payload["snapshot"]["selected_session_id"]
+
+
+def test_desktop_smoke_json_is_ascii_safe_and_parseable(tmp_path: Path) -> None:
+    db = import_fixture(tmp_path)
+
+    result = CliRunner().invoke(app, ["desktop", "smoke", "--db", str(db), "--json"])
+
+    assert result.exit_code == 0, result.output
+    result.output.encode("ascii")
+    payload = json.loads(result.output)
+    assert payload["contract_version"] == DESKTOP_SMOKE_CONTRACT_VERSION
+    assert payload["ok"] is True
 
 
 def test_desktop_cli_discovery_does_not_launch_window() -> None:

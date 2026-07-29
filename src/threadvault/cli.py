@@ -46,7 +46,8 @@ def _store(db: Path | None, config: Path | None = None) -> ArchiveStore:
 
 
 def _print_json(value) -> None:
-    typer.echo(json.dumps(value, ensure_ascii=False, indent=2, default=str))
+    # Machine output must survive legacy Windows/charmap stdout as well as UTF-8 terminals.
+    typer.echo(json.dumps(value, ensure_ascii=True, indent=2, default=str))
 
 
 @app.callback()

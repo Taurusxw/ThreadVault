@@ -3,6 +3,7 @@
 ## 2026-07-29 - 2.4.2 Deterministic Windows CI Hotfix
 
 - Neutralized GitHub Actions' forced ANSI styling inside `CliRunner` tests so CLI content assertions are independent of escape-code placement on Python 3.11 and 3.12.
+- Made machine-readable JSON ASCII-safe through standard JSON escaping so Chinese diagnostics survive legacy Windows runner stdout encodings without changing parsed values.
 - Kept the real isolated desktop-smoke and MCP-manifest steps in the native GitHub Actions environment.
 - Preserved the immutable v2.4.1 tag and published the compatibility correction as a separate patch release.
 
